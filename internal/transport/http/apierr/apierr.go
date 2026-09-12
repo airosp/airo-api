@@ -72,3 +72,23 @@ func WriteJSON(w http.ResponseWriter, code int, body any) {
 		_ = json.NewEncoder(w).Encode(body)
 	}
 }
+
+// Códigos de autenticação — docs/backend/08-autenticacao.md §11.
+const (
+	InvalidPhone       Code = "invalid_phone"
+	OTPInvalid         Code = "otp_invalid"
+	OTPExpired         Code = "otp_expired"
+	OTPExhausted       Code = "otp_exhausted"
+	DeliveryFailed     Code = "delivery_failed"
+	TokenReuseDetected Code = "token_reuse_detected"
+)
+
+func init() {
+	status[InvalidPhone] = http.StatusUnprocessableEntity
+	// ⚠️ `otp_invalid` é 401 e **não diz quantas tentativas faltam**.
+	status[OTPInvalid] = http.StatusUnauthorized
+	status[OTPExpired] = http.StatusGone
+	status[OTPExhausted] = http.StatusTooManyRequests
+	status[DeliveryFailed] = http.StatusBadGateway
+	status[TokenReuseDetected] = http.StatusUnauthorized
+}

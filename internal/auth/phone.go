@@ -6,6 +6,8 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -65,4 +67,17 @@ func MaskPhone(e164 string) string {
 		}
 	}
 	return string(masked)
+}
+
+// HashIP reduz um IP a hash.
+//
+// O IP em claro é dado pessoal e não precisa de existir: para contar pedidos por
+// origem, o hash chega — e uma fuga dos registos não entrega a morada de rede de
+// ninguém.
+func HashIP(ip string) string {
+	if ip == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte("airo-ip:" + ip))
+	return hex.EncodeToString(sum[:16])
 }

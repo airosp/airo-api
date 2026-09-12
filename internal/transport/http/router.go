@@ -20,6 +20,7 @@ type Deps struct {
 	// não são registadas. Nunca ficam abertas — uma rota de escrita sem
 	// autenticação é pior do que uma rota que não existe.
 	Auth        middleware.TokenVerifier
+	AuthAPI     *handlers.Auth
 	Goals       *handlers.Goals
 	Training    *handlers.Training
 	Idempotency middleware.Store
@@ -32,6 +33,14 @@ func NewRouter(d Deps) http.Handler {
 	health := handlers.Health{Version: d.Version, DB: d.DB, Schema: d.Schema}
 	mux.HandleFunc("GET /healthz", health.Live)
 	mux.HandleFunc("GET /readyz", health.Ready)
+
+	// As rotas de entrada são públicas por definição: quem ainda não tem sessão
+	// não pode provar que a tem. A defesa aqui são os limites, não o token.
+	if d.AuthAPI != nil {
+		mux.HandleFunc("POST /v1/auth/otp/request", d.AuthAPI.RequestOTP)
+		mux.HandleFunc("POST /v1/auth/otp/verify", d.AuthAPI.VerifyOTP)
+		mux.HandleFunc("POST /v1/auth/token/refresh", d.AuthAPI.Refresh)
+	}
 
 	if d.Auth != nil && (d.Goals != nil || d.Training != nil) {
 		store := d.Idempotency
