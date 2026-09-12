@@ -26,6 +26,10 @@ func CORS(allowed []string) func(http.Handler) http.Handler {
 	}
 
 	const headers = "Authorization, Content-Type, Idempotency-Key, X-Request-Id, X-Device-Id"
+	// Sem isto o JS não consegue ler estes dois: o browser só deixa ver a
+	// lista segura, e `Retry-After` não está nela. O ecrã dizia "tenta daqui a
+	// pouco" sem saber quanto — e o contador ficava mudo.
+	const exposed = "Retry-After, X-Request-Id"
 	const methods = "GET, POST, PATCH, DELETE, OPTIONS"
 	maxAge := strconv.Itoa(int((24 * time.Hour).Seconds()))
 
@@ -41,6 +45,7 @@ func CORS(allowed []string) func(http.Handler) http.Handler {
 				w.Header().Add("Vary", "Origin")
 				w.Header().Set("Access-Control-Allow-Methods", methods)
 				w.Header().Set("Access-Control-Allow-Headers", headers)
+				w.Header().Set("Access-Control-Expose-Headers", exposed)
 				w.Header().Set("Access-Control-Max-Age", maxAge)
 			}
 

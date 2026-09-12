@@ -34,6 +34,11 @@ func TestPedidoPrevioAutorizadoNaoChegaAoHandler(t *testing.T) {
 		!contains(h, "Idempotency-Key") {
 		t.Fatalf("cabeçalhos autorizados = %q", h)
 	}
+	// `Retry-After` não está na lista segura do browser: sem o expor, o ecrã
+	// diz "tenta daqui a pouco" sem saber quanto tempo.
+	if e := w.Header().Get("Access-Control-Expose-Headers"); !contains(e, "Retry-After") {
+		t.Fatalf("cabeçalhos expostos = %q", e)
+	}
 	if w.Header().Get("Vary") != "Origin" {
 		t.Fatal("falta Vary: Origin — uma cache serviria a resposta de uma origem a outra")
 	}

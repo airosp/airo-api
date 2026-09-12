@@ -91,15 +91,23 @@ func Wire(p Platform) Deps {
 
 // logSender escreve o código no registo em vez de o enviar.
 //
-// ⚠️ **Só em desenvolvimento.** Em produção é recusado no arranque: um código
-// de autenticação em registos é o mesmo que não ter código. Ver a lista de
-// verificação em docs/backend/08-autenticacao.md §14.
+// ⚠️ **Só em desenvolvimento.** O `main` recusa arrancar em produção sem canal
+// a sério: um código de autenticação em registos é o mesmo que não ter código.
+// Ver a lista de verificação em docs/backend/08-autenticacao.md §14.
+//
+// O código aparece por inteiro, e é deliberado: sem ele não há forma de
+// percorrer a entrada de ponta a ponta numa máquina de trabalho, e uma entrada
+// que nunca se percorreu inteira é uma entrada por testar.
 type logSender struct{ log *slog.Logger }
 
 func NewLogSender(log *slog.Logger) service.Sender { return logSender{log: log} }
 
 func (s logSender) Send(_ context.Context, phone, code, channel string) (string, error) {
-	s.log.Warn("canal de envio por escrever — código não enviado",
-		"phone", auth.MaskPhone(phone), "channel", channel, "code_length", len(code))
+	// A chave não é `code`: o `scrub` do registo oculta essa, e bem — é o que
+	// impede um código de escorregar para os registos de produção por
+	// distracção. Aqui o nome diz ao que vem, e este remetente não existe fora
+	// de desenvolvimento.
+	s.log.Warn("SEM CANAL DE ENVIO — código no registo, só em desenvolvimento",
+		"phone", auth.MaskPhone(phone), "channel", channel, "codigo_desenvolvimento", code)
 	return "dev-" + time.Now().Format("150405"), nil
 }
