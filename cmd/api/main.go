@@ -21,6 +21,7 @@ import (
 	"github.com/airosp/airo-api/internal/platform/config"
 	"github.com/airosp/airo-api/internal/platform/logger"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
+	"github.com/airosp/airo-api/internal/platform/whatsapp"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
 	airohttp "github.com/airosp/airo-api/internal/transport/http"
@@ -127,13 +128,30 @@ func main() {
 	// O canal de envio do código. Em produção exige-se um a sério; em
 	// desenvolvimento o código vai para o registo, e diz-se que vai.
 	var sender service.Sender
-	if cfg.IsProduction() {
-		if cfg.WhatsApp.Token == "" || cfg.WhatsApp.PhoneNumberID == "" {
-			log.Error("em produção é preciso um canal de envio configurado")
+	if cfg.WhatsApp.Token != "" && cfg.WhatsApp.PhoneNumberID != "" {
+		wa, err := whatsapp.New(whatsapp.Config{
+			PhoneNumberID: cfg.WhatsApp.PhoneNumberID,
+			Token:         cfg.WhatsApp.Token,
+			Template:      cfg.WhatsApp.Template,
+			Language:      cfg.WhatsApp.Language,
+			Log:           log,
+		})
+		if err != nil {
+			log.Error("canal de WhatsApp", "error", err)
 			os.Exit(1)
 		}
-		sender = airohttp.NewLogSender(log) // ← substituir pelo WhatsApp Cloud API (T3.5)
+		sender = wa
+		log.Info("canal de envio: WhatsApp Cloud API",
+			"template", cfg.WhatsApp.Template, "lingua", cfg.WhatsApp.Language)
+	} else if cfg.IsProduction() {
+		// Em produção, um remetente que escreve o código no registo não é um
+		// modo degradado: é o código de toda a gente num ficheiro de texto, e
+		// ninguém a receber mensagem nenhuma. Melhor não arrancar.
+		log.Error("em produção é preciso um canal de envio configurado",
+			"em_falta", "AIRO_WHATSAPP_TOKEN e AIRO_WHATSAPP_PHONE_NUMBER_ID")
+		os.Exit(1)
 	} else {
+		log.Warn("sem WhatsApp configurado: o código vai para o registo")
 		sender = airohttp.NewLogSender(log)
 	}
 

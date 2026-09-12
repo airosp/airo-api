@@ -43,6 +43,9 @@ type WhatsAppConfig struct {
 	PhoneNumberID string
 	Token         string
 	Template      string
+	// Language é o código de língua do template aprovado. `pt_PT` e `pt_BR`
+	// são templates diferentes para a Meta, não variantes do mesmo.
+	Language      string
 	WebhookSecret string
 }
 
@@ -62,6 +65,7 @@ func Load() (Config, error) {
 			PhoneNumberID: get("AIRO_WHATSAPP_PHONE_NUMBER_ID", ""),
 			Token:         get("AIRO_WHATSAPP_TOKEN", ""),
 			Template:      get("AIRO_WHATSAPP_TEMPLATE", "airo_otp"),
+			Language:      get("AIRO_WHATSAPP_LANGUAGE", "pt_PT"),
 			WebhookSecret: get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
 		},
 	}
