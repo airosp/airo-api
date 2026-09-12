@@ -17,9 +17,14 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
 FROM alpine:3.20
 # ca-certificates para falar com a Meta; tzdata porque o dia é local ao
 # utilizador e sem fusos o Clock devolve o dia errado.
-RUN apk add --no-cache ca-certificates tzdata && \
+RUN apk add --no-cache ca-certificates tzdata libcap && \
     adduser -D -u 10001 airo
 COPY --from=build /out/airo-api /usr/local/bin/airo-api
+
+# Abrir a porta 80 exige privilégio, e correr como root para o conseguir seria
+# trocar um problema por outro pior. A capacidade dá exactamente isso e mais
+# nada: ligar a portas baixas, sem nenhum dos outros poderes do root.
+RUN setcap 'cap_net_bind_service=+ep' /usr/local/bin/airo-api
 COPY migrations /migrations
 USER airo
 
