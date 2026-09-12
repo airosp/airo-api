@@ -1,0 +1,15 @@
+# binários
+/bin/
+/airo-api
+/airo-worker
+
+# ambiente — nunca versionado
+.env
+.env.*
+!.env.example
+
+# ferramentas
+.DS_Store
+*.test
+*.out
+coverage.*
