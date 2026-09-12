@@ -1,0 +1,332 @@
+package service
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/airosp/airo-api/internal/auth"
+	"github.com/airosp/airo-api/internal/platform/clock"
+	repo "github.com/airosp/airo-api/internal/repository/postgres"
+)
+
+// Sender entrega o código. WhatsApp em produção; nos testes, um duplo.
+type Sender interface {
+	Send(ctx context.Context, phone, code, channel string) (messageID string, err error)
+}
+
+type AuthConfig struct {
+	Pepper []byte
+
+	CodeTTL     time.Duration
+	MaxAttempts int
+	ResendAfter time.Duration
+	RefreshTTL  time.Duration
+
+	Limits auth.Limits
+}
+
+func DefaultAuthConfig(pepper []byte) AuthConfig {
+	return AuthConfig{
+		Pepper: pepper,
+		// Cinco minutos: curto o bastante para limitar, longo para trocar de app
+		// e voltar.
+		CodeTTL:     5 * time.Minute,
+		MaxAttempts: 5,
+		ResendAfter: 60 * time.Second,
+		RefreshTTL:  60 * 24 * time.Hour,
+		Limits:      auth.DefaultLimits(),
+	}
+}
+
+type AuthService struct {
+	repo    *repo.AuthRepo
+	limiter auth.Limiter
+	sender  Sender
+	cfg     AuthConfig
+	clk     clock.Clock
+}
+
+func NewAuthService(r *repo.AuthRepo, l auth.Limiter, s Sender, cfg AuthConfig, clk clock.Clock) *AuthService {
+	return &AuthService{repo: r, limiter: l, sender: s, cfg: cfg, clk: clk}
+}
+
+type RequestOTPInput struct {
+	RawPhone string
+	Channel  string
+	DeviceID string
+	IPHash   string
+}
+
+type RequestOTPResult struct {
+	ChallengeID string
+	ExpiresAt   time.Time
+	ResendAfter int
+}
+
+var (
+	ErrRateLimited    = errors.New("limite excedido")
+	ErrDeliveryFailed = errors.New("entrega falhou")
+	ErrOTPInvalid     = errors.New("código inválido")
+	ErrOTPExpired     = errors.New("código expirado")
+	ErrOTPExhausted   = errors.New("tentativas esgotadas")
+)
+
+// RequestOTP pede um código.
+//
+// ⚠️ **A resposta é exactamente a mesma para número registado e desconhecido.**
+// E o utilizador **não** é criado aqui: criar é mais lento do que procurar, e se
+// o registo demorasse sistematicamente mais, o tempo de resposta revelaria a
+// informação que a resposta esconde.
+func (s *AuthService) RequestOTP(ctx context.Context, in RequestOTPInput) (RequestOTPResult, error) {
+	phone, region, err := auth.NormalizePhone(in.RawPhone, auth.DefaultRegion)
+	if err != nil {
+		return RequestOTPResult{}, err
+	}
+	_ = region
+
+	decision, err := auth.Guard(ctx, s.limiter, s.cfg.Limits, auth.OTPRequest{
+		PhoneE164: phone, CountryCode: phone[:4], IPHash: in.IPHash, DeviceID: in.DeviceID,
+	})
+	if err != nil {
+		return RequestOTPResult{}, err
+	}
+	if !decision.Allowed {
+		// O eixo vai para a auditoria, nunca para a resposta: dizer qual limite
+		// bateu diz ao atacante o que contornar.
+		_ = s.repo.AppendAuthEvent(ctx, "otp_rate_limited", nil, &phone, nil,
+			map[string]any{"axis": decision.Axis})
+		return RequestOTPResult{}, fmt.Errorf("%w: %v", ErrRateLimited, decision.RetryAfter)
+	}
+
+	code, err := auth.GenerateCode()
+	if err != nil {
+		return RequestOTPResult{}, err
+	}
+	hash, err := auth.HashCode(code, s.cfg.Pepper)
+	if err != nil {
+		return RequestOTPResult{}, err
+	}
+
+	channel := in.Channel
+	if channel == "" || channel == "auto" {
+		channel = "whatsapp"
+	}
+
+	var device *string
+	if in.DeviceID != "" {
+		d := in.DeviceID
+		device = &d
+	}
+
+	now := s.clk.Now()
+	id, err := s.repo.CreateChallenge(ctx, repo.Challenge{
+		PhoneE164: phone, CodeHash: hash, Channel: channel, DeviceID: device,
+		CreatedAt: now, ExpiresAt: now.Add(s.cfg.CodeTTL), MaxAttempts: s.cfg.MaxAttempts,
+	})
+	if err != nil {
+		return RequestOTPResult{}, err
+	}
+
+	if _, err := s.sender.Send(ctx, phone, code, channel); err != nil {
+		_ = s.repo.AppendAuthEvent(ctx, "otp_delivery_failed", nil, &phone, device, nil)
+		return RequestOTPResult{}, fmt.Errorf("%w: %v", ErrDeliveryFailed, err)
+	}
+	_ = s.repo.AppendAuthEvent(ctx, "otp_requested", nil, &phone, device, map[string]any{"channel": channel})
+
+	return RequestOTPResult{
+		ChallengeID: id,
+		ExpiresAt:   now.Add(s.cfg.CodeTTL),
+		ResendAfter: int(s.cfg.ResendAfter.Seconds()),
+	}, nil
+}
+
+type VerifyOTPInput struct {
+	ChallengeID string
+	Code        string
+	DeviceID    string
+	Platform    string
+}
+
+type VerifyOTPResult struct {
+	UserID       string
+	RefreshToken string
+	// IsNewUser só aparece **depois** de o código ser verificado: nessa altura a
+	// pessoa já provou controlar o número.
+	IsNewUser bool
+}
+
+// VerifyOTP confirma o código e, se for a primeira vez, cria a conta.
+func (s *AuthService) VerifyOTP(ctx context.Context, in VerifyOTPInput) (VerifyOTPResult, error) {
+	var out VerifyOTPResult
+	var failed bool
+	var challengeID, phone string
+
+	err := s.repo.WithTx(ctx, func(ctx context.Context) error {
+		challenge, err := s.repo.Challenge(ctx, in.ChallengeID)
+		if err != nil {
+			return ErrOTPInvalid
+		}
+		challengeID, phone = challenge.ID, challenge.PhoneE164
+
+		switch challenge.Status {
+		case "exhausted":
+			return ErrOTPExhausted
+		case "verified", "superseded":
+			return ErrOTPInvalid
+		}
+		if s.clk.Now().After(challenge.ExpiresAt) {
+			return ErrOTPExpired
+		}
+
+		if !auth.VerifyCode(in.Code, challenge.CodeHash, s.cfg.Pepper) {
+			// ⚠️ A contagem é **fora** desta transacção.
+			//
+			// Contá-la aqui dentro e devolver erro a seguir faz a transacção
+			// reverter — e a contagem com ela. As tentativas ficavam sempre a
+			// zero e as cinco de limite nunca chegavam: a força bruta tinha um
+			// milhão de tentativas, não cinco.
+			failed = true
+			return ErrOTPInvalid
+		}
+
+		if err := s.repo.MarkVerified(ctx, challenge.ID); err != nil {
+			return err
+		}
+
+		userID, existed, err := s.repo.UserByPhone(ctx, challenge.PhoneE164)
+		if err != nil {
+			return err
+		}
+		if !existed {
+			_, region, _ := auth.NormalizePhone(challenge.PhoneE164, auth.DefaultRegion)
+			userID, err = s.repo.CreateUser(ctx, challenge.PhoneE164, region)
+			if err != nil {
+				return err
+			}
+		}
+		out.UserID, out.IsNewUser = userID, !existed
+
+		platform := in.Platform
+		if platform == "" {
+			platform = "ios"
+		}
+		if err := s.repo.TouchDevice(ctx, in.DeviceID, userID, platform); err != nil {
+			return err
+		}
+
+		token, err := s.issueRefresh(ctx, userID, in.DeviceID, "")
+		if err != nil {
+			return err
+		}
+		out.RefreshToken = token
+
+		return s.repo.AppendAuthEvent(ctx, "login", &userID, &challenge.PhoneE164, &in.DeviceID,
+			map[string]any{"isNewUser": out.IsNewUser})
+	})
+
+	if failed {
+		// Fora da transacção revertida: a contagem persiste, que é o que a
+		// torna uma defesa.
+		attempts, countErr := s.repo.CountAttempt(ctx, challengeID)
+		if countErr != nil {
+			return out, countErr
+		}
+		_ = s.repo.AppendAuthEvent(ctx, "otp_failed", nil, &phone, nil,
+			map[string]any{"attempts": attempts})
+		if attempts >= s.cfg.MaxAttempts {
+			return out, ErrOTPExhausted
+		}
+		// ⚠️ A mensagem **não diz quantas tentativas faltam**: isso diz ao
+		// atacante exactamente quanto orçamento lhe resta.
+		return out, ErrOTPInvalid
+	}
+	return out, err
+}
+
+// issueRefresh emite um token opaco. Opaco e não JWT: tem de ser revogável, e um
+// JWT só é revogável com uma lista de revogados — que é uma tabela na mesma, com
+// a desvantagem de parecer que não é precisa.
+func (s *AuthService) issueRefresh(ctx context.Context, userID, deviceID, familyID string) (string, error) {
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	token := base64.RawURLEncoding.EncodeToString(raw)
+	sum := sha256.Sum256([]byte(token))
+
+	if _, _, err := s.repo.InsertRefresh(ctx, userID, deviceID, familyID, sum[:],
+		s.clk.Now().Add(s.cfg.RefreshTTL)); err != nil {
+		return "", err
+	}
+	return token, nil
+}
+
+type RefreshResult struct {
+	UserID       string
+	RefreshToken string
+}
+
+// Refresh roda o token e **detecta reutilização**.
+//
+// Cada refresh devolve um novo e invalida o anterior. Se um token já usado
+// voltar a aparecer, foi roubado: revoga-se a família inteira. Sem isto, quem
+// copia um refresh fica com acesso indefinido sem que se note.
+func (s *AuthService) Refresh(ctx context.Context, token, deviceID string) (RefreshResult, error) {
+	var out RefreshResult
+	var reuse *repo.RefreshToken
+	sum := sha256.Sum256([]byte(token))
+
+	err := s.repo.WithTx(ctx, func(ctx context.Context) error {
+		existing, err := s.repo.RefreshByHash(ctx, sum[:])
+		if err != nil {
+			return repo.ErrTokenNotFound
+		}
+
+		if existing.RevokedAt != nil {
+			// Já foi usado: foi roubado.
+			//
+			// ⚠️ A revogação é **fora** desta transacção, pela mesma razão que a
+			// contagem de tentativas: revogar aqui e devolver erro a seguir faz
+			// a transacção reverter, e a família ficava viva. O atacante
+			// continuava lá dentro, e o registo diria que tinha sido expulso.
+			t := existing
+			reuse = &t
+			return repo.ErrTokenReuse
+		}
+		if s.clk.Now().After(existing.ExpiresAt) {
+			return repo.ErrTokenNotFound
+		}
+
+		next, err := s.issueRefresh(ctx, existing.UserID, existing.DeviceID, existing.FamilyID)
+		if err != nil {
+			return err
+		}
+		nextSum := sha256.Sum256([]byte(next))
+		created, err := s.repo.RefreshByHash(ctx, nextSum[:])
+		if err != nil {
+			return err
+		}
+		if err := s.repo.ReplaceRefresh(ctx, existing.ID, created.ID); err != nil {
+			return err
+		}
+		out.UserID, out.RefreshToken = existing.UserID, next
+		return nil
+	})
+
+	if reuse != nil {
+		// Não se sabe qual das duas partes é a legítima, e deixar as duas a
+		// correr é deixar o atacante lá dentro. Cai tudo, e a pessoa volta a
+		// entrar.
+		if err := s.repo.RevokeFamily(ctx, reuse.FamilyID, "reuse_detected"); err != nil {
+			return out, err
+		}
+		_ = s.repo.AppendAuthEvent(ctx, "token_reuse_detected", &reuse.UserID, nil, &reuse.DeviceID, nil)
+		return out, repo.ErrTokenReuse
+	}
+	return out, err
+}

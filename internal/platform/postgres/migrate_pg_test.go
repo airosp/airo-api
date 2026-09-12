@@ -57,6 +57,7 @@ func TestMigrationAppliesCleanly(t *testing.T) {
 		"exercise", "workout_session", "exercise_prescription", "exercise_set",
 		"food", "nutrition_strategy", "daily_plan", "planned_meal", "nutrition_log",
 		"assessment", "risk", "adaptation", "journey_event",
+		"otp_challenge", "device", "refresh_token", "auth_event",
 		"schema_migration",
 	} {
 		var exists bool
@@ -86,8 +87,25 @@ func TestMigrationAppliesCleanly(t *testing.T) {
 			t.Errorf("%s sem idempotency_key", table)
 		}
 	}
-	if types != 33 {
-		t.Errorf("%d tipos enumerados, esperava 33", types)
+	// Também não se fixa o número de tipos, pela mesma razão: cresce com cada
+	// migração. O que interessa é que os que o domínio usa existem.
+	for _, enum := range []string{
+		"goal_horizon", "goal_direction", "lifecycle",
+		"session_focus", "session_role", "session_status",
+		"meal_slot", "log_status", "otp_channel", "otp_status",
+	} {
+		var exists bool
+		if err := pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = $1 AND typtype = 'e')`,
+			enum).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Errorf("tipo %q em falta", enum)
+		}
+	}
+	if types < 33 {
+		t.Errorf("%d tipos — o esquema encolheu", types)
 	}
 	t.Logf("esquema aplicado: %d tabelas, %d tipos enumerados", tables, types)
 }

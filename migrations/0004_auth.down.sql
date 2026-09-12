@@ -1,0 +1,11 @@
+DROP INDEX IF EXISTS auth_event_phone;
+DROP TABLE IF EXISTS auth_event;
+DROP INDEX IF EXISTS refresh_by_user;
+DROP INDEX IF EXISTS refresh_by_family;
+DROP TABLE IF EXISTS refresh_token;
+DROP TABLE IF EXISTS device;
+DROP INDEX IF EXISTS otp_cleanup;
+DROP INDEX IF EXISTS otp_one_pending;
+DROP TABLE IF EXISTS otp_challenge;
+DROP TYPE IF EXISTS otp_status;
+DROP TYPE IF EXISTS otp_channel;
