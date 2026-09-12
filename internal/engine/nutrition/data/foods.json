@@ -1,0 +1,1076 @@
+[
+ {
+  "id": "chicken",
+  "name": "Frango",
+  "category": "protein",
+  "kcal": 165,
+  "macros": {
+   "protein": 31,
+   "carbs": 0,
+   "fat": 3.6
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 120,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "fish_local",
+  "name": "Peixe",
+  "category": "protein",
+  "kcal": 130,
+  "macros": {
+   "protein": 24,
+   "carbs": 0,
+   "fat": 3
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 130,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "dried_fish",
+  "name": "Peixe seco",
+  "category": "protein",
+  "kcal": 290,
+  "macros": {
+   "protein": 62,
+   "carbs": 0,
+   "fat": 4
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 50,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "eggs",
+  "name": "Ovos",
+  "category": "protein",
+  "kcal": 143,
+  "macros": {
+   "protein": 13,
+   "carbs": 1,
+   "fat": 10
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian"
+  ],
+  "serving": 100
+ },
+ {
+  "id": "beef",
+  "name": "Carne de vaca",
+  "category": "protein",
+  "kcal": 217,
+  "macros": {
+   "protein": 26,
+   "carbs": 0,
+   "fat": 12
+  },
+  "budget": "high",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 110,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "beans",
+  "name": "Feijão",
+  "category": "protein",
+  "kcal": 127,
+  "macros": {
+   "protein": 8.7,
+   "carbs": 22.8,
+   "fat": 0.5
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150
+ },
+ {
+  "id": "lentils",
+  "name": "Lentilhas",
+  "category": "protein",
+  "kcal": 116,
+  "macros": {
+   "protein": 9,
+   "carbs": 20,
+   "fat": 0.4
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "tofu",
+  "name": "Tofu",
+  "category": "protein",
+  "kcal": 144,
+  "macros": {
+   "protein": 15,
+   "carbs": 3,
+   "fat": 9
+  },
+  "budget": "medium",
+  "styles": [
+   "vegetarian",
+   "vegan",
+   "high_protein"
+  ],
+  "serving": 130
+ },
+ {
+  "id": "peanuts",
+  "name": "Amendoim",
+  "category": "protein",
+  "kcal": 567,
+  "macros": {
+   "protein": 26,
+   "carbs": 16,
+   "fat": 49
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 30,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "yogurt",
+  "name": "Iogurte natural",
+  "category": "dairy",
+  "kcal": 61,
+  "macros": {
+   "protein": 3.5,
+   "carbs": 4.7,
+   "fat": 3.3
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian"
+  ],
+  "serving": 170,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "xima",
+  "name": "Xima",
+  "category": "carb",
+  "kcal": 112,
+  "macros": {
+   "protein": 2.4,
+   "carbs": 25,
+   "fat": 0.4
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 250,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "rice",
+  "name": "Arroz",
+  "category": "carb",
+  "kcal": 130,
+  "macros": {
+   "protein": 2.7,
+   "carbs": 28,
+   "fat": 0.3
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 180,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "sweet_potato",
+  "name": "Batata doce",
+  "category": "carb",
+  "kcal": 86,
+  "macros": {
+   "protein": 1.6,
+   "carbs": 20,
+   "fat": 0.1
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 200
+ },
+ {
+  "id": "cassava",
+  "name": "Mandioca",
+  "category": "carb",
+  "kcal": 160,
+  "macros": {
+   "protein": 1.4,
+   "carbs": 38,
+   "fat": 0.3
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "bread",
+  "name": "Pão integral",
+  "category": "carb",
+  "kcal": 247,
+  "macros": {
+   "protein": 13,
+   "carbs": 41,
+   "fat": 3.4
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 80,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "oats",
+  "name": "Aveia",
+  "category": "carb",
+  "kcal": 389,
+  "macros": {
+   "protein": 17,
+   "carbs": 66,
+   "fat": 7
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 60,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "matapa",
+  "name": "Matapa",
+  "category": "vegetable",
+  "kcal": 95,
+  "macros": {
+   "protein": 4,
+   "carbs": 6,
+   "fat": 6
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "couve",
+  "name": "Couve",
+  "category": "vegetable",
+  "kcal": 35,
+  "macros": {
+   "protein": 2.9,
+   "carbs": 5.6,
+   "fat": 0.6
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "tomato_salad",
+  "name": "Salada de tomate",
+  "category": "vegetable",
+  "kcal": 22,
+  "macros": {
+   "protein": 1,
+   "carbs": 4,
+   "fat": 0.3
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "banana",
+  "name": "Banana",
+  "category": "fruit",
+  "kcal": 89,
+  "macros": {
+   "protein": 1.1,
+   "carbs": 23,
+   "fat": 0.3
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 120,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "papaya",
+  "name": "Papaia",
+  "category": "fruit",
+  "kcal": 43,
+  "macros": {
+   "protein": 0.5,
+   "carbs": 11,
+   "fat": 0.3
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 200,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "oil",
+  "name": "Óleo",
+  "category": "fat",
+  "kcal": 884,
+  "macros": {
+   "protein": 0,
+   "carbs": 0,
+   "fat": 100
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 10
+ },
+ {
+  "id": "coconut",
+  "name": "Coco",
+  "category": "fat",
+  "kcal": 354,
+  "macros": {
+   "protein": 3.3,
+   "carbs": 15,
+   "fat": 33
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 30
+ },
+ {
+  "id": "avocado",
+  "name": "Abacate",
+  "category": "fat",
+  "kcal": 160,
+  "macros": {
+   "protein": 2,
+   "carbs": 9,
+   "fat": 15
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 80
+ },
+ {
+  "id": "pork",
+  "name": "Carne de porco",
+  "category": "protein",
+  "kcal": 242,
+  "macros": {
+   "protein": 27,
+   "carbs": 0,
+   "fat": 14
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 110,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "goat",
+  "name": "Cabrito",
+  "category": "protein",
+  "kcal": 143,
+  "macros": {
+   "protein": 27,
+   "carbs": 0,
+   "fat": 3
+  },
+  "budget": "high",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 120,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "sardines",
+  "name": "Sardinha",
+  "category": "protein",
+  "kcal": 208,
+  "macros": {
+   "protein": 25,
+   "carbs": 0,
+   "fat": 11
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 100,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "tuna_can",
+  "name": "Atum em lata",
+  "category": "protein",
+  "kcal": 116,
+  "macros": {
+   "protein": 26,
+   "carbs": 0,
+   "fat": 1
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 90
+ },
+ {
+  "id": "prawns",
+  "name": "Camarão",
+  "category": "protein",
+  "kcal": 99,
+  "macros": {
+   "protein": 24,
+   "carbs": 0,
+   "fat": 0.3
+  },
+  "budget": "high",
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "serving": 120,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "cowpeas",
+  "name": "Feijão nhemba",
+  "category": "protein",
+  "kcal": 116,
+  "macros": {
+   "protein": 8,
+   "carbs": 21,
+   "fat": 0.5
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "chickpeas",
+  "name": "Grão-de-bico",
+  "category": "protein",
+  "kcal": 164,
+  "macros": {
+   "protein": 9,
+   "carbs": 27,
+   "fat": 2.6
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "soya",
+  "name": "Soja texturizada",
+  "category": "protein",
+  "kcal": 330,
+  "macros": {
+   "protein": 52,
+   "carbs": 30,
+   "fat": 1
+  },
+  "budget": "low",
+  "styles": [
+   "vegetarian",
+   "vegan",
+   "high_protein"
+  ],
+  "serving": 50,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "cashews",
+  "name": "Castanha de caju",
+  "category": "protein",
+  "kcal": 553,
+  "macros": {
+   "protein": 18,
+   "carbs": 30,
+   "fat": 44
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 30,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "milk",
+  "name": "Leite",
+  "category": "dairy",
+  "kcal": 61,
+  "macros": {
+   "protein": 3.2,
+   "carbs": 4.8,
+   "fat": 3.3
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian"
+  ],
+  "serving": 250,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "cheese",
+  "name": "Queijo",
+  "category": "dairy",
+  "kcal": 350,
+  "macros": {
+   "protein": 25,
+   "carbs": 2,
+   "fat": 27
+  },
+  "budget": "high",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian"
+  ],
+  "serving": 40,
+  "goodFor": [
+   "breakfast",
+   "snack"
+  ]
+ },
+ {
+  "id": "maize_porridge",
+  "name": "Papa de milho",
+  "category": "carb",
+  "kcal": 85,
+  "macros": {
+   "protein": 2,
+   "carbs": 18,
+   "fat": 0.5
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 250,
+  "goodFor": [
+   "breakfast",
+   "supper"
+  ]
+ },
+ {
+  "id": "potato",
+  "name": "Batata",
+  "category": "carb",
+  "kcal": 77,
+  "macros": {
+   "protein": 2,
+   "carbs": 17,
+   "fat": 0.1
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 200,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "pasta",
+  "name": "Massa",
+  "category": "carb",
+  "kcal": 158,
+  "macros": {
+   "protein": 6,
+   "carbs": 31,
+   "fat": 0.9
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 180,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "plantain",
+  "name": "Banana-pão",
+  "category": "carb",
+  "kcal": 122,
+  "macros": {
+   "protein": 1.3,
+   "carbs": 32,
+   "fat": 0.4
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 180,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "couscous",
+  "name": "Cuscuz",
+  "category": "carb",
+  "kcal": 112,
+  "macros": {
+   "protein": 3.8,
+   "carbs": 23,
+   "fat": 0.2
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 180,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "pumpkin_leaves",
+  "name": "Folhas de abóbora",
+  "category": "vegetable",
+  "kcal": 40,
+  "macros": {
+   "protein": 3.2,
+   "carbs": 5,
+   "fat": 0.8
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "cabbage",
+  "name": "Repolho",
+  "category": "vegetable",
+  "kcal": 25,
+  "macros": {
+   "protein": 1.3,
+   "carbs": 6,
+   "fat": 0.1
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "carrot",
+  "name": "Cenoura",
+  "category": "vegetable",
+  "kcal": 41,
+  "macros": {
+   "protein": 0.9,
+   "carbs": 10,
+   "fat": 0.2
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 120
+ },
+ {
+  "id": "okra",
+  "name": "Quiabo",
+  "category": "vegetable",
+  "kcal": 33,
+  "macros": {
+   "protein": 1.9,
+   "carbs": 7,
+   "fat": 0.2
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 150,
+  "goodFor": [
+   "lunch",
+   "dinner"
+  ]
+ },
+ {
+  "id": "mango",
+  "name": "Manga",
+  "category": "fruit",
+  "kcal": 60,
+  "macros": {
+   "protein": 0.8,
+   "carbs": 15,
+   "fat": 0.4
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 200,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "orange",
+  "name": "Laranja",
+  "category": "fruit",
+  "kcal": 47,
+  "macros": {
+   "protein": 0.9,
+   "carbs": 12,
+   "fat": 0.1
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 180,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "pineapple",
+  "name": "Ananás",
+  "category": "fruit",
+  "kcal": 50,
+  "macros": {
+   "protein": 0.5,
+   "carbs": 13,
+   "fat": 0.1
+  },
+  "budget": "low",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 180,
+  "goodFor": [
+   "breakfast",
+   "snack",
+   "supper"
+  ]
+ },
+ {
+  "id": "peanut_butter",
+  "name": "Manteiga de amendoim",
+  "category": "fat",
+  "kcal": 588,
+  "macros": {
+   "protein": 25,
+   "carbs": 20,
+   "fat": 50
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 20,
+  "goodFor": [
+   "breakfast",
+   "snack"
+  ]
+ },
+ {
+  "id": "sesame",
+  "name": "Sementes de sésamo",
+  "category": "fat",
+  "kcal": 573,
+  "macros": {
+   "protein": 18,
+   "carbs": 23,
+   "fat": 50
+  },
+  "budget": "medium",
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "serving": 15
+ }
+]

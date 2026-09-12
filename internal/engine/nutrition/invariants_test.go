@@ -123,3 +123,145 @@ func TestInvariant06_MacroShiftPreservesCalories(t *testing.T) {
 		t.Errorf("função desconhecida devia devolver a base, deu %+v", got)
 	}
 }
+
+// INVARIANTE 5 — a substituição preserva o estilo alimentar e as exclusões.
+//
+// É o invariante que dá sentido ao motor: propor queijo a quem é vegano, ou
+// ovos a quem os excluiu, não é uma imprecisão — é a app a trair a única coisa
+// que a pessoa lhe pediu para respeitar.
+//
+// A varredura é exaustiva: todos os alimentos × todos os estilos × todos os
+// orçamentos × três porções.
+func TestInvariant05_SubstitutionRespectsStyleAndExclusions(t *testing.T) {
+	all, err := Foods()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	styles := []DietStyle{Omnivore, HighProtein, Vegetarian, Vegan}
+	budgets := []Budget{BudgetLow, BudgetMedium, BudgetHigh}
+	exclusions := []string{"rice", "beans", "eggs", "chicken"}
+
+	checked, violations := 0, 0
+	for _, food := range all {
+		for _, style := range styles {
+			for _, budget := range budgets {
+				for _, grams := range []float64{80, 150, 250} {
+					factor := grams / 100
+					item := MealItem{
+						FoodID: food.ID, Name: food.Name, Grams: grams, Kcal: food.Kcal * factor,
+						Macros: MacrosFloat{
+							Protein: food.Macros.Protein * factor,
+							Carbs:   food.Macros.Carbs * factor,
+							Fat:     food.Macros.Fat * factor,
+						},
+					}
+					diet := DietProfile{Style: style, MealsPerDay: 4, Budget: budget, Exclusions: exclusions}
+
+					options, err := FindSubstitutions(item, diet, 4)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for _, o := range options {
+						checked++
+
+						if !hasStyle(o.Food, style) {
+							violations++
+							t.Errorf("%s → %s: %q não serve o estilo %q (serve %v)",
+								food.ID, o.Food.ID, o.Food.Name, style, o.Food.Styles)
+						}
+						for _, ex := range exclusions {
+							if o.Food.ID == ex {
+								violations++
+								t.Errorf("%s → %s: alimento excluído foi proposto", food.ID, o.Food.ID)
+							}
+						}
+						if budgetRank[o.Food.Budget] > budgetRank[budget] {
+							violations++
+							t.Errorf("%s → %s: orçamento %q acima de %q",
+								food.ID, o.Food.ID, o.Food.Budget, budget)
+						}
+						// Substituir dentro da mesma função na refeição: um
+						// hidrato não substitui uma proteína.
+						if o.Food.Category != food.Category {
+							violations++
+							t.Errorf("%s (%s) → %s (%s): categorias diferentes",
+								food.ID, food.Category, o.Food.ID, o.Food.Category)
+						}
+						// A porção nunca sai do plausível.
+						if float64(o.Grams) < o.Food.Serving*0.5-5 || float64(o.Grams) > o.Food.Serving*2+5 {
+							violations++
+							t.Errorf("%s → %s: %dg fora de [%.0f, %.0f]",
+								food.ID, o.Food.ID, o.Grams, o.Food.Serving*0.5, o.Food.Serving*2)
+						}
+						// E nunca se propõe o próprio alimento.
+						if o.Food.ID == food.ID {
+							violations++
+							t.Errorf("%s substituído por si próprio", food.ID)
+						}
+					}
+				}
+			}
+		}
+	}
+	if violations > 0 {
+		t.Fatalf("%d violações em %d opções verificadas", violations, checked)
+	}
+	t.Logf("%d opções de substituição verificadas, 0 violações", checked)
+}
+
+// Sem dias registados não se inventa uma percentagem.
+func TestNutritionAdherenceNeedsData(t *testing.T) {
+	a := ComputeAdherence(nil, Strategy{CalorieTarget: 2100, MealsPerDay: 4},
+		"2026-09-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z")
+	if a.Evaluable || a.Score != 0 || a.AverageIntakeKcal != nil {
+		t.Fatalf("sem registos: %+v", a)
+	}
+}
+
+// Registar três dias em trinta não é 100% de adesão: a cobertura conta.
+func TestCoverageCountsInAdherence(t *testing.T) {
+	strategy := Strategy{CalorieTarget: 2100, Macros: Macros{Protein: 150}, MealsPerDay: 4}
+	mk := func(days int) AdherenceResult {
+		var logs []Log
+		for d := 0; d < days; d++ {
+			for m := 0; m < 4; m++ {
+				logs = append(logs, Log{
+					RecordedAtISO: time0ISO(d, 8+m*3), Status: LogEaten,
+					Kcal: 525, Macros: MacrosFloat{Protein: 37.5}, Portion: 1,
+				})
+			}
+		}
+		return ComputeAdherence(logs, strategy, "2026-09-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z")
+	}
+	poucos, muitos := mk(3), mk(28)
+	if poucos.Calories != muitos.Calories {
+		t.Fatal("as calorias médias são as mesmas nos dois casos")
+	}
+	if !(muitos.Score > poucos.Score) {
+		t.Fatalf("28 dias registados pontuaram %v e 3 dias pontuaram %v", muitos.Score, poucos.Score)
+	}
+}
+
+// Comer a mais é tão desvio como comer a menos.
+func TestCalorieDeviationIsSymmetric(t *testing.T) {
+	strategy := Strategy{CalorieTarget: 2000, Macros: Macros{Protein: 150}, MealsPerDay: 4}
+	mk := func(perMeal float64) AdherenceResult {
+		var logs []Log
+		for d := 0; d < 20; d++ {
+			for m := 0; m < 4; m++ {
+				logs = append(logs, Log{
+					RecordedAtISO: time0ISO(d, 8+m*3), Status: LogEaten,
+					Kcal: perMeal, Macros: MacrosFloat{Protein: 37.5}, Portion: 1,
+				})
+			}
+		}
+		return ComputeAdherence(logs, strategy, "2026-09-01T00:00:00.000Z", "2026-10-01T00:00:00.000Z")
+	}
+	aMenos := mk(400) // 1600 kcal, −20%
+	aMais := mk(600)  // 2400 kcal, +20%
+	if aMenos.Calories != aMais.Calories {
+		t.Fatalf("−20%% deu %v e +20%% deu %v — o desvio tem de ser simétrico",
+			aMenos.Calories, aMais.Calories)
+	}
+}
