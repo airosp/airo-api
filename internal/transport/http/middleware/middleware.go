@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"github.com/airosp/airo-api/internal/transport/http/apierr"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -73,13 +74,23 @@ func Log(log *slog.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+			ctx := apierr.WithCause(r.Context())
+			r = r.WithContext(ctx)
 			next.ServeHTTP(sw, r)
-			log.Info("pedido",
+
+			args := []any{
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", sw.status,
 				"ms", time.Since(start).Milliseconds(),
-				"request_id", RequestIDFrom(r.Context()))
+				"request_id", RequestIDFrom(ctx),
+			}
+			// Um 500 sem motivo é um número. Quem o guardou di-lo aqui.
+			if cause := apierr.CauseFrom(ctx); cause != nil {
+				log.Error("pedido falhou", append(args, "error", cause)...)
+				return
+			}
+			log.Info("pedido", args...)
 		})
 	}
 }

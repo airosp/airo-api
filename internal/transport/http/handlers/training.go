@@ -40,15 +40,22 @@ func (h Training) Today(w http.ResponseWriter, r *http.Request) {
 	}
 
 	in, err := h.Profiles.TrainingProfile(r.Context(), userID, day)
-	if err != nil {
+	switch {
+	case errors.Is(err, service.ErrProfileMissing):
 		apierr.Write(w, apierr.ValidationFailed, "Perfil incompleto. Cria o teu plano primeiro.", "")
+		return
+	case err != nil:
+		// Qualquer outro erro aqui é nosso. Dizer "perfil incompleto" a uma
+		// coluna em falta mandou-me à procura no sítio errado durante uma
+		// hora: o cliente lia uma instrução e o registo não dizia nada.
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o teu perfil.")
 		return
 	}
 	in.LocalDay = day
 
 	pkg, _, _, err := h.Service.Today(in)
 	if err != nil {
-		apierr.Write(w, apierr.Internal, "Não foi possível montar o treino de hoje.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível montar o treino de hoje.")
 		return
 	}
 	apierr.WriteJSON(w, http.StatusOK, pkg)
@@ -96,7 +103,7 @@ func (h Training) Record(w http.ResponseWriter, r *http.Request) {
 	profile.LocalDay = day
 	_, session, steps, err := h.Service.Today(profile)
 	if err != nil {
-		apierr.Write(w, apierr.Internal, "Não foi possível remontar a sessão.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível remontar a sessão.")
 		return
 	}
 
@@ -129,7 +136,7 @@ func (h Training) Record(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	case err != nil:
-		apierr.Write(w, apierr.Internal, "Não foi possível gravar o treino.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível gravar o treino.")
 		return
 	}
 

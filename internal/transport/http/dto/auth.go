@@ -22,7 +22,21 @@ type OTPVerifyRequest struct {
 	ChallengeID string `json:"challengeId"`
 	Code        string `json:"code"`
 	DeviceID    string `json:"deviceId,omitempty"`
-	Platform    string `json:"platform,omitempty"`
+	// Platform é `ios`, `android` ou `web`. O esquema tem um CHECK sobre estes
+	// três: sem validar aqui, um valor fora da lista sai como 500 quando é uma
+	// falha de quem pediu.
+	Platform string `json:"platform,omitempty"`
+}
+
+// PlatformOK diz se a plataforma é aceitável. Vazio é aceite: nem todos os
+// clientes a mandam, e o campo é opcional.
+func (r OTPVerifyRequest) PlatformOK() bool {
+	switch r.Platform {
+	case "", "ios", "android", "web":
+		return true
+	default:
+		return false
+	}
 }
 
 type SessionResponse struct {

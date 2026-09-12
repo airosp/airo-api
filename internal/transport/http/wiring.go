@@ -66,6 +66,7 @@ func Wire(p Platform) Deps {
 	profiles := service.NewProfiles(repo.NewProfileRepo(tx))
 	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles}
 	deps.Training = &handlers.Training{Service: trainingSvc, Profiles: profiles}
+	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}
 
 	if len(p.JWTSecret) >= 32 {
 		tokens := auth.NewTokenIssuer(p.JWTSecret, p.Clock.Now)

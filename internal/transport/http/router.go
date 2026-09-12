@@ -23,6 +23,7 @@ type Deps struct {
 	AuthAPI     *handlers.Auth
 	Goals       *handlers.Goals
 	Training    *handlers.Training
+	Profile     *handlers.Profile
 	Idempotency middleware.Store
 
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
@@ -46,7 +47,7 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/token/refresh", d.AuthAPI.Refresh)
 	}
 
-	if d.Auth != nil && (d.Goals != nil || d.Training != nil) {
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -67,6 +68,10 @@ func NewRouter(d Deps) http.Handler {
 		if d.Training != nil {
 			mux.Handle("GET /v1/training/today", private(d.Training.Today))
 			mux.Handle("POST /v1/training/sessions", private(d.Training.Record))
+		}
+		if d.Profile != nil {
+			mux.Handle("GET /v1/profile", private(d.Profile.Get))
+			mux.Handle("PUT /v1/profile", private(d.Profile.Put))
 		}
 	}
 

@@ -53,7 +53,7 @@ func (h Auth) RequestOTP(w http.ResponseWriter, r *http.Request) {
 			"Não conseguimos enviar o código agora. Tenta daqui a pouco.", "")
 		return
 	case err != nil:
-		apierr.Write(w, apierr.Internal, "Não foi possível enviar o código.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível enviar o código.")
 		return
 	}
 
@@ -74,6 +74,12 @@ func (h Auth) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !req.PlatformOK() {
+		apierr.Write(w, apierr.ValidationFailed,
+			"Plataforma desconhecida. Usa ios, android ou web.", "platform")
+		return
+	}
+
 	out, err := h.Service.VerifyOTP(r.Context(), service.VerifyOTPInput{
 		ChallengeID: req.ChallengeID, Code: req.Code,
 		DeviceID: req.DeviceID, Platform: req.Platform,
@@ -91,13 +97,13 @@ func (h Auth) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, apierr.OTPInvalid, "Código incorreto.", "code")
 		return
 	case err != nil:
-		apierr.Write(w, apierr.Internal, "Não foi possível verificar o código.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível verificar o código.")
 		return
 	}
 
 	access, expires, err := h.Tokens.Issue(out.UserID, req.DeviceID)
 	if err != nil {
-		apierr.Write(w, apierr.Internal, "Não foi possível abrir a sessão.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível abrir a sessão.")
 		return
 	}
 	apierr.WriteJSON(w, http.StatusOK, dto.SessionResponse{
@@ -127,13 +133,13 @@ func (h Auth) Refresh(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
 		return
 	case err != nil:
-		apierr.Write(w, apierr.Internal, "Não foi possível renovar a sessão.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível renovar a sessão.")
 		return
 	}
 
 	access, expires, err := h.Tokens.Issue(out.UserID, req.DeviceID)
 	if err != nil {
-		apierr.Write(w, apierr.Internal, "Não foi possível renovar a sessão.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível renovar a sessão.")
 		return
 	}
 	apierr.WriteJSON(w, http.StatusOK, dto.SessionResponse{

@@ -95,7 +95,7 @@ func (h Goals) Create(w http.ResponseWriter, r *http.Request) {
 			"Já tens um objetivo activo. Termina-o ou continua a jornada.", "")
 		return
 	case err != nil:
-		apierr.Write(w, apierr.Internal, "Não foi possível criar o objetivo.", "")
+		apierr.WriteInternal(w, r, err, "Não foi possível criar o objetivo.")
 		return
 	}
 
