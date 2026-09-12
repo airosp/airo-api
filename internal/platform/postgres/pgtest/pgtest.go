@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -26,10 +27,11 @@ import (
 )
 
 var (
-	once     sync.Once
-	shared   *embedded.EmbeddedPostgres
-	baseURL  string
-	startErr error
+	once       sync.Once
+	shared     *embedded.EmbeddedPostgres
+	baseURL    string
+	runtimeDir string
+	startErr   error
 )
 
 // freePort pede ao sistema uma porta livre. Fixar uma faria os testes falhar na
@@ -49,7 +51,27 @@ func start() {
 		startErr = err
 		return
 	}
-	runtime := filepath.Join(os.TempDir(), "airo-pgtest")
+
+	// Uma directoria de runtime **por processo**.
+	//
+	// O `go test` corre um binário por pacote, em processos separados. Com uma
+	// directoria partilhada, um deles inicializava a base enquanto outro a
+	// limpava, e as falhas apareciam de forma intermitente em pacotes que não
+	// tinham nada a ver uns com os outros — o pior tipo de teste falso.
+	runtime, err := os.MkdirTemp("", "airo-pgtest-*")
+	if err != nil {
+		startErr = err
+		return
+	}
+	// Os binários são partilhados de propósito: são ~100 MB e não mudam. O
+	// cadeado serializa a primeira extracção, que é o único momento em que dois
+	// processos lhes tocam ao mesmo tempo.
+	binaries := filepath.Join(os.TempDir(), "airo-pgtest-bin")
+	unlock, err := lockBinaries(binaries)
+	if err != nil {
+		startErr = err
+		return
+	}
 
 	shared = embedded.NewDatabase(embedded.DefaultConfig().
 		Version(embedded.V16).
@@ -57,14 +79,38 @@ func start() {
 		Username("airo").
 		Password("airo").
 		Database("airo_test").
+		BinariesPath(binaries).
 		RuntimePath(runtime).
-		StartTimeout(120 * time.Second))
+		DataPath(filepath.Join(runtime, "data")).
+		StartTimeout(180 * time.Second))
 
-	if err := shared.Start(); err != nil {
+	err = shared.Start()
+	unlock()
+	if err != nil {
 		startErr = fmt.Errorf("arrancar postgres de teste: %w", err)
 		return
 	}
+	runtimeDir = runtime
 	baseURL = fmt.Sprintf("postgres://airo:airo@127.0.0.1:%d/airo_test?sslmode=disable", port)
+}
+
+// lockBinaries impede que dois processos extraiam os binários ao mesmo tempo.
+func lockBinaries(dir string) (func(), error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(filepath.Join(dir, ".lock"), os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return func() {
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = f.Close()
+	}, nil
 }
 
 // Pool devolve um pool ligado a uma base de dados **própria deste teste**.
@@ -128,9 +174,13 @@ func sanitize(name string) string {
 	return string(out)
 }
 
-// Stop encerra o servidor partilhado. Chamado por TestMain.
+// Stop encerra o servidor e limpa a directoria deste processo. Chamado por
+// TestMain — sem isso, cada corrida deixa uma base de dados de 40 MB para trás.
 func Stop() {
 	if shared != nil {
 		_ = shared.Stop()
+	}
+	if runtimeDir != "" {
+		_ = os.RemoveAll(runtimeDir)
 	}
 }
