@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,6 +97,35 @@ func TestWiredAPIRegistersEveryRoute(t *testing.T) {
 		}
 	}
 	t.Logf("%d rotas registadas", len(routes))
+}
+
+// A lista de métodos do CORS tem de cobrir tudo o que o router regista.
+//
+// Quando `PUT /v1/profile` nasceu, a lista ficou para trás e o browser passou a
+// recusar o pedido antes de sair: no ecrã lia-se "sem ligação", e o servidor
+// não registava nada porque nada lhe chegou.
+func TestCORSCobreTodosOsMetodos(t *testing.T) {
+	pool := pgtest.Pool(t)
+	log := quietLogger()
+	deps := airohttp.Wire(airohttp.Platform{
+		Log: log, Version: "test", Pool: pool,
+		Clock: clock.NewFixed(time.Now()),
+	})
+	deps.CORSOrigins = []string{"http://localhost:8081"}
+	router := airohttp.NewRouter(deps)
+
+	r := httptest.NewRequest(http.MethodOptions, "/v1/profile", http.NoBody)
+	r.Header.Set("Origin", "http://localhost:8081")
+	r.Header.Set("Access-Control-Request-Method", "PUT")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, r)
+
+	allowed := w.Header().Get("Access-Control-Allow-Methods")
+	for _, m := range []string{"GET", "POST", "PUT", "OPTIONS"} {
+		if !strings.Contains(allowed, m) {
+			t.Errorf("%s não está em Access-Control-Allow-Methods: %q", m, allowed)
+		}
+	}
 }
 
 // Sem segredo de assinatura, as rotas privadas **não existem** — em vez de

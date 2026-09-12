@@ -30,7 +30,12 @@ func CORS(allowed []string) func(http.Handler) http.Handler {
 	// lista segura, e `Retry-After` não está nela. O ecrã dizia "tenta daqui a
 	// pouco" sem saber quanto — e o contador ficava mudo.
 	const exposed = "Retry-After, X-Request-Id"
-	const methods = "GET, POST, PATCH, DELETE, OPTIONS"
+	// Esta lista tem de cobrir **todos** os métodos que o router regista. Ficou
+	// sem `PUT` durante meia hora depois de `PUT /v1/profile` nascer, e o
+	// sintoma no browser foi "sem ligação": o pedido prévio é recusado e o
+	// `fetch` rejeita sem estado nenhum. `TestCORSCobreTodosOsMetodos` compara
+	// as duas listas.
+	const methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 	maxAge := strconv.Itoa(int((24 * time.Hour).Seconds()))
 
 	return func(next http.Handler) http.Handler {
