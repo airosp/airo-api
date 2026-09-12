@@ -37,6 +37,11 @@ type Config struct {
 	JWTSecret []byte
 
 	WhatsApp WhatsAppConfig
+
+	// CORSOrigins são as origens de browser autorizadas, separadas por vírgula
+	// em AIRO_CORS_ORIGINS. A app nativa não precisa de nenhuma; a versão web
+	// precisa da sua.
+	CORSOrigins []string
 }
 
 type WhatsAppConfig struct {
@@ -72,6 +77,16 @@ func Load() (Config, error) {
 			BaseURL:       get("AIRO_WHATSAPP_BASE_URL", ""),
 			WebhookSecret: get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
 		},
+		CORSOrigins: splitList(get("AIRO_CORS_ORIGINS", "")),
+	}
+
+	// Em desenvolvimento, as origens do Expo entram sozinhas: obrigar a
+	// configurá-las para correr a app na própria máquina é atrito sem ganho.
+	if c.Env == Development && len(c.CORSOrigins) == 0 {
+		c.CORSOrigins = []string{
+			"http://localhost:8081", "http://127.0.0.1:8081",
+			"http://localhost:19006", "http://127.0.0.1:19006",
+		}
 	}
 
 	switch c.Env {
@@ -113,6 +128,21 @@ func Load() (Config, error) {
 		}
 	}
 	return c, nil
+}
+
+// splitList lê uma lista separada por vírgulas, sem entradas vazias.
+func splitList(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func get(key, fallback string) string {

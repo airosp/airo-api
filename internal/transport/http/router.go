@@ -24,6 +24,10 @@ type Deps struct {
 	Goals       *handlers.Goals
 	Training    *handlers.Training
 	Idempotency middleware.Store
+
+	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
+	// app nativa não precisa de nenhuma.
+	CORSOrigins []string
 }
 
 // NewRouter devolve o handler raiz com os middlewares já aplicados.
@@ -66,9 +70,15 @@ func NewRouter(d Deps) http.Handler {
 		}
 	}
 
-	return middleware.Chain(mux,
+	chain := []func(http.Handler) http.Handler{
 		middleware.RequestID,
 		middleware.Recover(d.Log),
 		middleware.Log(d.Log),
-	)
+	}
+	if len(d.CORSOrigins) > 0 {
+		// Antes do registo: um pedido prévio recusado não é um pedido da
+		// aplicação, e enchia o registo com linhas que não dizem nada.
+		chain = append([]func(http.Handler) http.Handler{middleware.CORS(d.CORSOrigins)}, chain...)
+	}
+	return middleware.Chain(mux, chain...)
 }

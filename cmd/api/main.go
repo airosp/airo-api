@@ -181,6 +181,10 @@ func main() {
 		Sender: sender,
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
+	deps.CORSOrigins = cfg.CORSOrigins
+	if len(cfg.CORSOrigins) > 0 {
+		log.Info("origens de browser autorizadas", "origens", cfg.CORSOrigins)
+	}
 	if pending, err := airopg.Pending(ctx, pool, migs); err != nil {
 		log.Error("verificar migrações", "error", err)
 	} else if len(pending) > 0 {
