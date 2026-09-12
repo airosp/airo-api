@@ -16,13 +16,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/airosp/airo-api/internal/platform/clock"
 	"github.com/airosp/airo-api/internal/platform/config"
 	"github.com/airosp/airo-api/internal/platform/logger"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
+	"github.com/airosp/airo-api/internal/service"
 	airohttp "github.com/airosp/airo-api/internal/transport/http"
 	"github.com/airosp/airo-api/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 // version é gravada na compilação: -ldflags "-X main.version=$(git rev-parse --short HEAD)"
@@ -101,11 +104,44 @@ func main() {
 		}
 	}
 
+	// O canal de envio do código. Em produção exige-se um a sério; em
+	// desenvolvimento o código vai para o registo, e diz-se que vai.
+	var sender service.Sender
+	if cfg.IsProduction() {
+		if cfg.WhatsApp.Token == "" || cfg.WhatsApp.PhoneNumberID == "" {
+			log.Error("em produção é preciso um canal de envio configurado")
+			os.Exit(1)
+		}
+		sender = airohttp.NewLogSender(log) // ← substituir pelo WhatsApp Cloud API (T3.5)
+	} else {
+		sender = airohttp.NewLogSender(log)
+	}
+
+	var rdb redis.UniversalClient
+	if cfg.RedisURL != "" {
+		opts, err := redis.ParseURL(cfg.RedisURL)
+		if err != nil {
+			log.Error("AIRO_REDIS_URL inválido", "error", err)
+			os.Exit(1)
+		}
+		rdb = redis.NewClient(opts)
+		defer func() { _ = rdb.Close() }()
+	} else {
+		log.Warn("sem Redis: os limites de pedido ficam desligados e a autenticação não é registada")
+	}
+
 	// O processo **sobe na mesma** com o esquema atrasado, e diz-se não-pronto.
 	// Sair seria pior: o contentor entra em reinício cíclico, e o erro real fica
 	// escondido atrás do CrashLoop em vez de aparecer num /readyz que o diz por
 	// palavras.
-	schema := airohttp.SchemaState{Migrations: migs, Pool: pool}
+	// A API inteira, montada num sítio só. Faltar uma dependência deixa de ser
+	// um 404 silencioso e passa a ser um erro de compilação.
+	deps := airohttp.Wire(airohttp.Platform{
+		Log: log, Version: version, Pool: pool, Redis: rdb, Clock: clock.System{},
+		JWTSecret: cfg.JWTSecret, OTPPepper: cfg.OTPPepper,
+		Sender: sender,
+	})
+	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	if pending, err := airopg.Pending(ctx, pool, migs); err != nil {
 		log.Error("verificar migrações", "error", err)
 	} else if len(pending) > 0 {
@@ -115,7 +151,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    cfg.HTTPAddr,
-		Handler: airohttp.NewRouter(airohttp.Deps{Log: log, Version: version, DB: pool, Schema: schema}),
+		Handler: airohttp.NewRouter(deps),
 		// Sem estes prazos, uma ligação lenta segura um descritor para sempre.
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
