@@ -47,6 +47,8 @@ type ProfileInput struct {
 	BirthDate   *time.Time
 	Sex         string
 	HeightCm    float64
+	// AgeYears é a segunda escolha: só vale quando não há data de nascimento.
+	AgeYears *int
 
 	Experience     string
 	WorkoutDays    []int
@@ -80,12 +82,12 @@ func (r *ProfileRepo) Profile(ctx context.Context, userID string) (ProfileRow, e
 	var birth *time.Time
 
 	err := r.tx.Q(ctx).QueryRow(ctx,
-		`SELECT display_name, birth_date, sex::text, height_cm,
+		`SELECT display_name, birth_date, age_years, sex::text, height_cm,
 		        experience::text, workout_days, workout_minutes, workout_time::text,
 		        equipment, diet_style::text, meals_per_day, food_budget::text,
 		        food_exclusions, profile_complete
 		   FROM profile WHERE user_id = $1`, userID,
-	).Scan(&p.DisplayName, &birth, &p.Sex, &p.HeightCm,
+	).Scan(&p.DisplayName, &birth, &p.Age, &p.Sex, &p.HeightCm,
 		&p.Experience, &p.WorkoutDays, &p.WorkoutMinutes, &p.WorkoutTime,
 		&p.Equipment, &p.DietStyle, &p.MealsPerDay, &p.FoodBudget,
 		&p.FoodExclusions, &p.Complete)
@@ -96,6 +98,9 @@ func (r *ProfileRepo) Profile(ctx context.Context, userID string) (ProfileRow, e
 		return p, fmt.Errorf("ler perfil: %w", err)
 	}
 
+	// A data de nascimento manda quando existe: é a informação melhor, e dá a
+	// idade certa no dia certo. `age_years` é o que fica quando só se perguntou
+	// a idade.
 	if birth != nil {
 		age := yearsSince(*birth, time.Now().UTC())
 		p.Age = &age
@@ -124,15 +129,16 @@ func (r *ProfileRepo) Profile(ctx context.Context, userID string) (ProfileRow, e
 func (r *ProfileRepo) Save(ctx context.Context, userID string, in ProfileInput, now time.Time) error {
 	_, err := r.tx.Q(ctx).Exec(ctx,
 		`INSERT INTO profile (
-		     user_id, display_name, birth_date, sex, height_cm,
+		     user_id, display_name, birth_date, age_years, sex, height_cm,
 		     experience, workout_days, workout_minutes, workout_time, equipment,
 		     diet_style, meals_per_day, food_budget, food_exclusions,
 		     profile_complete, updated_at)
-		 VALUES ($1,$2,$3,$4::sex,$5,$6::experience,$7,$8,$9::workout_time,$10,
-		         $11::diet_style,$12,$13::budget,$14,true,$15)
+		 VALUES ($1,$2,$3,$4,$5::sex,$6,$7::experience,$8,$9,$10::workout_time,$11,
+		         $12::diet_style,$13,$14::budget,$15,true,$16)
 		 ON CONFLICT (user_id) DO UPDATE SET
 		     display_name = EXCLUDED.display_name,
 		     birth_date = EXCLUDED.birth_date,
+		     age_years = EXCLUDED.age_years,
 		     sex = EXCLUDED.sex,
 		     height_cm = EXCLUDED.height_cm,
 		     experience = EXCLUDED.experience,
@@ -146,7 +152,7 @@ func (r *ProfileRepo) Save(ctx context.Context, userID string, in ProfileInput, 
 		     food_exclusions = EXCLUDED.food_exclusions,
 		     profile_complete = true,
 		     updated_at = EXCLUDED.updated_at`,
-		userID, in.DisplayName, in.BirthDate, in.Sex, in.HeightCm,
+		userID, in.DisplayName, in.BirthDate, in.AgeYears, in.Sex, in.HeightCm,
 		in.Experience, in.WorkoutDays, in.WorkoutMinutes, in.WorkoutTime, in.Equipment,
 		in.DietStyle, in.MealsPerDay, in.FoodBudget, in.FoodExclusions, now)
 	if err != nil {

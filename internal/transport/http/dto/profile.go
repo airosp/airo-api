@@ -6,11 +6,14 @@ package dto
 // esquema: um enum recusado pela base de dados chega ao cliente como 500, e
 // 500 quer dizer "a culpa é nossa". Isto é do pedido, e diz-se qual o campo.
 type ProfileRequest struct {
-	DisplayName string   `json:"displayName"`
-	BirthDate   *string  `json:"birthDate,omitempty"` // AAAA-MM-DD
-	Sex         string   `json:"sex"`
-	HeightCm    float64  `json:"heightCm"`
-	WeightKg    *float64 `json:"weightKg,omitempty"`
+	DisplayName string  `json:"displayName"`
+	BirthDate   *string `json:"birthDate,omitempty"` // AAAA-MM-DD
+	// Age é a alternativa a BirthDate: a app pergunta a idade, não o
+	// aniversário. Quando vierem os dois, a data manda.
+	Age      *int     `json:"age,omitempty"`
+	Sex      string   `json:"sex"`
+	HeightCm float64  `json:"heightCm"`
+	WeightKg *float64 `json:"weightKg,omitempty"`
 
 	Experience     string   `json:"experience"`
 	WorkoutDays    []int    `json:"workoutDays"`

@@ -190,6 +190,49 @@ func TestSemPerfilOGetDiz404(t *testing.T) {
 	}
 }
 
+// A app pergunta a idade, não o aniversário. Um perfil só com idade tem de
+// valer — e a data, quando vem, manda sobre ela.
+func TestIdadeSemDataDeNascimento(t *testing.T) {
+	h, _ := serveProfile(t)
+
+	soIdade := strings.Replace(perfilValido, `"birthDate":"1996-04-02"`, `"age":42`, 1)
+	w := put(t, h, "/v1/profile", soIdade)
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT só com idade = %d: %s", w.Code, w.Body.String())
+	}
+	var saved service.SavedProfile
+	_ = json.Unmarshal(w.Body.Bytes(), &saved)
+	if saved.Age == nil || *saved.Age != 42 {
+		t.Fatalf("idade = %v, esperava 42", saved.Age)
+	}
+
+	// Com as duas, a data ganha: é a informação melhor.
+	ambas := strings.Replace(perfilValido, `"birthDate":"1996-04-02"`,
+		`"birthDate":"1996-04-02","age":99`, 1)
+	w = put(t, h, "/v1/profile", ambas)
+	if w.Code != http.StatusOK {
+		t.Fatalf("PUT com as duas = %d: %s", w.Code, w.Body.String())
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &saved)
+	if saved.Age == nil || *saved.Age != 30 {
+		t.Fatalf("idade = %v; a data de nascimento devia mandar", saved.Age)
+	}
+}
+
+// Sem idade nenhuma não há metabolismo basal para calcular. Recusa-se, em vez
+// de adivinhar.
+func TestSemIdadeRecusa(t *testing.T) {
+	h, _ := serveProfile(t)
+	sem := strings.Replace(perfilValido, `"birthDate":"1996-04-02",`, ``, 1)
+	w := put(t, h, "/v1/profile", sem)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("sem idade = %d, esperava 422: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"field":"age"`) {
+		t.Fatalf("devia apontar o campo: %s", w.Body.String())
+	}
+}
+
 // O perfil sem pesagem existe. Recusá-lo fecharia o treino a quem ainda não se
 // pesou — e o treino é o que traz a pessoa de volta para se pesar.
 func TestPerfilSemPesoContinuaALerSe(t *testing.T) {

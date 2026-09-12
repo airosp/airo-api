@@ -36,9 +36,11 @@ func NewProfiles(r *repo.ProfileRepo) *Profiles {
 type SaveProfileInput struct {
 	DisplayName string
 	BirthDate   *time.Time
-	Sex         string
-	HeightCm    float64
-	WeightKg    *float64
+	// AgeYears vale quando não há data de nascimento. Ver a migração 0005.
+	AgeYears *int
+	Sex      string
+	HeightCm float64
+	WeightKg *float64
 
 	Experience     string
 	WorkoutDays    []int
@@ -79,7 +81,7 @@ type SavedProfile struct {
 func (p *Profiles) Save(ctx ctxLike, userID string, in SaveProfileInput, now time.Time) (SavedProfile, error) {
 	c := asContext(ctx)
 	if err := p.repo.Save(c, userID, repo.ProfileInput{
-		DisplayName: in.DisplayName, BirthDate: in.BirthDate, Sex: in.Sex,
+		DisplayName: in.DisplayName, BirthDate: in.BirthDate, AgeYears: in.AgeYears, Sex: in.Sex,
 		HeightCm: in.HeightCm, WeightKg: in.WeightKg,
 		Experience: in.Experience, WorkoutDays: in.WorkoutDays,
 		WorkoutMinutes: in.WorkoutMinutes, WorkoutTime: in.WorkoutTime,

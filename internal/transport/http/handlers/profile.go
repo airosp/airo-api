@@ -127,6 +127,13 @@ func validateProfile(req dto.ProfileRequest) (service.SaveProfileInput, string, 
 		return in, "workoutMinutes", "Duração fora do esperado."
 	}
 
+	if req.Age != nil {
+		if *req.Age < 13 || *req.Age > 120 {
+			return in, "age", "Idade fora do esperado."
+		}
+		in.AgeYears = req.Age
+	}
+
 	if req.BirthDate != nil && *req.BirthDate != "" {
 		born, err := time.Parse("2006-01-02", *req.BirthDate)
 		if err != nil {
@@ -136,6 +143,12 @@ func validateProfile(req dto.ProfileRequest) (service.SaveProfileInput, string, 
 			return in, "birthDate", "Data de nascimento no futuro."
 		}
 		in.BirthDate = &born
+	}
+
+	if in.BirthDate == nil && in.AgeYears == nil {
+		// Os motores precisam da idade para o metabolismo basal. Sem ela não
+		// há conta nenhuma a fazer, e adivinhar seria pior do que pedir.
+		return in, "age", "Diz-nos a tua idade."
 	}
 
 	if in.Equipment == nil {
