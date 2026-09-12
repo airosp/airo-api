@@ -37,8 +37,17 @@ jobs:
           AIRO_DATABASE_URL: postgres://airo:airo@localhost:5432/airo_test?sslmode=disable
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
 
+      # Os invariantes são a suite que apanha a classe de erro que já apareceu:
+      # repartições que não somam, progresso que recua, blocos que enchem antes
+      # de tempo. Enquanto `internal/engine` não existir, o passo não tem nada
+      # para correr — e um passo que falha por ausência de código não diz nada.
       - name: Invariantes
-        run: go test ./internal/engine/... -run Invariant -v
+        run: |
+          if [ -n "$(ls -A internal/engine 2>/dev/null)" ]; then
+            go test ./internal/engine/... -run Invariant -v
+          else
+            echo "internal/engine ainda vazio — os invariantes entram na Fase 2."
+          fi
 
       - name: Build
         run: go build ./...
