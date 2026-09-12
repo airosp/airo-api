@@ -94,3 +94,29 @@ func SeedFrom(text string) int {
 	}
 	return int(hash)
 }
+
+// RoundTo arredonda a `places` casas decimais, como `Number(x.toFixed(n))`.
+//
+// O TypeScript usa `toFixed` para fixar precisão em quase todos os
+// calculadores — IMC a duas casas, quilos a uma, fracções a três. Sem o mesmo
+// arredondamento, os números do servidor e os do cliente divergem na primeira
+// casa e parecem dois sistemas diferentes a falar do mesmo corpo.
+func RoundTo(x float64, places int) float64 {
+	p := 1.0
+	for i := 0; i < places; i++ {
+		p *= 10
+	}
+	return RoundJS(x*p) / p
+}
+
+// Sign devolve -1, 0 ou 1, como `Math.sign`.
+func Sign(x float64) float64 {
+	switch {
+	case x > 0:
+		return 1
+	case x < 0:
+		return -1
+	default:
+		return 0
+	}
+}
