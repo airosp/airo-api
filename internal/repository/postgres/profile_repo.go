@@ -14,10 +14,10 @@ import (
 // Tipos próprios e não os do serviço: o repositório não pode importar o serviço,
 // que já o importa a ele. A tradução faz-se onde os dois se encontram.
 type ProfileRow struct {
-	WeightKg  float64
-	HeightCm  *float64
-	Age       *int
-	Sex       *string
+	WeightKg float64
+	HeightCm *float64
+	Age      *int
+	Sex      *string
 
 	WorkoutDays    []int
 	WorkoutMinutes int

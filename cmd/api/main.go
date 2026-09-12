@@ -5,6 +5,7 @@
 //
 //	airo-api migrate up
 //	airo-api migrate down
+//	airo-api migrate status
 package main
 
 import (
@@ -74,6 +75,25 @@ func main() {
 				log.Error("desfazer", "error", err)
 				os.Exit(1)
 			}
+		case "status":
+			// Existe porque "as migrações estão aplicadas" foi uma suposição que
+			// custou meia tarde: o /readyz dizia quatro pendentes e não havia
+			// como ver o outro lado sem um cliente de Postgres instalado.
+			pending, err := airopg.Pending(ctx, pool, migs)
+			if err != nil {
+				log.Error("ler esquema", "error", err)
+				os.Exit(1)
+			}
+			applied := len(migs) - len(pending)
+			log.Info("estado do esquema",
+				"aplicadas", applied, "pendentes", len(pending), "total", len(migs))
+			for _, m := range pending {
+				log.Warn("pendente", "versao", m.Version, "nome", m.Name)
+			}
+			if len(pending) > 0 {
+				os.Exit(1)
+			}
+			return
 		default:
 			log.Error("subcomando desconhecido", "arg", os.Args[2])
 			os.Exit(2)
