@@ -1,0 +1,893 @@
+[
+ {
+  "id": "pushup",
+  "name": "Flexões",
+  "muscles": [
+   "Peito",
+   "Tríceps",
+   "Core"
+  ],
+  "equipment": [],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Corpo em linha, cotovelos a 45°.",
+  "demoQuery": "push up exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "knee_pushup",
+  "name": "Flexões de joelhos",
+  "muscles": [
+   "Peito",
+   "Tríceps"
+  ],
+  "equipment": [],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Joelhos apoiados, anca alinhada com os ombros.",
+  "demoQuery": "knee push up",
+  "level": "beginner"
+ },
+ {
+  "id": "db_bench",
+  "name": "Supino com halteres",
+  "muscles": [
+   "Peito",
+   "Ombros",
+   "Tríceps"
+  ],
+  "equipment": [
+   "dumbbells"
+  ],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Desce até sentir o peito alongar, sobe sem bloquear.",
+  "demoQuery": "dumbbell bench press",
+  "level": "beginner"
+ },
+ {
+  "id": "db_press",
+  "name": "Desenvolvimento de ombros",
+  "muscles": [
+   "Ombros",
+   "Tríceps"
+  ],
+  "equipment": [
+   "dumbbells",
+   "kettlebell"
+  ],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Costelas para baixo, não arqueies as costas.",
+  "demoQuery": "dumbbell shoulder press",
+  "level": "beginner"
+ },
+ {
+  "id": "barbell_bench",
+  "name": "Supino com barra",
+  "muscles": [
+   "Peito",
+   "Ombros",
+   "Tríceps"
+  ],
+  "equipment": [
+   "barbell"
+  ],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Omoplatas juntas e fixas no banco.",
+  "demoQuery": "barbell bench press",
+  "level": "intermediate"
+ },
+ {
+  "id": "dips",
+  "name": "Fundos em banco",
+  "muscles": [
+   "Tríceps",
+   "Peito"
+  ],
+  "equipment": [],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Cotovelos para trás, ombros longe das orelhas.",
+  "demoQuery": "tricep dips bench",
+  "level": "intermediate"
+ },
+ {
+  "id": "band_press",
+  "name": "Press com elástico",
+  "muscles": [
+   "Peito",
+   "Ombros"
+  ],
+  "equipment": [
+   "bands"
+  ],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Controla o regresso, não deixes o elástico puxar-te.",
+  "demoQuery": "resistance band chest press",
+  "level": "beginner"
+ },
+ {
+  "id": "machine_press",
+  "name": "Press na máquina",
+  "muscles": [
+   "Peito",
+   "Ombros"
+  ],
+  "equipment": [
+   "machines"
+  ],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Amplitude completa, sem bater nos batentes.",
+  "demoQuery": "chest press machine gym",
+  "level": "beginner"
+ },
+ {
+  "id": "pike_pushup",
+  "name": "Flexões pique",
+  "muscles": [
+   "Ombros",
+   "Tríceps"
+  ],
+  "equipment": [],
+  "pattern": "push",
+  "measure": "reps",
+  "cue": "Anca alta, cabeça desce entre as mãos.",
+  "demoQuery": "pike push up",
+  "level": "advanced"
+ },
+ {
+  "id": "db_row",
+  "name": "Remada unilateral",
+  "muscles": [
+   "Costas",
+   "Bíceps"
+  ],
+  "equipment": [
+   "dumbbells",
+   "kettlebell"
+  ],
+  "pattern": "pull",
+  "measure": "reps",
+  "cue": "Puxa com o cotovelo, não com a mão.",
+  "demoQuery": "dumbbell row exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "band_row",
+  "name": "Remada com elástico",
+  "muscles": [
+   "Costas",
+   "Bíceps"
+  ],
+  "equipment": [
+   "bands"
+  ],
+  "pattern": "pull",
+  "measure": "reps",
+  "cue": "Junta as omoplatas no fim de cada repetição.",
+  "demoQuery": "resistance band row",
+  "level": "beginner"
+ },
+ {
+  "id": "inverted_row",
+  "name": "Remada invertida",
+  "muscles": [
+   "Costas",
+   "Bíceps",
+   "Core"
+  ],
+  "equipment": [],
+  "pattern": "pull",
+  "measure": "reps",
+  "cue": "Corpo em prancha, peito até à barra.",
+  "demoQuery": "inverted row bodyweight",
+  "level": "intermediate"
+ },
+ {
+  "id": "barbell_row",
+  "name": "Remada com barra",
+  "muscles": [
+   "Costas",
+   "Bíceps"
+  ],
+  "equipment": [
+   "barbell"
+  ],
+  "pattern": "pull",
+  "measure": "reps",
+  "cue": "Tronco firme, sem balanço.",
+  "demoQuery": "barbell bent over row",
+  "level": "intermediate"
+ },
+ {
+  "id": "lat_pulldown",
+  "name": "Puxada na polia",
+  "muscles": [
+   "Costas",
+   "Bíceps"
+  ],
+  "equipment": [
+   "machines"
+  ],
+  "pattern": "pull",
+  "measure": "reps",
+  "cue": "Peito para cima, barra até ao queixo.",
+  "demoQuery": "lat pulldown machine",
+  "level": "beginner"
+ },
+ {
+  "id": "face_pull",
+  "name": "Face pull com elástico",
+  "muscles": [
+   "Ombros",
+   "Costas"
+  ],
+  "equipment": [
+   "bands"
+  ],
+  "pattern": "pull",
+  "measure": "reps",
+  "cue": "Mãos à altura dos olhos, abre no fim.",
+  "demoQuery": "face pull band",
+  "level": "beginner"
+ },
+ {
+  "id": "db_curl",
+  "name": "Rosca com halteres",
+  "muscles": [
+   "Bíceps"
+  ],
+  "equipment": [
+   "dumbbells"
+  ],
+  "pattern": "pull",
+  "measure": "reps",
+  "cue": "Cotovelos colados ao tronco.",
+  "demoQuery": "dumbbell bicep curl",
+  "level": "beginner"
+ },
+ {
+  "id": "superman",
+  "name": "Superman",
+  "muscles": [
+   "Lombar",
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "pull",
+  "measure": "time",
+  "cue": "Levanta peito e pernas sem forçar o pescoço.",
+  "demoQuery": "superman exercise floor",
+  "level": "beginner"
+ },
+ {
+  "id": "bodyweight_squat",
+  "name": "Agachamento livre",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "squat",
+  "measure": "reps",
+  "cue": "Joelhos na direção dos pés, peito para cima.",
+  "demoQuery": "bodyweight squat exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "goblet_squat",
+  "name": "Agachamento goblet",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos",
+   "Core"
+  ],
+  "equipment": [
+   "dumbbells",
+   "kettlebell"
+  ],
+  "pattern": "squat",
+  "measure": "reps",
+  "cue": "Peso junto ao peito, desce entre os calcanhares.",
+  "demoQuery": "goblet squat kettlebell",
+  "level": "beginner"
+ },
+ {
+  "id": "barbell_squat",
+  "name": "Agachamento com barra",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [
+   "barbell"
+  ],
+  "pattern": "squat",
+  "measure": "reps",
+  "cue": "Respira fundo antes de descer, trava o core.",
+  "demoQuery": "barbell back squat",
+  "level": "intermediate"
+ },
+ {
+  "id": "leg_press",
+  "name": "Prensa de pernas",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [
+   "machines"
+  ],
+  "pattern": "squat",
+  "measure": "reps",
+  "cue": "Não bloqueies os joelhos no topo.",
+  "demoQuery": "leg press machine",
+  "level": "beginner"
+ },
+ {
+  "id": "wall_sit",
+  "name": "Cadeira na parede",
+  "muscles": [
+   "Quadríceps"
+  ],
+  "equipment": [],
+  "pattern": "squat",
+  "measure": "time",
+  "cue": "Coxas paralelas ao chão, costas na parede.",
+  "demoQuery": "wall sit exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "jump_squat",
+  "name": "Agachamento com salto",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "squat",
+  "measure": "reps",
+  "cue": "Aterra suave, joelhos moles.",
+  "demoQuery": "jump squat",
+  "level": "advanced"
+ },
+ {
+  "id": "glute_bridge",
+  "name": "Ponte de glúteos",
+  "muscles": [
+   "Glúteos",
+   "Isquiotibiais"
+  ],
+  "equipment": [],
+  "pattern": "hinge",
+  "measure": "reps",
+  "cue": "Aperta os glúteos no topo, uma pausa de um segundo.",
+  "demoQuery": "glute bridge exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "db_rdl",
+  "name": "Peso morto romeno",
+  "muscles": [
+   "Isquiotibiais",
+   "Glúteos",
+   "Lombar"
+  ],
+  "equipment": [
+   "dumbbells",
+   "kettlebell",
+   "barbell"
+  ],
+  "pattern": "hinge",
+  "measure": "reps",
+  "cue": "Anca para trás, costas direitas, desce até meio da canela.",
+  "demoQuery": "romanian deadlift dumbbell",
+  "level": "intermediate"
+ },
+ {
+  "id": "kb_swing",
+  "name": "Kettlebell swing",
+  "muscles": [
+   "Glúteos",
+   "Isquiotibiais",
+   "Core"
+  ],
+  "equipment": [
+   "kettlebell"
+  ],
+  "pattern": "hinge",
+  "measure": "reps",
+  "cue": "A força vem da anca, não dos braços.",
+  "demoQuery": "kettlebell swing",
+  "level": "intermediate"
+ },
+ {
+  "id": "single_leg_bridge",
+  "name": "Ponte unilateral",
+  "muscles": [
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "hinge",
+  "measure": "reps",
+  "cue": "Anca nivelada, sem deixar cair de um lado.",
+  "demoQuery": "single leg glute bridge",
+  "level": "intermediate"
+ },
+ {
+  "id": "good_morning",
+  "name": "Bom dia com elástico",
+  "muscles": [
+   "Isquiotibiais",
+   "Lombar"
+  ],
+  "equipment": [
+   "bands"
+  ],
+  "pattern": "hinge",
+  "measure": "reps",
+  "cue": "Movimento na anca, joelhos quase fixos.",
+  "demoQuery": "good morning exercise band",
+  "level": "beginner"
+ },
+ {
+  "id": "lunge",
+  "name": "Afundo",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "lunge",
+  "measure": "reps",
+  "cue": "Joelho da frente por cima do tornozelo.",
+  "demoQuery": "forward lunge exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "reverse_lunge",
+  "name": "Afundo para trás",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "lunge",
+  "measure": "reps",
+  "cue": "Passo atrás controlado, tronco direito.",
+  "demoQuery": "reverse lunge",
+  "level": "beginner"
+ },
+ {
+  "id": "db_lunge",
+  "name": "Afundo com halteres",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [
+   "dumbbells"
+  ],
+  "pattern": "lunge",
+  "measure": "reps",
+  "cue": "Peso a cair a direito dos ombros.",
+  "demoQuery": "dumbbell lunge",
+  "level": "intermediate"
+ },
+ {
+  "id": "step_up",
+  "name": "Subida ao banco",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "lunge",
+  "measure": "reps",
+  "cue": "Empurra com o calcanhar do pé de cima.",
+  "demoQuery": "step up exercise box",
+  "level": "beginner"
+ },
+ {
+  "id": "bulgarian",
+  "name": "Afundo búlgaro",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "lunge",
+  "measure": "reps",
+  "cue": "Pé de trás elevado, desce a direito.",
+  "demoQuery": "bulgarian split squat",
+  "level": "advanced"
+ },
+ {
+  "id": "plank",
+  "name": "Prancha",
+  "muscles": [
+   "Core"
+  ],
+  "equipment": [],
+  "pattern": "core",
+  "measure": "time",
+  "cue": "Corpo em linha, glúteos apertados, respira.",
+  "demoQuery": "plank exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "side_plank",
+  "name": "Prancha lateral",
+  "muscles": [
+   "Core",
+   "Oblíquos"
+  ],
+  "equipment": [],
+  "pattern": "core",
+  "measure": "time",
+  "cue": "Anca alta, ombro por cima do cotovelo.",
+  "demoQuery": "side plank",
+  "level": "intermediate"
+ },
+ {
+  "id": "dead_bug",
+  "name": "Dead bug",
+  "muscles": [
+   "Core"
+  ],
+  "equipment": [],
+  "pattern": "core",
+  "measure": "reps",
+  "cue": "Lombar colada ao chão o tempo todo.",
+  "demoQuery": "dead bug exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "bird_dog",
+  "name": "Bird dog",
+  "muscles": [
+   "Core",
+   "Lombar"
+  ],
+  "equipment": [],
+  "pattern": "core",
+  "measure": "reps",
+  "cue": "Estende braço e perna opostos sem rodar a anca.",
+  "demoQuery": "bird dog exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "hollow_hold",
+  "name": "Hollow hold",
+  "muscles": [
+   "Core"
+  ],
+  "equipment": [],
+  "pattern": "core",
+  "measure": "time",
+  "cue": "Lombar no chão, ombros e pés levantados.",
+  "demoQuery": "hollow body hold",
+  "level": "advanced"
+ },
+ {
+  "id": "russian_twist",
+  "name": "Rotação russa",
+  "muscles": [
+   "Oblíquos",
+   "Core"
+  ],
+  "equipment": [],
+  "pattern": "core",
+  "measure": "reps",
+  "cue": "Roda o tronco, não só os braços.",
+  "demoQuery": "russian twist abs",
+  "level": "intermediate"
+ },
+ {
+  "id": "jumping_jacks",
+  "name": "Polichinelos",
+  "muscles": [
+   "Corpo inteiro"
+  ],
+  "equipment": [],
+  "pattern": "cardio",
+  "measure": "time",
+  "cue": "Ritmo constante, aterra na ponta dos pés.",
+  "demoQuery": "jumping jacks",
+  "level": "beginner",
+  "warmup": true
+ },
+ {
+  "id": "high_knees",
+  "name": "Joelhos ao peito",
+  "muscles": [
+   "Pernas",
+   "Core"
+  ],
+  "equipment": [],
+  "pattern": "cardio",
+  "measure": "time",
+  "cue": "Joelhos à altura da anca, braços a acompanhar.",
+  "demoQuery": "high knees running",
+  "level": "beginner",
+  "warmup": true
+ },
+ {
+  "id": "mountain_climbers",
+  "name": "Escalador",
+  "muscles": [
+   "Core",
+   "Ombros"
+  ],
+  "equipment": [],
+  "pattern": "cardio",
+  "measure": "time",
+  "cue": "Anca baixa, joelhos rápidos ao peito.",
+  "demoQuery": "mountain climbers exercise",
+  "level": "intermediate"
+ },
+ {
+  "id": "burpee",
+  "name": "Burpee",
+  "muscles": [
+   "Corpo inteiro"
+  ],
+  "equipment": [],
+  "pattern": "cardio",
+  "measure": "reps",
+  "cue": "Desce controlado, sobe com tudo.",
+  "demoQuery": "burpee exercise",
+  "level": "advanced"
+ },
+ {
+  "id": "treadmill_intervals",
+  "name": "Intervalos na passadeira",
+  "muscles": [
+   "Corpo inteiro"
+  ],
+  "equipment": [
+   "cardio"
+  ],
+  "pattern": "cardio",
+  "measure": "time",
+  "cue": "Ritmo forte, mas ainda a conseguir falar por frases curtas.",
+  "demoQuery": "treadmill running gym",
+  "level": "beginner"
+ },
+ {
+  "id": "bike_intervals",
+  "name": "Intervalos na bicicleta",
+  "muscles": [
+   "Pernas"
+  ],
+  "equipment": [
+   "cardio"
+  ],
+  "pattern": "cardio",
+  "measure": "time",
+  "cue": "Resistência que te faça sentir as pernas ao fim de 30 s.",
+  "demoQuery": "stationary bike gym",
+  "level": "beginner"
+ },
+ {
+  "id": "skater",
+  "name": "Saltos laterais",
+  "muscles": [
+   "Pernas",
+   "Glúteos"
+  ],
+  "equipment": [],
+  "pattern": "cardio",
+  "measure": "time",
+  "cue": "Aterra no pé de fora e segura um instante.",
+  "demoQuery": "skater jumps lateral",
+  "level": "intermediate"
+ },
+ {
+  "id": "hip_90_90",
+  "name": "Troca 90/90",
+  "muscles": [
+   "Anca"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "reps",
+  "cue": "Roda a partir da anca; o tronco fica alto e quieto.",
+  "demoQuery": "90 90 hip switch mobility",
+  "level": "beginner"
+ },
+ {
+  "id": "deep_squat_hold",
+  "name": "Agachamento profundo mantido",
+  "muscles": [
+   "Anca",
+   "Tornozelos"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "time",
+  "cue": "Cotovelos por dentro dos joelhos, a abrir devagar.",
+  "demoQuery": "deep squat hold mobility",
+  "level": "beginner"
+ },
+ {
+  "id": "scapular_pushup",
+  "name": "Flexão escapular",
+  "muscles": [
+   "Ombros",
+   "Omoplatas"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "reps",
+  "cue": "Braços esticados o tempo todo: só as omoplatas juntam e afastam.",
+  "demoQuery": "scapular push up",
+  "level": "beginner"
+ },
+ {
+  "id": "inchworm",
+  "name": "Lagarta",
+  "muscles": [
+   "Isquiotibiais",
+   "Ombros",
+   "Core"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "reps",
+  "cue": "Caminha com as mãos até à prancha e volta, pernas quase direitas.",
+  "demoQuery": "inchworm exercise",
+  "level": "beginner"
+ },
+ {
+  "id": "cossack_squat",
+  "name": "Agachamento cossaco",
+  "muscles": [
+   "Adutores",
+   "Anca",
+   "Quadríceps"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "reps",
+  "cue": "Desce de um lado com o pé do outro a apontar para cima.",
+  "demoQuery": "cossack squat mobility",
+  "level": "intermediate"
+ },
+ {
+  "id": "sit_through",
+  "name": "Passagem sentada",
+  "muscles": [
+   "Anca",
+   "Core",
+   "Ombros"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "reps",
+  "cue": "Passa a perna por baixo sem deixar a anca cair.",
+  "demoQuery": "sit through exercise",
+  "level": "intermediate"
+ },
+ {
+  "id": "cat_cow",
+  "name": "Gato-camelo",
+  "muscles": [
+   "Coluna"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "reps",
+  "cue": "Segue a respiração: arqueia a inspirar, arredonda a expirar.",
+  "demoQuery": "cat cow yoga stretch",
+  "level": "beginner",
+  "warmup": true,
+  "cooldown": true
+ },
+ {
+  "id": "hip_circles",
+  "name": "Círculos de anca",
+  "muscles": [
+   "Anca"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "time",
+  "cue": "Círculos largos e lentos, nos dois sentidos.",
+  "demoQuery": "hip circles mobility",
+  "level": "beginner",
+  "warmup": true
+ },
+ {
+  "id": "arm_circles",
+  "name": "Círculos de braços",
+  "muscles": [
+   "Ombros"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "time",
+  "cue": "Começa pequeno e vai abrindo.",
+  "demoQuery": "arm circles warm up",
+  "level": "beginner",
+  "warmup": true
+ },
+ {
+  "id": "world_greatest",
+  "name": "Alongamento do escalador",
+  "muscles": [
+   "Anca",
+   "Coluna"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "reps",
+  "cue": "Cotovelo ao chão por dentro do pé, depois abre o peito.",
+  "demoQuery": "worlds greatest stretch",
+  "level": "intermediate",
+  "warmup": true
+ },
+ {
+  "id": "hamstring_stretch",
+  "name": "Alongamento isquiotibiais",
+  "muscles": [
+   "Isquiotibiais"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "time",
+  "cue": "Desce até sentir tensão, nunca dor.",
+  "demoQuery": "hamstring stretch",
+  "level": "beginner",
+  "cooldown": true
+ },
+ {
+  "id": "child_pose",
+  "name": "Postura da criança",
+  "muscles": [
+   "Costas",
+   "Anca"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "time",
+  "cue": "Respira fundo e deixa as costas soltarem.",
+  "demoQuery": "child pose yoga",
+  "level": "beginner",
+  "cooldown": true
+ },
+ {
+  "id": "thoracic_rotation",
+  "name": "Rotação torácica",
+  "muscles": [
+   "Coluna",
+   "Ombros"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "reps",
+  "cue": "Roda a partir do meio das costas, anca parada.",
+  "demoQuery": "thoracic rotation stretch",
+  "level": "beginner",
+  "warmup": true,
+  "cooldown": true
+ },
+ {
+  "id": "quad_stretch",
+  "name": "Alongamento de quadríceps",
+  "muscles": [
+   "Quadríceps"
+  ],
+  "equipment": [],
+  "pattern": "mobility",
+  "measure": "time",
+  "cue": "Joelhos juntos, anca à frente.",
+  "demoQuery": "quad stretch standing",
+  "level": "beginner",
+  "cooldown": true
+ }
+]
