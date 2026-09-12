@@ -8,17 +8,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: airo
-          POSTGRES_PASSWORD: airo
-          POSTGRES_DB: airo_test
-        options: >-
-          --health-cmd pg_isready --health-interval 10s
-          --health-timeout 5s --health-retries 5
-        ports: ['5432:5432']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -32,10 +21,14 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # Os testes de base de dados levantam um Postgres 16 embutido, que o
+      # próprio teste descarrega. Sem serviço no CI e sem Docker: um teste que
+      # só corre em metade das máquinas não é um teste, é uma intenção.
       - name: Testes
-        env:
-          AIRO_DATABASE_URL: postgres://airo:airo@localhost:5432/airo_test?sslmode=disable
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Esquema contra Postgres real
+        run: go test ./internal/platform/postgres/ -run "Migration|Invariant" -v
 
       # Os invariantes são a suite que apanha a classe de erro que já apareceu:
       # repartições que não somam, progresso que recua, blocos que enchem antes
