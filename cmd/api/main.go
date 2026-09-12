@@ -17,8 +17,10 @@ import (
 	"time"
 
 	"github.com/airosp/airo-api/internal/platform/config"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/airosp/airo-api/internal/platform/logger"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
+	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	airohttp "github.com/airosp/airo-api/internal/transport/http"
 	"github.com/airosp/airo-api/migrations"
 )
@@ -56,6 +58,14 @@ func main() {
 				log.Error("migrar", "error", err)
 				os.Exit(1)
 			}
+			// O catálogo vem a seguir: é idempotente pelo slug, e um esquema
+			// sem exercícios não serve para montar treino nenhum.
+			if n, err := seedCatalog(ctx, pool); err != nil {
+				log.Error("carregar catálogo", "error", err)
+				os.Exit(1)
+			} else {
+				log.Info("catálogo carregado", "exercicios", n)
+			}
 		case "down":
 			if err := airopg.Down(ctx, pool, migs, log); err != nil {
 				log.Error("desfazer", "error", err)
@@ -69,15 +79,32 @@ func main() {
 		return
 	}
 
-	// As migrações NÃO correm no arranque. São um passo próprio do deploy
+	// As migrações são, por omissão, um passo próprio do deploy
 	// (`airo-api migrate up`): um arranque que aplica DDL torna cada reinício
 	// num risco de esquema, e com várias réplicas o cadeado resolve a corrida
 	// mas atrasa todas menos uma.
 	//
-	// O processo **sobe na mesma** e diz-se não-pronto enquanto o esquema
-	// estiver atrasado. Sair seria pior: o contentor entra em reinício cíclico,
-	// e o erro real fica escondido atrás do CrashLoop em vez de aparecer num
-	// /readyz que o diz por palavras.
+	// `AIRO_MIGRATE_ON_START=1` é a saída para plataformas que não sabem correr
+	// um passo antes do serviço. É explícito de propósito: quem o liga sabe o
+	// que está a trocar.
+	if os.Getenv("AIRO_MIGRATE_ON_START") == "1" {
+		log.Info("a aplicar migrações no arranque (AIRO_MIGRATE_ON_START=1)")
+		if err := airopg.Up(ctx, pool, migs, log); err != nil {
+			log.Error("migrar no arranque", "error", err)
+			os.Exit(1)
+		}
+		if n, err := seedCatalog(ctx, pool); err != nil {
+			log.Error("carregar catálogo", "error", err)
+			os.Exit(1)
+		} else {
+			log.Info("catálogo carregado", "exercicios", n)
+		}
+	}
+
+	// O processo **sobe na mesma** com o esquema atrasado, e diz-se não-pronto.
+	// Sair seria pior: o contentor entra em reinício cíclico, e o erro real fica
+	// escondido atrás do CrashLoop em vez de aparecer num /readyz que o diz por
+	// palavras.
 	schema := airohttp.SchemaState{Migrations: migs, Pool: pool}
 	if pending, err := airopg.Pending(ctx, pool, migs); err != nil {
 		log.Error("verificar migrações", "error", err)
@@ -117,4 +144,11 @@ func main() {
 		log.Error("encerramento forçado", "error", err)
 	}
 	log.Info("encerrado")
+}
+
+// seedCatalog carrega os exercícios do JSON embutido. Idempotente pelo slug:
+// correr outra vez actualiza, não duplica.
+func seedCatalog(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	tx := repo.NewTxManager(pool)
+	return repo.NewCatalogRepo(tx).SeedExercises(ctx)
 }
