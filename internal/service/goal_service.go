@@ -48,6 +48,9 @@ type CreateGoalResult struct {
 	GoalID    string
 	JourneyID string
 	PlanID    string
+	// Plan são os números que a fase produziu. O id sozinho não chega: o ecrã
+	// mostra "2× por semana, 38 min" e não um uuid.
+	Plan repo.PlanRow
 	// Assessment é o que a app precisa para escolher o tom. **Sem o score.**
 	Assessment goal.Assessment
 	Phases     []journey.Phase
@@ -223,6 +226,15 @@ func (s *GoalService) Create(ctx context.Context, in CreateGoalInput) (CreateGoa
 			return err
 		}
 		out.PlanID = planID
+		out.Plan = repo.PlanRow{
+			ID:               planID,
+			FrequencyPerWeek: adjusted.Frequency,
+			SessionMinutes:   adjusted.SessionDurationMinutes,
+			Intensity:        string(phasePlan.Intensity),
+			Progression:      string(phasePlan.Progression),
+			Recovery:         string(phasePlan.Recovery),
+			EffectiveFrom:    in.StartDate,
+		}
 
 		// ── estratégia alimentar ─────────────────────────────────────────────
 		strategy, err := s.buildStrategy(in, assessment)
