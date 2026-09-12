@@ -17,12 +17,12 @@ import (
 	"time"
 
 	"github.com/airosp/airo-api/internal/platform/config"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/airosp/airo-api/internal/platform/logger"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	airohttp "github.com/airosp/airo-api/internal/transport/http"
 	"github.com/airosp/airo-api/migrations"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // version é gravada na compilação: -ldflags "-X main.version=$(git rev-parse --short HEAD)"
