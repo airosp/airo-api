@@ -137,7 +137,15 @@ func (e graphError) Error() string {
 // ErrNoWhatsApp é o caso que interessa distinguir: o número existe, mas não
 // tem WhatsApp. Não é falha nossa nem da Meta, e a resposta a dar a quem está
 // a tentar entrar é outra — é o SMS.
-var ErrNoWhatsApp = errors.New("whatsapp: o número não tem WhatsApp")
+var ErrNoWhatsApp = noWhatsAppError{}
+
+type noWhatsAppError struct{}
+
+func (noWhatsAppError) Error() string { return "whatsapp: o número não tem WhatsApp" }
+
+// Undeliverable diz ao serviço que repetir não vai adiantar. Ver
+// service.Undeliverable.
+func (noWhatsAppError) Undeliverable() bool { return true }
 
 // Send entrega o código e devolve o identificador da mensagem.
 //

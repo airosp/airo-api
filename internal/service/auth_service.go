@@ -19,6 +19,16 @@ type Sender interface {
 	Send(ctx context.Context, phone, code, channel string) (messageID string, err error)
 }
 
+// Undeliverable distingue "este número não recebe por aqui" de "falhou agora".
+// São coisas diferentes para quem está a tentar entrar: a primeira não melhora
+// com uma segunda tentativa.
+//
+// É uma interface e não um erro concreto para o serviço não ter de conhecer o
+// canal — nem o canal o serviço.
+type Undeliverable interface {
+	Undeliverable() bool
+}
+
 type AuthConfig struct {
 	Pepper []byte
 
@@ -71,9 +81,12 @@ type RequestOTPResult struct {
 var (
 	ErrRateLimited    = errors.New("limite excedido")
 	ErrDeliveryFailed = errors.New("entrega falhou")
-	ErrOTPInvalid     = errors.New("código inválido")
-	ErrOTPExpired     = errors.New("código expirado")
-	ErrOTPExhausted   = errors.New("tentativas esgotadas")
+	// ErrUndeliverable é o número que não recebe por este canal. Repetir não
+	// resolve, e a mensagem a dar é outra.
+	ErrUndeliverable = errors.New("número não alcançável por este canal")
+	ErrOTPInvalid    = errors.New("código inválido")
+	ErrOTPExpired    = errors.New("código expirado")
+	ErrOTPExhausted  = errors.New("tentativas esgotadas")
 )
 
 // RequestOTP pede um código.
@@ -134,6 +147,10 @@ func (s *AuthService) RequestOTP(ctx context.Context, in RequestOTPInput) (Reque
 
 	if _, err := s.sender.Send(ctx, phone, code, channel); err != nil {
 		_ = s.repo.AppendAuthEvent(ctx, "otp_delivery_failed", nil, &phone, device, nil)
+		var u Undeliverable
+		if errors.As(err, &u) && u.Undeliverable() {
+			return RequestOTPResult{}, fmt.Errorf("%w: %v", ErrUndeliverable, err)
+		}
 		return RequestOTPResult{}, fmt.Errorf("%w: %v", ErrDeliveryFailed, err)
 	}
 	_ = s.repo.AppendAuthEvent(ctx, "otp_requested", nil, &phone, device, map[string]any{"channel": channel})

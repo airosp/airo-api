@@ -45,7 +45,10 @@ type WhatsAppConfig struct {
 	Template      string
 	// Language é o código de língua do template aprovado. `pt_PT` e `pt_BR`
 	// são templates diferentes para a Meta, não variantes do mesmo.
-	Language      string
+	Language string
+	// BaseURL aponta o Graph para outro lado. Existe para reproduzir um
+	// problema sem enviar mensagens ao telefone de alguém.
+	BaseURL       string
 	WebhookSecret string
 }
 
@@ -66,6 +69,7 @@ func Load() (Config, error) {
 			Token:         get("AIRO_WHATSAPP_TOKEN", ""),
 			Template:      get("AIRO_WHATSAPP_TEMPLATE", "airo_otp"),
 			Language:      get("AIRO_WHATSAPP_LANGUAGE", "pt_PT"),
+			BaseURL:       get("AIRO_WHATSAPP_BASE_URL", ""),
 			WebhookSecret: get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
 		},
 	}

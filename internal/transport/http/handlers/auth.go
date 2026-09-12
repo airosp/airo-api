@@ -41,8 +41,16 @@ func (h Auth) RequestOTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfterOf(err).Seconds())))
 		apierr.Write(w, apierr.RateLimited, "Demasiados pedidos. Tenta daqui a pouco.", "")
 		return
+	case errors.Is(err, service.ErrUndeliverable):
+		// Sem contrato de SMS ainda, a alternativa honesta é dizer o que se
+		// passa — não oferecer um canal que não existe. Ver
+		// docs/backend/08-autenticacao.md §7.
+		apierr.Write(w, apierr.DeliveryFailed,
+			"Este número não tem WhatsApp. Tenta com outro número.", "phone")
+		return
 	case errors.Is(err, service.ErrDeliveryFailed):
-		apierr.Write(w, apierr.DeliveryFailed, "Não conseguimos enviar para este número. Tenta por SMS.", "")
+		apierr.Write(w, apierr.DeliveryFailed,
+			"Não conseguimos enviar o código agora. Tenta daqui a pouco.", "")
 		return
 	case err != nil:
 		apierr.Write(w, apierr.Internal, "Não foi possível enviar o código.", "")

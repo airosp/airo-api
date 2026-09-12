@@ -134,6 +134,7 @@ func main() {
 			Token:         cfg.WhatsApp.Token,
 			Template:      cfg.WhatsApp.Template,
 			Language:      cfg.WhatsApp.Language,
+			BaseURL:       cfg.WhatsApp.BaseURL,
 			Log:           log,
 		})
 		if err != nil {

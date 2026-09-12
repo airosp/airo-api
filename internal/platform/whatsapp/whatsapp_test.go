@@ -181,3 +181,26 @@ func itoa(n int) string {
 	}
 	return string(b)
 }
+
+// O serviço distingue os dois casos por esta interface. Se ela desaparecer, o
+// número sem WhatsApp volta a ser "tenta outra vez" — e nunca funciona.
+func TestNumeroSemWhatsAppDeclaraSeNaoEntregavel(t *testing.T) {
+	var u interface{ Undeliverable() bool }
+	if !errors.As(error(whatsapp.ErrNoWhatsApp), &u) {
+		t.Fatal("ErrNoWhatsApp tem de implementar Undeliverable()")
+	}
+	if !u.Undeliverable() {
+		t.Fatal("Undeliverable() devia ser verdadeiro")
+	}
+
+	// E um erro qualquer da Meta **não** é não-entregável: esse melhora com
+	// uma segunda tentativa.
+	s := newSender(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"error":{"message":"temporário","code":131000}}`))
+	})
+	_, err := s.Send(context.Background(), "+258841234567", "123456", "whatsapp")
+	if errors.As(err, &u) {
+		t.Fatalf("erro transitório não devia ser não-entregável: %v", err)
+	}
+}
