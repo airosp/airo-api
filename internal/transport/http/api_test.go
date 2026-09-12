@@ -315,3 +315,7 @@ func firstLine(s string) string {
 	}
 	return s
 }
+
+func quietLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+}

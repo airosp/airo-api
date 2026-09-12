@@ -21,6 +21,7 @@ type Deps struct {
 	// autenticação é pior do que uma rota que não existe.
 	Auth        middleware.TokenVerifier
 	Goals       *handlers.Goals
+	Training    *handlers.Training
 	Idempotency middleware.Store
 }
 
@@ -32,7 +33,7 @@ func NewRouter(d Deps) http.Handler {
 	mux.HandleFunc("GET /healthz", health.Live)
 	mux.HandleFunc("GET /readyz", health.Ready)
 
-	if d.Auth != nil && d.Goals != nil {
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -46,8 +47,14 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Idempotency(store, 24*time.Hour),
 			)
 		}
-		mux.Handle("POST /v1/goals", private(d.Goals.Create))
-		mux.Handle("POST /v1/goals/assess", private(d.Goals.Assess))
+		if d.Goals != nil {
+			mux.Handle("POST /v1/goals", private(d.Goals.Create))
+			mux.Handle("POST /v1/goals/assess", private(d.Goals.Assess))
+		}
+		if d.Training != nil {
+			mux.Handle("GET /v1/training/today", private(d.Training.Today))
+			mux.Handle("POST /v1/training/sessions", private(d.Training.Record))
+		}
 	}
 
 	return middleware.Chain(mux,
