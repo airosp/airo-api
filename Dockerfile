@@ -23,6 +23,13 @@ COPY --from=build /out/airo-api /usr/local/bin/airo-api
 COPY migrations /migrations
 USER airo
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget -qO- http://127.0.0.1:8080/readyz || exit 1
+# Sem HEALTHCHECK no Dockerfile, de propósito.
+#
+# /readyz responde 503 enquanto o esquema estiver atrasado — que é o sinal
+# certo. Mas um HEALTHCHECK sobre ele torna o contentor "não saudável", o
+# encaminhador deixa de lhe mandar tráfego, e o 503 que explicava o problema
+# vira um 502 que não explica nada. O serviço ficava invisível justamente
+# quando é preciso perguntar-lhe o que se passa.
+#
+# Quem decide encaminhar é o EasyPanel, com o seu próprio teste sobre /readyz.
 ENTRYPOINT ["/usr/local/bin/airo-api"]
