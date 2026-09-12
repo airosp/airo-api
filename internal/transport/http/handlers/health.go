@@ -13,9 +13,16 @@ type Pinger interface {
 	Ping(ctx context.Context) error
 }
 
+// SchemaChecker diz quantas migrações faltam. Interface para o handler não
+// precisar de saber que existe um executor de migrações.
+type SchemaChecker interface {
+	PendingCount(ctx context.Context) (int, error)
+}
+
 type Health struct {
 	Version string
 	DB      Pinger
+	Schema  SchemaChecker
 }
 
 // Live diz que o processo está de pé. Não toca em dependências — um balanceador
@@ -37,6 +44,25 @@ func (h Health) Ready(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable,
 			map[string]string{"status": "base de dados inacessível"})
 		return
+	}
+	// Servir com o esquema atrasado é o pior dos dois mundos: responde 200 e
+	// falha em colunas que ainda não existem. Não-pronto, e a dizer porquê.
+	if h.Schema != nil {
+		pending, err := h.Schema.PendingCount(ctx)
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable,
+				map[string]string{"status": "esquema ilegível"})
+			return
+		}
+		if pending > 0 {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]any{
+				"status":  "esquema desactualizado",
+				"pending": pending,
+				"hint":    "airo-api migrate up",
+				"version": h.Version,
+			})
+			return
+		}
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": h.Version})
 }

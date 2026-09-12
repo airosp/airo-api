@@ -69,29 +69,26 @@ func main() {
 		return
 	}
 
-	// As migrações NÃO correm no arranque.
+	// As migrações NÃO correm no arranque. São um passo próprio do deploy
+	// (`airo-api migrate up`): um arranque que aplica DDL torna cada reinício
+	// num risco de esquema, e com várias réplicas o cadeado resolve a corrida
+	// mas atrasa todas menos uma.
 	//
-	// São um passo próprio do deploy (`airo-api migrate up`), por três razões:
-	// um arranque que aplica DDL torna cada reinício num risco de esquema; com
-	// várias réplicas a subir ao mesmo tempo, o cadeado resolve a corrida mas
-	// atrasa todas menos uma; e uma migração que falha deixa o serviço a
-	// reiniciar em ciclo, o que esconde o erro real atrás de um CrashLoop.
-	//
-	// O que o arranque faz é recusar-se a servir com o esquema atrasado.
-	pending, err := airopg.Pending(ctx, pool, migs)
-	if err != nil {
+	// O processo **sobe na mesma** e diz-se não-pronto enquanto o esquema
+	// estiver atrasado. Sair seria pior: o contentor entra em reinício cíclico,
+	// e o erro real fica escondido atrás do CrashLoop em vez de aparecer num
+	// /readyz que o diz por palavras.
+	schema := airohttp.SchemaState{Migrations: migs, Pool: pool}
+	if pending, err := airopg.Pending(ctx, pool, migs); err != nil {
 		log.Error("verificar migrações", "error", err)
-		os.Exit(1)
-	}
-	if len(pending) > 0 {
-		log.Error("esquema desactualizado — corre `airo-api migrate up` antes de servir",
+	} else if len(pending) > 0 {
+		log.Warn("esquema desactualizado — corre `airo-api migrate up`",
 			"pendentes", len(pending), "primeira", pending[0].Name)
-		os.Exit(1)
 	}
 
 	srv := &http.Server{
 		Addr:    cfg.HTTPAddr,
-		Handler: airohttp.NewRouter(airohttp.Deps{Log: log, Version: version, DB: pool}),
+		Handler: airohttp.NewRouter(airohttp.Deps{Log: log, Version: version, DB: pool, Schema: schema}),
 		// Sem estes prazos, uma ligação lenta segura um descritor para sempre.
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,

@@ -13,13 +13,14 @@ type Deps struct {
 	Log     *slog.Logger
 	Version string
 	DB      handlers.Pinger
+	Schema  handlers.SchemaChecker
 }
 
 // NewRouter devolve o handler raiz com os middlewares já aplicados.
 func NewRouter(d Deps) http.Handler {
 	mux := http.NewServeMux()
 
-	health := handlers.Health{Version: d.Version, DB: d.DB}
+	health := handlers.Health{Version: d.Version, DB: d.DB, Schema: d.Schema}
 	mux.HandleFunc("GET /healthz", health.Live)
 	mux.HandleFunc("GET /readyz", health.Ready)
 
