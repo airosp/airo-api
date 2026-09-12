@@ -90,8 +90,19 @@ func Load() (Config, error) {
 	if len(missing) > 0 {
 		return c, fmt.Errorf("configuração em falta: %s", strings.Join(missing, ", "))
 	}
-	if c.Env != Development && len(c.OTPPepper) < 32 {
-		return c, errors.New("AIRO_OTP_PEPPER tem de ter pelo menos 32 bytes")
+	// O comprimento é verificado, não só a presença. Um segredo de onze
+	// caracteres passou por aqui e a API subiu em produção sem uma única rota
+	// privada: o `Wire` exige 32 bytes para assinar, não os tinha, e desistiu
+	// com um aviso. Recusar à cabeça troca esse silêncio por uma paragem que se
+	// lê no arranque.
+	if c.Env != Development {
+		if len(c.OTPPepper) < 32 {
+			return c, errors.New("AIRO_OTP_PEPPER tem de ter pelo menos 32 bytes")
+		}
+		if len(c.JWTSecret) < 32 {
+			return c, fmt.Errorf(
+				"AIRO_JWT_SECRET tem de ter pelo menos 32 bytes (tem %d)", len(c.JWTSecret))
+		}
 	}
 	return c, nil
 }
