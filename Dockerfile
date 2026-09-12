@@ -22,7 +22,12 @@ RUN apk add --no-cache ca-certificates tzdata && \
 COPY --from=build /out/airo-api /usr/local/bin/airo-api
 COPY migrations /migrations
 USER airo
-EXPOSE 8080
+
+# O EasyPanel encaminha para a porta 80. O valor por omissão da aplicação
+# continua a ser :8080 para desenvolvimento local — aqui é o contentor que diz
+# onde escuta, e os dois lados passam a concordar.
+ENV AIRO_HTTP_ADDR=:80
+EXPOSE 80
 # Sem HEALTHCHECK no Dockerfile, de propósito.
 #
 # /readyz responde 503 enquanto o esquema estiver atrasado — que é o sinal
