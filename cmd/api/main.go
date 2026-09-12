@@ -69,10 +69,23 @@ func main() {
 		return
 	}
 
-	// No arranque normal as migrações correm na mesma, com cadeado: num deploy
-	// com duas instâncias, a segunda espera em vez de aplicar o mesmo DDL.
-	if err := airopg.Up(ctx, pool, migs, log); err != nil {
-		log.Error("migrar no arranque", "error", err)
+	// As migrações NÃO correm no arranque.
+	//
+	// São um passo próprio do deploy (`airo-api migrate up`), por três razões:
+	// um arranque que aplica DDL torna cada reinício num risco de esquema; com
+	// várias réplicas a subir ao mesmo tempo, o cadeado resolve a corrida mas
+	// atrasa todas menos uma; e uma migração que falha deixa o serviço a
+	// reiniciar em ciclo, o que esconde o erro real atrás de um CrashLoop.
+	//
+	// O que o arranque faz é recusar-se a servir com o esquema atrasado.
+	pending, err := airopg.Pending(ctx, pool, migs)
+	if err != nil {
+		log.Error("verificar migrações", "error", err)
+		os.Exit(1)
+	}
+	if len(pending) > 0 {
+		log.Error("esquema desactualizado — corre `airo-api migrate up` antes de servir",
+			"pendentes", len(pending), "primeira", pending[0].Name)
 		os.Exit(1)
 	}
 

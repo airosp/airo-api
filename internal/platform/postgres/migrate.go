@@ -192,3 +192,46 @@ func Down(ctx context.Context, pool *pgxpool.Pool, migs []Migration, log *slog.L
 	}
 	return fmt.Errorf("versão %d está aplicada mas não existe nos ficheiros", version)
 }
+
+// Pending devolve as migrações por aplicar, sem aplicar nenhuma.
+//
+// Serve ao arranque: uma API que serve com o esquema atrasado responde 200 e
+// falha em consultas a colunas que ainda não existem — o pior dos dois mundos,
+// porque parece estar de pé.
+func Pending(ctx context.Context, pool *pgxpool.Pool, migs []Migration) ([]Migration, error) {
+	var exists bool
+	err := pool.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'schema_migration')`,
+	).Scan(&exists)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return migs, nil
+	}
+
+	applied := map[int]bool{}
+	rows, err := pool.Query(ctx, "SELECT version FROM schema_migration")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v int
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		applied[v] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	var out []Migration
+	for _, m := range migs {
+		if !applied[m.Version] {
+			out = append(out, m)
+		}
+	}
+	return out, nil
+}
