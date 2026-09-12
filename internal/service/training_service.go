@@ -183,3 +183,115 @@ func PrescriptionsFrom(session training.Session) []repo.PrescriptionRow {
 	}
 	return out
 }
+
+// ── Eventos durante a sessão ─────────────────────────────────────────────────
+
+type SessionEvent struct {
+	Kind      string
+	StepIndex *int
+	Payload   map[string]any
+	At        time.Time
+}
+
+type AppendEventsResult struct {
+	Accepted int
+	// Duplicates são os que já lá estavam. Reenviar é normal, não é erro: é o
+	// que acontece quando a rede cai a meio do envio.
+	Duplicates int
+
+	// Status e Streak só vêm preenchidos quando o `session_ended` chegou.
+	Status          string
+	CountsForStreak bool
+	Streak          int
+	Ended           bool
+}
+
+// AppendEvents recebe o lote e, se a sessão tiver terminado, **decide**.
+//
+// Os eventos chegam fora de ordem, repetidos e atrasados — é o que acontece a
+// quem treina sem rede e sincroniza depois. Nenhum deles conclui nada.
+func (s *TrainingService) AppendEvents(ctx context.Context, userID, sessionID string, events []SessionEvent, localDay time.Time) (AppendEventsResult, error) {
+	var out AppendEventsResult
+
+	planned, err := s.sessions.PlannedSeconds(ctx, sessionID, userID)
+	if err != nil {
+		return out, err
+	}
+
+	rows := make([]repo.EventRow, 0, len(events))
+	for _, e := range events {
+		// Um evento sem instante não se pode ordenar nem deduplicar. Recusa-se
+		// o evento, não o lote: perder trinta séries por causa de uma é pior.
+		if e.At.IsZero() {
+			continue
+		}
+		rows = append(rows, repo.EventRow{
+			Kind: e.Kind, StepIndex: e.StepIndex, Payload: e.Payload, OccurredAt: e.At.UTC(),
+		})
+	}
+
+	err = s.sessions.WithTx(ctx, func(ctx context.Context) error {
+		accepted, err := s.sessions.AppendEvents(ctx, sessionID, rows)
+		if err != nil {
+			return err
+		}
+		out.Accepted = accepted
+		out.Duplicates = len(rows) - accepted
+
+		facts, err := s.sessions.FactsFrom(ctx, sessionID)
+		if err != nil {
+			return err
+		}
+		if !facts.Ended {
+			return nil
+		}
+		out.Ended = true
+
+		// A decisão, e as duas coisas que a sustentam: o tempo declarado no
+		// `session_ended` e o tempo que os eventos abrangem. Um cliente que
+		// declarasse uma hora com todos os eventos dentro de cinco segundos não
+		// treinou uma hora.
+		duration := facts.DurationSeconds
+		if facts.SpanSeconds > 0 && facts.SpanSeconds < duration {
+			duration = facts.SpanSeconds
+		}
+
+		status := "skipped"
+		if planned > 0 && float64(duration) >= float64(planned)*CompletionRatio {
+			status = "completed"
+		}
+		if err := s.sessions.UpdateOutcome(ctx, sessionID, status, duration, facts.SetsCompleted); err != nil {
+			return err
+		}
+		out.Status = status
+		out.CountsForStreak = status == "completed"
+		return nil
+	})
+	if err != nil {
+		return out, err
+	}
+
+	if out.Ended {
+		streak, err := s.sessions.Streak(ctx, userID, localDay)
+		if err != nil {
+			return out, err
+		}
+		out.Streak = streak
+	}
+	return out, nil
+}
+
+// Open abre a sessão para os eventos terem onde aterrar.
+func (s *TrainingService) Open(ctx context.Context, userID string, in TodayInput) (string, error) {
+	_, session, steps, err := s.Today(in)
+	if err != nil {
+		return "", err
+	}
+	return s.sessions.OpenSession(ctx, repo.SessionRow{
+		UserID: userID, Title: session.Title, Focus: string(session.Focus),
+		OccurredAt: s.clk.Now(), LocalDay: in.LocalDay,
+		PlannedSeconds: training.RemainingSeconds(s.cfg, steps, 0),
+		SetsPlanned:    training.TotalSets(steps),
+		Kcal:           session.EstimatedKcal,
+	}, PrescriptionsFrom(session))
+}

@@ -231,3 +231,142 @@ func sameDay(a, b time.Time) bool {
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
 }
+
+// ── Eventos da sessão ────────────────────────────────────────────────────────
+
+type EventRow struct {
+	Kind       string
+	StepIndex  *int
+	Payload    map[string]any
+	OccurredAt time.Time
+}
+
+// AppendEvents grava um lote, ignorando os que já lá estavam.
+//
+// Devolve quantos são novos. O cliente pode reenviar o mesmo lote — é o que
+// acontece quando a rede cai a meio do envio — e reenviar não pode contar a
+// mesma série duas vezes.
+func (r *SessionRepo) AppendEvents(ctx context.Context, sessionID string, events []EventRow) (int, error) {
+	if len(events) == 0 {
+		return 0, nil
+	}
+	q := r.tx.Q(ctx)
+	inserted := 0
+
+	for _, e := range events {
+		payload := []byte("{}")
+		if e.Payload != nil {
+			b, err := json.Marshal(e.Payload)
+			if err != nil {
+				return inserted, fmt.Errorf("serializar evento %q: %w", e.Kind, err)
+			}
+			payload = b
+		}
+		tag, err := q.Exec(ctx,
+			`INSERT INTO session_event (session_id, kind, step_index, payload, occurred_at)
+			 VALUES ($1,$2,$3,$4,$5)
+			 ON CONFLICT DO NOTHING`,
+			sessionID, e.Kind, e.StepIndex, payload, e.OccurredAt)
+		if err != nil {
+			return inserted, fmt.Errorf("gravar evento %q: %w", e.Kind, err)
+		}
+		inserted += int(tag.RowsAffected())
+	}
+	return inserted, nil
+}
+
+// SessionFacts é o que os eventos dizem sobre a sessão, já agregado.
+type SessionFacts struct {
+	SetsCompleted int
+	// DurationSeconds vem do `session_ended`. Zero enquanto não chegar — e uma
+	// sessão sem fim declarado ainda está a decorrer.
+	DurationSeconds int
+	Ended           bool
+	// Span é o tempo entre o primeiro e o último evento. Serve de travão de
+	// sanidade: uma sessão que diz ter durado uma hora com todos os eventos
+	// dentro de cinco segundos não durou uma hora.
+	SpanSeconds int
+}
+
+// FactsFrom lê os eventos e diz o que aconteceu. **Não decide** — só conta.
+func (r *SessionRepo) FactsFrom(ctx context.Context, sessionID string) (SessionFacts, error) {
+	var f SessionFacts
+	var first, last *time.Time
+
+	rows, err := r.tx.Q(ctx).Query(ctx,
+		`SELECT kind, payload, occurred_at FROM session_event
+		  WHERE session_id = $1 ORDER BY occurred_at`, sessionID)
+	if err != nil {
+		return f, fmt.Errorf("ler eventos: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var kind string
+		var payload map[string]any
+		var at time.Time
+		if err := rows.Scan(&kind, &payload, &at); err != nil {
+			return f, err
+		}
+		if first == nil {
+			t := at
+			first = &t
+		}
+		t := at
+		last = &t
+
+		switch kind {
+		case "set_completed":
+			f.SetsCompleted++
+		case "session_ended":
+			f.Ended = true
+			if v, ok := payload["durationSeconds"].(float64); ok {
+				f.DurationSeconds = int(v)
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return f, err
+	}
+	if first != nil && last != nil {
+		f.SpanSeconds = int(last.Sub(*first).Seconds())
+	}
+	return f, nil
+}
+
+// UpdateOutcome fixa o veredicto na sessão.
+func (r *SessionRepo) UpdateOutcome(ctx context.Context, sessionID, status string, durationSeconds, setsDone int) error {
+	_, err := r.tx.Q(ctx).Exec(ctx,
+		`UPDATE workout_session
+		    SET status = $2, duration_seconds = $3, sets_done = $4
+		  WHERE id = $1`, sessionID, status, durationSeconds, setsDone)
+	if err != nil {
+		return fmt.Errorf("fixar veredicto: %w", err)
+	}
+	return nil
+}
+
+// OpenSession cria a sessão no estado `planned`, para os eventos terem onde
+// aterrar. O veredicto chega com o `session_ended`.
+func (r *SessionRepo) OpenSession(ctx context.Context, s SessionRow, prescriptions []PrescriptionRow) (string, error) {
+	s.Status = "planned"
+	return r.Insert(ctx, s, prescriptions)
+}
+
+// PlannedSeconds devolve o tempo que a sessão pedia.
+func (r *SessionRepo) PlannedSeconds(ctx context.Context, sessionID, userID string) (int, error) {
+	var planned int
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`SELECT planned_seconds FROM workout_session WHERE id = $1 AND user_id = $2`,
+		sessionID, userID).Scan(&planned)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	return planned, err
+}
+
+// WithTx expõe o limite de transacção do repositório ao serviço, para que ele
+// possa agrupar leitura e escrita sem conhecer o pool.
+func (r *SessionRepo) WithTx(ctx context.Context, fn func(context.Context) error) error {
+	return r.tx.Do(ctx, fn)
+}

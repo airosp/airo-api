@@ -48,9 +48,30 @@ func TestMigrationAppliesCleanly(t *testing.T) {
 		 WHERE n.nspname = 'public' AND t.typtype = 'e'`).Scan(&types); err != nil {
 		t.Fatal(err)
 	}
-	// 29 do esquema + schema_migration.
-	if tables != 30 {
-		t.Errorf("%d tabelas, esperava 30", tables)
+	// Não se fixa o número de tabelas: cresce a cada migração, e um teste que
+	// falha por isso falha pela razão errada. O que interessa é que as tabelas
+	// que o domínio precisa existem, e que os tipos enumerados estão lá.
+	for _, table := range []string{
+		"app_user", "profile", "measurement",
+		"goal", "journey", "phase", "cycle", "target", "plan",
+		"exercise", "workout_session", "exercise_prescription", "exercise_set",
+		"food", "nutrition_strategy", "daily_plan", "planned_meal", "nutrition_log",
+		"assessment", "risk", "adaptation", "journey_event",
+		"schema_migration",
+	} {
+		var exists bool
+		if err := pool.QueryRow(ctx,
+			`SELECT EXISTS (SELECT 1 FROM information_schema.tables
+			                WHERE table_schema = 'public' AND table_name = $1)`,
+			table).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if !exists {
+			t.Errorf("tabela %q em falta", table)
+		}
+	}
+	if tables < 30 {
+		t.Errorf("%d tabelas — o esquema encolheu", tables)
 	}
 	// E a 0002 acrescentou as colunas de idempotência.
 	for _, table := range []string{"workout_session", "nutrition_log"} {
