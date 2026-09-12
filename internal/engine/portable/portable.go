@@ -7,7 +7,10 @@
 // Ver docs/backend/04-arquitetura-go.md, "Porte de TypeScript para Go".
 package portable
 
-import "math"
+import (
+	"math"
+	"math/big"
+)
 
 // RoundJS arredonda como o JavaScript: meio **para cima**, sempre.
 //
@@ -101,12 +104,48 @@ func SeedFrom(text string) int {
 // calculadores — IMC a duas casas, quilos a uma, fracções a três. Sem o mesmo
 // arredondamento, os números do servidor e os do cliente divergem na primeira
 // casa e parecem dois sistemas diferentes a falar do mesmo corpo.
+//
+// ⚠️ **Não se implementa com `x * 10^n`.** Parece equivalente e não é: o
+// `toFixed` arredonda o valor binário **exacto**, e multiplicar primeiro
+// introduz erro que muda o resultado. Medido contra o node:
+//
+//	          toFixed(2)   multiplicar   FormatFloat
+//	0.475       0,47          0,48          0,47
+//	2.675       2,67          2,68          2,67
+//	0.125       0,12          0,13          0,12
+//	0.045       0,04          0,05          0,04
+//
+// Apanhado pela paridade da adesão: 114/240 dava 0,48 em Go e 0,47 no cliente.
+// `strconv.FormatFloat` faz a mesma conta decimal que o `toFixed` faz.
 func RoundTo(x float64, places int) float64 {
-	p := 1.0
-	for i := 0; i < places; i++ {
-		p *= 10
+	if math.IsNaN(x) || math.IsInf(x, 0) || places < 0 {
+		return x
 	}
-	return RoundJS(x*p) / p
+	// O valor binário exacto, sem o erro que uma multiplicação introduziria.
+	r := new(big.Rat).SetFloat64(x)
+	if r == nil {
+		return x
+	}
+
+	neg := r.Sign() < 0
+	r.Abs(r)
+
+	pow := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(places)), nil)
+	r.Mul(r, new(big.Rat).SetInt(pow))
+
+	// A especificação do `toFixed`: escolhe-se o inteiro mais próximo e, em
+	// caso de empate, o **maior** — sobre o valor absoluto. Isso é meio para
+	// longe de zero, e não meio para par como o `strconv.FormatFloat` faz.
+	q, rem := new(big.Int).QuoRem(r.Num(), r.Denom(), new(big.Int))
+	if twice := new(big.Int).Lsh(rem, 1); twice.Cmp(r.Denom()) >= 0 {
+		q.Add(q, big.NewInt(1))
+	}
+	if neg {
+		q.Neg(q)
+	}
+
+	out, _ := new(big.Rat).SetFrac(q, pow).Float64()
+	return out
 }
 
 // Sign devolve -1, 0 ou 1, como `Math.sign`.
