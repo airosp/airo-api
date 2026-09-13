@@ -36,6 +36,7 @@ type ProfileRow struct {
 	FoodBudget     string
 	FoodExclusions []string
 
+	PhotoURL *string
 	Complete bool
 }
 
@@ -85,12 +86,12 @@ func (r *ProfileRepo) Profile(ctx context.Context, userID string) (ProfileRow, e
 		`SELECT display_name, birth_date, age_years, sex::text, height_cm,
 		        experience::text, workout_days, workout_minutes, workout_time::text,
 		        equipment, diet_style::text, meals_per_day, food_budget::text,
-		        food_exclusions, profile_complete
+		        food_exclusions, photo_url, profile_complete
 		   FROM profile WHERE user_id = $1`, userID,
 	).Scan(&p.DisplayName, &birth, &p.Age, &p.Sex, &p.HeightCm,
 		&p.Experience, &p.WorkoutDays, &p.WorkoutMinutes, &p.WorkoutTime,
 		&p.Equipment, &p.DietStyle, &p.MealsPerDay, &p.FoodBudget,
-		&p.FoodExclusions, &p.Complete)
+		&p.FoodExclusions, &p.PhotoURL, &p.Complete)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, ErrNoProfile
 	}
@@ -151,6 +152,9 @@ func (r *ProfileRepo) Save(ctx context.Context, userID string, in ProfileInput, 
 		     food_budget = EXCLUDED.food_budget,
 		     food_exclusions = EXCLUDED.food_exclusions,
 		     profile_complete = true,
+		     -- photo_url fica de fora: gravar o perfil não é trocar a
+		     -- fotografia, e o assistente não a manda. Sem esta ausência, quem
+		     -- editasse os minutos de treino perdia a foto.
 		     updated_at = EXCLUDED.updated_at`,
 		userID, in.DisplayName, in.BirthDate, in.AgeYears, in.Sex, in.HeightCm,
 		in.Experience, in.WorkoutDays, in.WorkoutMinutes, in.WorkoutTime, in.Equipment,
@@ -177,6 +181,20 @@ func (r *ProfileRepo) RecordWeight(ctx context.Context, userID string, kg float6
 		return fmt.Errorf("gravar peso: %w", err)
 	}
 	return nil
+}
+
+// SetPhoto grava o endereço da fotografia.
+//
+// Devolve se encontrou o perfil: sem perfil não há onde gravar, e um UPDATE que
+// não acerta em nada não é sucesso — é uma fotografia que se perdeu em silêncio.
+func (r *ProfileRepo) SetPhoto(ctx context.Context, userID string, url *string, now time.Time) (bool, error) {
+	tag, err := r.tx.Q(ctx).Exec(ctx,
+		`UPDATE profile SET photo_url = $2, updated_at = $3 WHERE user_id = $1`,
+		userID, url, now)
+	if err != nil {
+		return false, fmt.Errorf("gravar fotografia: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 // PlanLabelOn devolve o rótulo do dia no plano, se houver plano.

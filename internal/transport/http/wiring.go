@@ -11,6 +11,7 @@ import (
 	"github.com/airosp/airo-api/internal/engine/nutrition"
 	"github.com/airosp/airo-api/internal/engine/training"
 	"github.com/airosp/airo-api/internal/platform/clock"
+	"github.com/airosp/airo-api/internal/platform/cloudinary"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
 	"github.com/airosp/airo-api/internal/transport/http/handlers"
@@ -41,6 +42,9 @@ type Platform struct {
 	// Sender entrega o código. Sem ele, a API sobe sem autenticação — e é dito
 	// em voz alta, em vez de as rotas desaparecerem em silêncio.
 	Sender service.Sender
+
+	// Images guarda as fotografias de perfil. Nil desliga a funcionalidade.
+	Images *cloudinary.Client
 }
 
 func Wire(p Platform) Deps {
@@ -63,7 +67,13 @@ func Wire(p Platform) Deps {
 	goalSvc := service.NewGoalService(tx, repo.NewGoalRepo(tx), configs, p.Clock)
 	trainingSvc := service.NewTrainingService(repo.NewSessionRepo(tx, catalog), trainingCfg, p.Clock)
 
-	profiles := service.NewProfiles(repo.NewProfileRepo(tx))
+	// Sem Cloudinary configurada, o perfil funciona e a fotografia não: é
+	// melhor do que a API não arrancar por causa de um avatar.
+	var uploader service.Uploader
+	if p.Images != nil {
+		uploader = avatarUploader{c: p.Images}
+	}
+	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader)
 	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles}
 	deps.Training = &handlers.Training{Service: trainingSvc, Profiles: profiles}
 	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}

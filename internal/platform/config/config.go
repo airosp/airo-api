@@ -38,6 +38,8 @@ type Config struct {
 
 	WhatsApp WhatsAppConfig
 
+	Cloudinary CloudinaryConfig
+
 	// CORSOrigins são as origens de browser autorizadas, separadas por vírgula
 	// em AIRO_CORS_ORIGINS. A app nativa não precisa de nenhuma; a versão web
 	// precisa da sua.
@@ -59,6 +61,24 @@ type WhatsAppConfig struct {
 	// LanguageFallbacks são línguas a tentar quando a configurada não existe.
 	LanguageFallbacks []string
 	WebhookSecret     string
+}
+
+// CloudinaryConfig guarda as fotografias de perfil.
+//
+// Opcional: sem ela a API arranca e o resto funciona. Um avatar em falta não
+// justifica um serviço em baixo.
+type CloudinaryConfig struct {
+	CloudName string
+	APIKey    string
+	APISecret string
+	Folder    string
+	// BaseURL existe para os testes apontarem para um servidor local.
+	BaseURL string
+}
+
+// Configured diz se há para onde enviar.
+func (c CloudinaryConfig) Configured() bool {
+	return c.CloudName != "" && c.APIKey != "" && c.APISecret != ""
 }
 
 func (c Config) IsProduction() bool { return c.Env == Production }
@@ -85,6 +105,13 @@ func Load() (Config, error) {
 			BaseURL:           get("AIRO_WHATSAPP_BASE_URL", ""),
 			GraphVersion:      get("AIRO_WHATSAPP_GRAPH_VERSION", ""),
 			WebhookSecret:     get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
+		},
+		Cloudinary: CloudinaryConfig{
+			CloudName: get("AIRO_CLOUDINARY_CLOUD_NAME", ""),
+			APIKey:    get("AIRO_CLOUDINARY_API_KEY", ""),
+			APISecret: get("AIRO_CLOUDINARY_API_SECRET", ""),
+			Folder:    get("AIRO_CLOUDINARY_FOLDER", "airo/profiles"),
+			BaseURL:   get("AIRO_CLOUDINARY_BASE_URL", ""),
 		},
 		CORSOrigins: splitList(get("AIRO_CORS_ORIGINS", "")),
 	}

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/airosp/airo-api/internal/platform/clock"
+	"github.com/airosp/airo-api/internal/platform/cloudinary"
 	"github.com/airosp/airo-api/internal/platform/config"
 	"github.com/airosp/airo-api/internal/platform/logger"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
@@ -177,10 +178,30 @@ func main() {
 	// palavras.
 	// A API inteira, montada num sítio só. Faltar uma dependência deixa de ser
 	// um 404 silencioso e passa a ser um erro de compilação.
+	// As fotografias de perfil. Sem conta configurada, a API sobe e o envio
+	// responde que está indisponível — em vez de o arranque falhar por um avatar.
+	var images *cloudinary.Client
+	if cfg.Cloudinary.Configured() {
+		images, err = cloudinary.New(cloudinary.Config{
+			CloudName: cfg.Cloudinary.CloudName,
+			APIKey:    cfg.Cloudinary.APIKey,
+			APISecret: cfg.Cloudinary.APISecret,
+			Folder:    cfg.Cloudinary.Folder,
+			BaseURL:   cfg.Cloudinary.BaseURL,
+		})
+		if err != nil {
+			log.Error("cloudinary", "error", err)
+			os.Exit(1)
+		}
+		log.Info("fotografias de perfil", "conta", cfg.Cloudinary.CloudName, "pasta", cfg.Cloudinary.Folder)
+	} else {
+		log.Warn("sem Cloudinary: as fotografias de perfil ficam indisponíveis")
+	}
+
 	deps := airohttp.Wire(airohttp.Platform{
 		Log: log, Version: version, Pool: pool, Redis: rdb, Clock: clock.System{},
 		JWTSecret: cfg.JWTSecret, OTPPepper: cfg.OTPPepper,
-		Sender: sender,
+		Sender: sender, Images: images,
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	deps.CORSOrigins = cfg.CORSOrigins

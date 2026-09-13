@@ -24,6 +24,11 @@ import (
 
 func serveProfile(t *testing.T) (http.Handler, string) {
 	t.Helper()
+	return serveProfileCom(t, nil)
+}
+
+func serveProfileCom(t *testing.T, up service.Uploader) (http.Handler, string) {
+	t.Helper()
 	pool := pgtest.Pool(t)
 	ctx := context.Background()
 	migs, err := airopg.Load(migrations.FS)
@@ -43,7 +48,7 @@ func serveProfile(t *testing.T) (http.Handler, string) {
 	}
 
 	tx := repo.NewTxManager(pool)
-	profiles := service.NewProfiles(repo.NewProfileRepo(tx))
+	profiles := service.NewProfiles(repo.NewProfileRepo(tx), up)
 	fixed := clock.NewFixed(time.Date(2026, 9, 13, 8, 0, 0, 0, time.UTC))
 
 	router := airohttp.NewRouter(airohttp.Deps{

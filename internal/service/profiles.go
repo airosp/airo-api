@@ -23,13 +23,14 @@ var (
 // e porque a tradução é uma decisão: sem plano ainda, o dia é de corpo inteiro,
 // que é melhor do que não haver treino nenhum para mostrar.
 type Profiles struct {
-	repo *repo.ProfileRepo
+	repo     *repo.ProfileRepo
+	uploader Uploader
 	// NutritionGoal por omissão até o objectivo existir.
 	defaultNutritionGoal string
 }
 
-func NewProfiles(r *repo.ProfileRepo) *Profiles {
-	return &Profiles{repo: r, defaultNutritionGoal: "maintain"}
+func NewProfiles(r *repo.ProfileRepo, up Uploader) *Profiles {
+	return &Profiles{repo: r, uploader: up, defaultNutritionGoal: "maintain"}
 }
 
 // SaveProfileInput é o que a app manda no fim do onboarding.
@@ -70,6 +71,7 @@ type SavedProfile struct {
 	MealsPerDay    int      `json:"mealsPerDay"`
 	FoodBudget     string   `json:"foodBudget"`
 	FoodExclusions []string `json:"foodExclusions"`
+	PhotoURL       string   `json:"photoUrl,omitempty"`
 	Complete       bool     `json:"complete"`
 }
 
@@ -94,6 +96,63 @@ func (p *Profiles) Save(ctx ctxLike, userID string, in SaveProfileInput, now tim
 	return p.Read(c, userID)
 }
 
+// Uploader envia a imagem e devolve os endereços já enquadrados.
+//
+// Interface e não o cliente concreto: o serviço não tem de saber que existe uma
+// Cloudinary, e os testes não têm de falar com a internet para provar que a
+// fotografia é gravada.
+type Uploader interface {
+	UploadAvatar(ctx context.Context, image []byte, publicID string) (full, thumb string, faceFound bool, err error)
+}
+
+// ErrNoUploader é o que se diz quando não há para onde enviar.
+var ErrNoUploader = errors.New("sem serviço de imagens configurado")
+
+// SavePhoto envia a fotografia e guarda o endereço.
+//
+// O `publicID` é o identificador do utilizador: substituir é o comportamento
+// certo — quem troca a fotografia não quer duas, e sem isto cada troca deixava
+// uma cópia órfã na conta para sempre.
+func (p *Profiles) SavePhoto(ctx ctxLike, userID string, image []byte, now time.Time) (SavedProfile, error) {
+	if p.uploader == nil {
+		return SavedProfile{}, ErrNoUploader
+	}
+	c := asContext(ctx)
+
+	full, _, _, err := p.uploader.UploadAvatar(c, image, userID)
+	if err != nil {
+		return SavedProfile{}, err
+	}
+
+	// Só se grava depois de a imagem existir lá: gravar primeiro deixaria um
+	// endereço a apontar para nada se o envio falhasse.
+	found, err := p.repo.SetPhoto(c, userID, &full, now)
+	if err != nil {
+		return SavedProfile{}, err
+	}
+	if !found {
+		return SavedProfile{}, repo.ErrNoProfile
+	}
+	return p.Read(c, userID)
+}
+
+// RemovePhoto tira a fotografia do perfil.
+//
+// Não apaga da Cloudinary: o envio seguinte substitui-a pelo mesmo public_id, e
+// apagar agora só acrescentaria uma chamada que pode falhar a uma operação que
+// já fez o que interessa.
+func (p *Profiles) RemovePhoto(ctx ctxLike, userID string, now time.Time) (SavedProfile, error) {
+	c := asContext(ctx)
+	found, err := p.repo.SetPhoto(c, userID, nil, now)
+	if err != nil {
+		return SavedProfile{}, err
+	}
+	if !found {
+		return SavedProfile{}, repo.ErrNoProfile
+	}
+	return p.Read(c, userID)
+}
+
 // Read devolve o perfil gravado. `ErrWeightMissing` não é impedimento: o perfil
 // existe, só ainda não tem pesagem.
 func (p *Profiles) Read(ctx ctxLike, userID string) (SavedProfile, error) {
@@ -112,7 +171,8 @@ func (p *Profiles) Read(ctx ctxLike, userID string) (SavedProfile, error) {
 		WorkoutMinutes: row.WorkoutMinutes, WorkoutTime: row.WorkoutTime,
 		Equipment: nonNil(row.Equipment), DietStyle: row.DietStyle,
 		MealsPerDay: row.MealsPerDay, FoodBudget: row.FoodBudget,
-		FoodExclusions: nonNil(row.FoodExclusions), Complete: row.Complete,
+		FoodExclusions: nonNil(row.FoodExclusions), PhotoURL: deref(row.PhotoURL),
+		Complete: row.Complete,
 	}, nil
 }
 
@@ -123,6 +183,13 @@ func nonNil(v []string) []string {
 		return []string{}
 	}
 	return v
+}
+
+func deref(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
 }
 
 func nonNilInts(v []int) []int {

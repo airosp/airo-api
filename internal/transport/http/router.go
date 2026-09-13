@@ -75,6 +75,13 @@ func NewRouter(d Deps) http.Handler {
 		if d.Profile != nil {
 			mux.Handle("GET /v1/profile", private(d.Profile.Get))
 			mux.Handle("PUT /v1/profile", private(d.Profile.Put))
+			// A fotografia fica fora da cadeia de idempotência: o corpo é a
+			// imagem inteira, e guardar megabytes por chave para responder o
+			// mesmo é pagar memória por uma repetição que ninguém faz.
+			mux.Handle("POST /v1/profile/photo",
+				middleware.Chain(http.HandlerFunc(d.Profile.Photo), middleware.Auth(d.Auth)))
+			mux.Handle("DELETE /v1/profile/photo",
+				middleware.Chain(http.HandlerFunc(d.Profile.DeletePhoto), middleware.Auth(d.Auth)))
 		}
 	}
 
