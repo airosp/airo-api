@@ -45,3 +45,36 @@ type RecordSessionResponse struct {
 	CountsForStreak bool `json:"countsForStreak"`
 	Streak          int  `json:"streak"`
 }
+
+// SessionHistoryItem é uma sessão como o histórico a mostra.
+//
+// `id` é o identificador do telemóvel quando existe — a chave de idempotência
+// com que a sessão foi gravada. É o que permite ao aparelho reconhecer o que já
+// é seu em vez de duplicar o histórico ao voltar a entrar.
+type SessionHistoryItem struct {
+	ID              string `json:"id"`
+	Title           string `json:"title"`
+	Focus           string `json:"focus"`
+	Status          string `json:"status"`
+	OccurredAt      string `json:"occurredAt"`
+	LocalDay        string `json:"localDay"`
+	PlannedSeconds  int    `json:"plannedSeconds"`
+	DurationSeconds int    `json:"durationSeconds"`
+	SetsPlanned     int    `json:"setsPlanned"`
+	SetsDone        int    `json:"setsDone"`
+	Kcal            int    `json:"kcal"`
+	Exercises       int    `json:"exercises"`
+	// Blocks é nil nas sessões gravadas antes de o campo existir — e dizê-lo
+	// com ausência é mais honesto do que inventar três zeros.
+	Blocks *SessionBlocks `json:"blocks,omitempty"`
+}
+
+type SessionBlocks struct {
+	WarmupSeconds   int `json:"warmupSeconds"`
+	MainSeconds     int `json:"mainSeconds"`
+	CooldownSeconds int `json:"cooldownSeconds"`
+}
+
+type SessionHistoryResponse struct {
+	Sessions []SessionHistoryItem `json:"sessions"`
+}

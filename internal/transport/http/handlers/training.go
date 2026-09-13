@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
@@ -21,9 +22,19 @@ type TrainingProfileReader interface {
 	TrainingProfile(ctx contextLike, userID string, day time.Time) (service.TodayInput, error)
 }
 
+// SessionHistory lê o histórico de treinos.
+//
+// Interface e não o repositório: o handler não tem de saber que existe
+// Postgres, e um teste do transporte não tem de levantar uma base de dados
+// para provar que o intervalo é validado.
+type SessionHistory interface {
+	History(ctx context.Context, userID string, from, to time.Time) ([]repo.HistoryRow, error)
+}
+
 type Training struct {
 	Service  *service.TrainingService
 	Profiles TrainingProfileReader
+	Sessions SessionHistory
 }
 
 func (h Training) Today(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +70,83 @@ func (h Training) Today(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apierr.WriteJSON(w, http.StatusOK, pkg)
+}
+
+// History devolve as sessões de um intervalo de dias.
+//
+// É o que faz o histórico sobreviver a mudar de telemóvel. O `id` que volta é a
+// chave de idempotência com que a sessão foi gravada — a mesma que o aparelho
+// deu —, e é assim que ele reconhece o que já é seu em vez de duplicar.
+func (h Training) History(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Sessions == nil {
+		apierr.Write(w, apierr.Internal, "O histórico está indisponível.", "")
+		return
+	}
+
+	from, err := time.Parse("2006-01-02", r.URL.Query().Get("from"))
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Data inicial inválida.", "from")
+		return
+	}
+	to, err := time.Parse("2006-01-02", r.URL.Query().Get("to"))
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Data final inválida.", "to")
+		return
+	}
+	if to.Before(from) {
+		apierr.Write(w, apierr.ValidationFailed, "O fim é antes do início.", "to")
+		return
+	}
+	// Como no diário: sem limite, o pedido fica cada vez mais lento à medida
+	// que a pessoa treina.
+	if to.Sub(from) > 366*24*time.Hour {
+		apierr.Write(w, apierr.ValidationFailed, "Pede no máximo um ano de cada vez.", "to")
+		return
+	}
+
+	rows, err := h.Sessions.History(r.Context(), userID, from, to)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o histórico.")
+		return
+	}
+
+	out := dto.SessionHistoryResponse{Sessions: make([]dto.SessionHistoryItem, 0, len(rows))}
+	for _, s := range rows {
+		item := dto.SessionHistoryItem{
+			ID: s.ID, Title: s.Title, Focus: s.Focus, Status: s.Status,
+			OccurredAt:     s.OccurredAt.UTC().Format(time.RFC3339),
+			LocalDay:       s.LocalDay.Format("2006-01-02"),
+			PlannedSeconds: s.PlannedSeconds, DurationSeconds: s.DurationSeconds,
+			SetsPlanned: s.SetsPlanned, SetsDone: s.SetsDone,
+			Kcal: s.Kcal, Exercises: s.ExerciseCount,
+		}
+		// A chave do telemóvel ganha ao identificador do servidor: é ela que o
+		// aparelho conhece, e é por ela que reconhece o que já gravou.
+		if s.IdempotencyKey != nil && *s.IdempotencyKey != "" {
+			item.ID = *s.IdempotencyKey
+		}
+		if s.WarmupSeconds != nil || s.MainSeconds != nil || s.CooldownSeconds != nil {
+			item.Blocks = &dto.SessionBlocks{
+				WarmupSeconds:   valorOuZero(s.WarmupSeconds),
+				MainSeconds:     valorOuZero(s.MainSeconds),
+				CooldownSeconds: valorOuZero(s.CooldownSeconds),
+			}
+		}
+		out.Sessions = append(out.Sessions, item)
+	}
+	apierr.WriteJSON(w, http.StatusOK, out)
+}
+
+func valorOuZero(v *int) int {
+	if v == nil {
+		return 0
+	}
+	return *v
 }
 
 func (h Training) Record(w http.ResponseWriter, r *http.Request) {

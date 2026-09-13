@@ -67,7 +67,8 @@ func Wire(p Platform) Deps {
 	}
 
 	goalSvc := service.NewGoalService(tx, repo.NewGoalRepo(tx), configs, p.Clock)
-	trainingSvc := service.NewTrainingService(repo.NewSessionRepo(tx, catalog), trainingCfg, p.Clock)
+	sessions := repo.NewSessionRepo(tx, catalog)
+	trainingSvc := service.NewTrainingService(sessions, trainingCfg, p.Clock)
 
 	// Sem Cloudinary configurada, o perfil funciona e a fotografia não: é
 	// melhor do que a API não arrancar por causa de um avatar.
@@ -77,7 +78,7 @@ func Wire(p Platform) Deps {
 	}
 	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader)
 	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles}
-	deps.Training = &handlers.Training{Service: trainingSvc, Profiles: profiles}
+	deps.Training = &handlers.Training{Service: trainingSvc, Profiles: profiles, Sessions: sessions}
 	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}
 	// A rota existe sempre; o que muda é a resposta. Sem Cloudinary, diz que
 	// as fotografias estão indisponíveis — que é informação. Não a registar

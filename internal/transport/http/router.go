@@ -72,6 +72,8 @@ func NewRouter(d Deps) http.Handler {
 		if d.Training != nil {
 			mux.Handle("GET /v1/training/today", private(d.Training.Today))
 			mux.Handle("POST /v1/training/sessions", private(d.Training.Record))
+			mux.Handle("GET /v1/training/sessions",
+				middleware.Chain(http.HandlerFunc(d.Training.History), middleware.Auth(d.Auth)))
 		}
 		if d.Profile != nil {
 			mux.Handle("GET /v1/profile", private(d.Profile.Get))

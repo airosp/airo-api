@@ -192,6 +192,62 @@ var ErrDuplicateSession = errors.New("sessão já registada")
 //
 // Uma sessão saltada não conta para a sequência, mas fica gravada: é a distinção
 // que a adesão precisa e que a sequência não deve fazer.
+// HistoryRow é uma sessão como o histórico a mostra.
+//
+// Sem as prescrições: o histórico desenha o que aconteceu — quanto tempo, que
+// séries, em que blocos — e não o que estava prescrito. Trazê-las seria
+// multiplicar as linhas por exercício para não desenhar nenhuma.
+type HistoryRow struct {
+	ID              string
+	IdempotencyKey  *string
+	Title           string
+	Focus           string
+	Status          string
+	OccurredAt      time.Time
+	LocalDay        time.Time
+	PlannedSeconds  int
+	DurationSeconds int
+	SetsPlanned     int
+	SetsDone        int
+	Kcal            int
+	ExerciseCount   int
+	WarmupSeconds   *int
+	MainSeconds     *int
+	CooldownSeconds *int
+}
+
+// History devolve as sessões de um intervalo de dias, inclusive.
+//
+// Pela ordem em que aconteceram, da mais recente para a mais antiga: é a ordem
+// em que o histórico se lê, e é a do índice que já existe.
+func (r *SessionRepo) History(ctx context.Context, userID string, from, to time.Time) ([]HistoryRow, error) {
+	rows, err := r.tx.Q(ctx).Query(ctx,
+		`SELECT id, idempotency_key, title, focus::text, status::text,
+		        occurred_at, local_day, planned_seconds, duration_seconds,
+		        sets_planned, sets_done, kcal, exercise_count,
+		        warmup_seconds, main_seconds, cooldown_seconds
+		   FROM workout_session
+		  WHERE user_id = $1 AND local_day BETWEEN $2 AND $3
+		  ORDER BY occurred_at DESC`, userID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("ler histórico: %w", err)
+	}
+	defer rows.Close()
+
+	var out []HistoryRow
+	for rows.Next() {
+		var h HistoryRow
+		if err := rows.Scan(&h.ID, &h.IdempotencyKey, &h.Title, &h.Focus, &h.Status,
+			&h.OccurredAt, &h.LocalDay, &h.PlannedSeconds, &h.DurationSeconds,
+			&h.SetsPlanned, &h.SetsDone, &h.Kcal, &h.ExerciseCount,
+			&h.WarmupSeconds, &h.MainSeconds, &h.CooldownSeconds); err != nil {
+			return nil, fmt.Errorf("ler sessão: %w", err)
+		}
+		out = append(out, h)
+	}
+	return out, rows.Err()
+}
+
 func (r *SessionRepo) Streak(ctx context.Context, userID string, today time.Time) (int, error) {
 	rows, err := r.tx.Q(ctx).Query(ctx,
 		`SELECT DISTINCT local_day FROM workout_session
