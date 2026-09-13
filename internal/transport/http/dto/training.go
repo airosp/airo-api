@@ -28,6 +28,13 @@ type RecordSessionRequest struct {
 	SetsDone int `json:"setsDone"`
 
 	Blocks *BlocksRequest `json:"blocks,omitempty"`
+
+	// ClassID, quando o treino foi uma aula gravada.
+	//
+	// ⚠️ O cliente **não** manda o tempo planeado numa aula: esse é a duração
+	// do vídeo, e é o servidor que a lê. Deixá-lo mandar era deixá-lo dizer que
+	// uma aula de 38 minutos pedia 5.
+	ClassID *string `json:"classId,omitempty"`
 }
 
 type BlocksRequest struct {

@@ -379,3 +379,13 @@ func (p *Profiles) TrainingDaysOf(ctx ctxLike, userID string) ([]int, error) {
 	}
 	return nonNilInts(row.WorkoutDays), nil
 }
+
+// EquipmentOf devolve o equipamento e o nível, que é o que as aulas precisam
+// para não prometerem o que a pessoa não consegue fazer.
+func (p *Profiles) EquipmentOf(ctx ctxLike, userID string) ([]string, string, error) {
+	row, err := p.repo.Profile(asContext(ctx), userID)
+	if err != nil && !errors.Is(err, repo.ErrNoWeight) {
+		return nil, "", err
+	}
+	return nonNil(row.Equipment), row.Experience, nil
+}

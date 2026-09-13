@@ -35,6 +35,9 @@ type Training struct {
 	Service  *service.TrainingService
 	Profiles TrainingProfileReader
 	Sessions SessionHistory
+	// Classes serve as aulas gravadas. Numa aula é ela que diz quanto tempo o
+	// treino pedia — não o motor, e muito menos o cliente.
+	Classes ClassStore
 }
 
 func (h Training) Today(w http.ResponseWriter, r *http.Request) {
@@ -212,6 +215,32 @@ func (h Training) Record(w http.ResponseWriter, r *http.Request) {
 	if req.Blocks != nil {
 		in.WarmupSeconds, in.MainSeconds, in.CooldownSeconds =
 			req.Blocks.WarmupSeconds, req.Blocks.MainSeconds, req.Blocks.CooldownSeconds
+	}
+
+	/*
+	 * Uma aula gravada é outra coisa, e grava-se de outra maneira.
+	 *
+	 * Numa aula **o vídeo lidera**: quem decidiu os exercícios, as séries e os
+	 * descansos foi quem a filmou. Por isso o título, o foco, as calorias e —
+	 * sobretudo — o **tempo planeado** vêm da aula, e não do motor nem do
+	 * cliente. Deixar o cliente mandar o tempo planeado era deixá-lo dizer que
+	 * uma aula de 38 minutos pedia cinco, e com isso decidir sozinho se contou.
+	 */
+	if req.ClassID != nil && *req.ClassID != "" && h.Classes != nil {
+		aula, err := h.Classes.Get(r.Context(), *req.ClassID)
+		if err != nil {
+			apierr.Write(w, apierr.NotFound, "Essa aula não existe.", "classId")
+			return
+		}
+		in.ClassID = req.ClassID
+		in.Title = aula.Title
+		in.Focus = aula.Focus
+		in.PlannedSeconds = aula.DurationSeconds
+		in.Kcal = aula.Kcal
+		// Uma aula não tem prescrições: não foi montada, foi filmada. Sem isto,
+		// o histórico dizia que uma aula tinha os exercícios do plano do dia.
+		in.Prescriptions = nil
+		in.SetsPlanned = 0
 	}
 
 	out, err := h.Service.Record(r.Context(), in)

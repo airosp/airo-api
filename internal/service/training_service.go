@@ -85,6 +85,11 @@ type RecordSessionInput struct {
 	CooldownSeconds *int
 
 	Prescriptions []repo.PrescriptionRow
+
+	// ClassID, quando a sessão foi uma aula gravada. Numa aula o vídeo lidera:
+	// quem decidiu os exercícios e os descansos foi quem a filmou, e o tempo
+	// planeado é a duração dela.
+	ClassID *string
 }
 
 type RecordSessionResult struct {
@@ -138,6 +143,7 @@ func (s *TrainingService) Record(ctx context.Context, in RecordSessionInput) (Re
 		WarmupSeconds:   in.WarmupSeconds,
 		MainSeconds:     in.MainSeconds,
 		CooldownSeconds: in.CooldownSeconds,
+		ClassID:         in.ClassID,
 	}
 	if in.IdempotencyKey != "" {
 		key := in.IdempotencyKey

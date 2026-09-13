@@ -1,0 +1,150 @@
+package handlers
+
+import (
+	"context"
+	"net/http"
+	"strings"
+
+	repo "github.com/airosp/airo-api/internal/repository/postgres"
+	"github.com/airosp/airo-api/internal/transport/http/apierr"
+	"github.com/airosp/airo-api/internal/transport/http/middleware"
+)
+
+// ClassStore lê as aulas gravadas.
+type ClassStore interface {
+	Published(ctx context.Context, f repo.ClassFilter) ([]repo.ClassRow, error)
+	Get(ctx context.Context, id string) (repo.ClassRow, error)
+}
+
+// ClassProfileReader dá o equipamento e o nível de quem pergunta.
+type ClassProfileReader interface {
+	EquipmentOf(ctx contextLike, userID string) ([]string, string, error)
+}
+
+// Classes serve as aulas gravadas: um especialista a dar treino.
+//
+// Numa aula **o vídeo lidera**. Quem decidiu os exercícios, as séries e os
+// descansos foi quem a filmou — a app serve-a e grava que aconteceu.
+type Classes struct {
+	Store    ClassStore
+	Profiles ClassProfileReader
+}
+
+// List devolve as aulas, filtradas pelo que a pessoa tem e consegue.
+//
+// Por omissão filtra pelo equipamento do perfil: mostrar uma aula de barra a
+// quem treina em casa é mostrar uma promessa que não se cumpre. `all=1` desliga
+// o filtro, para quem quer ver o que há.
+func (h Classes) List(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Store == nil {
+		apierr.Write(w, apierr.Internal, "As aulas estão indisponíveis.", "")
+		return
+	}
+
+	q := r.URL.Query()
+	f := repo.ClassFilter{
+		Focus:      q.Get("focus"),
+		Level:      q.Get("level"),
+		Specialist: q.Get("specialist"),
+	}
+
+	if q.Get("all") != "1" && h.Profiles != nil {
+		equipamento, nivel, err := h.Profiles.EquipmentOf(r.Context(), userID)
+		if err == nil {
+			f.Equipment = equipamento
+			if f.Level == "" {
+				f.Level = nivel
+			}
+		}
+	}
+
+	aulas, err := h.Store.Published(r.Context(), f)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível ler as aulas.")
+		return
+	}
+
+	out := make([]map[string]any, 0, len(aulas))
+	for _, c := range aulas {
+		out = append(out, paraAula(c))
+	}
+	apierr.WriteJSON(w, http.StatusOK, map[string]any{"classes": out, "total": len(out)})
+}
+
+// Get devolve uma aula, com o endereço do vídeo.
+func (h Classes) Get(w http.ResponseWriter, r *http.Request) {
+	if _, ok := middleware.UserID(r.Context()); !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Store == nil {
+		apierr.Write(w, apierr.Internal, "As aulas estão indisponíveis.", "")
+		return
+	}
+
+	c, err := h.Store.Get(r.Context(), r.PathValue("id"))
+	if err != nil {
+		apierr.Write(w, apierr.NotFound, "Essa aula não existe.", "id")
+		return
+	}
+	apierr.WriteJSON(w, http.StatusOK, paraAula(c))
+}
+
+func paraAula(c repo.ClassRow) map[string]any {
+	out := map[string]any{
+		"id": c.ID, "title": c.Title, "specialist": c.Specialist,
+		"focus": c.Focus, "level": c.Level,
+		"durationSeconds": c.DurationSeconds, "kcal": c.Kcal,
+		"videoUrl": c.VideoURL,
+		"summary":  c.Summary,
+		"muscles":  nonNilStrings(c.Muscles),
+		// Vazio quer dizer "só o corpo", e o ecrã tem de o dizer assim em vez
+		// de mostrar uma lista em branco.
+		"equipment": nonNilStrings(c.Equipment),
+		// A etiqueta que o cartão mostra, já escrita: "Tronco · 38 min".
+		"label": etiquetaDeAula(c),
+	}
+	if c.ThumbnailURL != "" {
+		out["thumbnailUrl"] = c.ThumbnailURL
+	}
+	if len(c.Equipment) == 0 {
+		out["equipmentLabel"] = "Só o corpo"
+	} else {
+		out["equipmentLabel"] = strings.Join(c.Equipment, ", ")
+	}
+	return out
+}
+
+var focosPorExtenso = map[string]string{
+	"upper": "Tronco", "lower": "Pernas", "cardio": "Cardio",
+	"full": "Corpo inteiro", "mobility": "Mobilidade",
+}
+
+var niveisPorExtenso = map[string]string{
+	"beginner": "Iniciante", "intermediate": "Intermédio", "advanced": "Avançado",
+}
+
+func etiquetaDeAula(c repo.ClassRow) string {
+	foco, ok := focosPorExtenso[c.Focus]
+	if !ok {
+		foco = c.Focus
+	}
+	return foco + " · " + plural(c.DurationSeconds/60) + " min"
+}
+
+func plural(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	var b []byte
+	for n > 0 {
+		b = append([]byte{byte('0' + n%10)}, b...)
+		n /= 10
+	}
+	return string(b)
+}

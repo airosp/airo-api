@@ -83,7 +83,10 @@ func Wire(p Platform) Deps {
 	prefs := repo.NewPreferenceRepo(tx)
 	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader, prefs)
 	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles, Reader: goals}
-	deps.Training = &handlers.Training{Service: trainingSvc, Profiles: profiles, Sessions: sessions}
+	deps.Training = &handlers.Training{
+		Service: trainingSvc, Profiles: profiles, Sessions: sessions,
+		Classes: repo.NewClassRepo(tx),
+	}
 	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}
 	// A rota existe sempre; o que muda é a resposta. Sem Cloudinary, diz que
 	// as fotografias estão indisponíveis — que é informação. Não a registar
@@ -105,6 +108,7 @@ func Wire(p Platform) Deps {
 	if p.Images != nil {
 		apagaImagens = avatarUploader{c: p.Images}
 	}
+	deps.Classes = &handlers.Classes{Store: repo.NewClassRepo(tx), Profiles: profiles}
 	deps.Calendar = &handlers.Calendar{Marks: repo.NewCalendarRepo(tx)}
 	deps.Catalog = &handlers.Catalog{Training: trainingCfg, Nutrition: configs.Nutrition}
 	deps.Account = &handlers.Account{

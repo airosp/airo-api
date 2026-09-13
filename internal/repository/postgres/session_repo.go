@@ -35,6 +35,11 @@ type SessionRow struct {
 	CooldownSeconds *int
 
 	IdempotencyKey *string
+	// ClassID diz que a sessão foi uma aula gravada, e não o plano.
+	//
+	// Sem isto as duas ficavam indistinguíveis no histórico — e são diferentes:
+	// uma adapta-se à pessoa, a outra é igual para toda a gente.
+	ClassID *string
 }
 
 type PrescriptionRow struct {
@@ -101,12 +106,12 @@ func (r *SessionRepo) Insert(ctx context.Context, s SessionRow, prescriptions []
 			`INSERT INTO workout_session
 			   (user_id, journey_id, title, focus, status, occurred_at, local_day,
 			    planned_seconds, duration_seconds, sets_planned, sets_done, kcal, exercise_count,
-			    warmup_seconds, main_seconds, cooldown_seconds, idempotency_key)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+			    warmup_seconds, main_seconds, cooldown_seconds, idempotency_key, class_id)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
 			 RETURNING id`,
 			s.UserID, s.JourneyID, s.Title, s.Focus, s.Status, s.OccurredAt, s.LocalDay,
 			s.PlannedSeconds, s.DurationSeconds, s.SetsPlanned, s.SetsDone, s.Kcal, s.ExerciseCount,
-			s.WarmupSeconds, s.MainSeconds, s.CooldownSeconds, s.IdempotencyKey,
+			s.WarmupSeconds, s.MainSeconds, s.CooldownSeconds, s.IdempotencyKey, s.ClassID,
 		).Scan(&sessionID)
 		if err != nil {
 			if isUniqueViolation(err, "workout_session_idem") {

@@ -31,6 +31,7 @@ type Deps struct {
 	Account     *handlers.Account
 	Catalog     *handlers.Catalog
 	Calendar    *handlers.Calendar
+	Classes     *handlers.Classes
 	Idempotency middleware.Store
 
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
@@ -57,7 +58,7 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/logout", d.AuthAPI.Logout)
 	}
 
-	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil) {
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Classes != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -100,6 +101,13 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Profile.Photo), middleware.Auth(d.Auth)))
 			mux.Handle("DELETE /v1/profile/photo",
 				middleware.Chain(http.HandlerFunc(d.Profile.DeletePhoto), middleware.Auth(d.Auth)))
+		}
+		if d.Classes != nil {
+			// Leituras do catálogo de aulas. Fora da idempotência.
+			mux.Handle("GET /v1/classes",
+				middleware.Chain(http.HandlerFunc(d.Classes.List), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/classes/{id}",
+				middleware.Chain(http.HandlerFunc(d.Classes.Get), middleware.Auth(d.Auth)))
 		}
 		if d.Calendar != nil {
 			// `PUT` com o identificador do telemóvel: a marca nasce offline e é
