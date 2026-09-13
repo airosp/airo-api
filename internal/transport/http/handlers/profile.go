@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -57,46 +56,9 @@ func (h Profile) Photo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// O limite é imposto no corpo, não confiado ao Content-Length: quem envia
-	// escolhe o cabeçalho, não o que manda a seguir.
-	r.Body = http.MaxBytesReader(w, r.Body, maxPhotoBytes+(1<<20))
-	if err := r.ParseMultipartForm(maxPhotoBytes); err != nil {
-		apierr.Write(w, apierr.ValidationFailed,
-			"Fotografia demasiado grande ou ilegível.", "photo")
-		return
-	}
-	defer func() { _ = r.MultipartForm.RemoveAll() }()
-
-	file, header, err := r.FormFile("photo")
-	if err != nil {
-		apierr.Write(w, apierr.ValidationFailed, "Falta a fotografia.", "photo")
-		return
-	}
-	defer func() { _ = file.Close() }()
-
-	if header.Size > maxPhotoBytes {
-		apierr.Write(w, apierr.ValidationFailed,
-			"A fotografia não pode passar de 8 MB.", "photo")
-		return
-	}
-
-	image, err := io.ReadAll(io.LimitReader(file, maxPhotoBytes+1))
-	if err != nil {
-		apierr.Write(w, apierr.ValidationFailed, "Não foi possível ler a fotografia.", "photo")
-		return
-	}
-	if len(image) > maxPhotoBytes {
-		apierr.Write(w, apierr.ValidationFailed,
-			"A fotografia não pode passar de 8 MB.", "photo")
-		return
-	}
-
-	// O tipo sai dos **bytes**, não do que o cliente disse que era. Um
-	// `Content-Type: image/jpeg` num ficheiro que não é imagem é uma linha de
-	// texto a escrever.
-	if !imagemAceite(image) {
-		apierr.Write(w, apierr.ValidationFailed,
-			"Envia uma imagem JPEG, PNG, WebP ou HEIC.", "photo")
+	image, erro := lerImagem(w, r)
+	if erro != "" {
+		apierr.Write(w, apierr.ValidationFailed, erro, "photo")
 		return
 	}
 

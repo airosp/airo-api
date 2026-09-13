@@ -45,6 +45,8 @@ type Platform struct {
 
 	// Images guarda as fotografias de perfil. Nil desliga a funcionalidade.
 	Images *cloudinary.Client
+	// MealImages guarda as fotografias de refeições, noutra pasta.
+	MealImages *cloudinary.Client
 }
 
 func Wire(p Platform) Deps {
@@ -77,6 +79,15 @@ func Wire(p Platform) Deps {
 	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles}
 	deps.Training = &handlers.Training{Service: trainingSvc, Profiles: profiles}
 	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}
+	// A rota existe sempre; o que muda é a resposta. Sem Cloudinary, diz que
+	// as fotografias estão indisponíveis — que é informação. Não a registar
+	// dava 404, e um 404 numa rota que existe no contrato manda quem a chama
+	// procurar do lado errado.
+	var refeicoes handlers.MealUploader
+	if p.MealImages != nil {
+		refeicoes = mealUploader{c: p.MealImages}
+	}
+	deps.Nutrition = &handlers.Nutrition{Photos: refeicoes}
 
 	if len(p.JWTSecret) >= 32 {
 		tokens := auth.NewTokenIssuer(p.JWTSecret, p.Clock.Now)

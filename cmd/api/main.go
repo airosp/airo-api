@@ -180,7 +180,7 @@ func main() {
 	// um 404 silencioso e passa a ser um erro de compilação.
 	// As fotografias de perfil. Sem conta configurada, a API sobe e o envio
 	// responde que está indisponível — em vez de o arranque falhar por um avatar.
-	var images *cloudinary.Client
+	var images, mealImages *cloudinary.Client
 	if cfg.Cloudinary.Configured() {
 		images, err = cloudinary.New(cloudinary.Config{
 			CloudName: cfg.Cloudinary.CloudName,
@@ -193,7 +193,22 @@ func main() {
 			log.Error("cloudinary", "error", err)
 			os.Exit(1)
 		}
-		log.Info("fotografias de perfil", "conta", cfg.Cloudinary.CloudName, "pasta", cfg.Cloudinary.Folder)
+		// Pasta própria para as refeições: um prato e um retrato não se
+		// enquadram da mesma maneira, e apagar tudo o que é de alguém é um
+		// prefixo em cada uma.
+		mealImages, err = cloudinary.New(cloudinary.Config{
+			CloudName: cfg.Cloudinary.CloudName,
+			APIKey:    cfg.Cloudinary.APIKey,
+			APISecret: cfg.Cloudinary.APISecret,
+			Folder:    cfg.Cloudinary.MealFolder,
+			BaseURL:   cfg.Cloudinary.BaseURL,
+		})
+		if err != nil {
+			log.Error("cloudinary (refeições)", "error", err)
+			os.Exit(1)
+		}
+		log.Info("fotografias", "conta", cfg.Cloudinary.CloudName,
+			"perfis", cfg.Cloudinary.Folder, "refeicoes", cfg.Cloudinary.MealFolder)
 	} else {
 		log.Warn("sem Cloudinary: as fotografias de perfil ficam indisponíveis")
 	}
@@ -201,7 +216,7 @@ func main() {
 	deps := airohttp.Wire(airohttp.Platform{
 		Log: log, Version: version, Pool: pool, Redis: rdb, Clock: clock.System{},
 		JWTSecret: cfg.JWTSecret, OTPPepper: cfg.OTPPepper,
-		Sender: sender, Images: images,
+		Sender: sender, Images: images, MealImages: mealImages,
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	deps.CORSOrigins = cfg.CORSOrigins

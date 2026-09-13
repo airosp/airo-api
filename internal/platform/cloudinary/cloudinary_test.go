@@ -222,3 +222,34 @@ func TestApagarComResultadoInesperado(t *testing.T) {
 		t.Fatalf("erro = %v", err)
 	}
 }
+
+// Um prato não se enquadra como uma cara.
+//
+// `g_face` numa fotografia de comida não encontra nada e cai no centro
+// geométrico — que num prato fotografado de cima é a mesa.
+func TestEnquadramentoDeRefeicao(t *testing.T) {
+	c := cliente(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{}`)) })
+	up := cloudinary.Uploaded{PublicID: "airo/meals/u1/abc", Version: 9, Format: "jpg"}
+
+	full, thumb := c.MealURLs(up)
+	if strings.Contains(full, "g_face") {
+		t.Fatalf("comida não se enquadra pela cara: %s", full)
+	}
+	if !strings.Contains(full, "g_auto") {
+		t.Fatalf("o corte tem de seguir o que a imagem tem: %s", full)
+	}
+	// Afastar um retrato evita a fotografia de passe; afastar um prato só
+	// mostra mais mesa.
+	if strings.Contains(full, "z_") {
+		t.Fatalf("um prato não se afasta: %s", full)
+	}
+	if !strings.Contains(full, "w_1024,h_1024") || !strings.Contains(thumb, "w_256,h_256") {
+		t.Fatalf("tamanhos = %s / %s", full, thumb)
+	}
+	// E um avatar continua a seguir a cara — os dois não se confundiram.
+	avatar, _ := c.AvatarURLs(cloudinary.Uploaded{PublicID: "x", Version: 1, Format: "jpg",
+		Faces: [][]int{{1, 2, 3, 4}}})
+	if !strings.Contains(avatar, "g_face") {
+		t.Fatalf("o avatar perdeu o enquadramento pela cara: %s", avatar)
+	}
+}

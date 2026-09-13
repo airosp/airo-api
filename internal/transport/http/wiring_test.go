@@ -71,6 +71,7 @@ func TestWiredAPIRegistersEveryRoute(t *testing.T) {
 		{"PUT", "/v1/profile"},
 		{"POST", "/v1/profile/photo"},
 		{"DELETE", "/v1/profile/photo"},
+		{"POST", "/v1/nutrition/meal-photo"},
 	}
 
 	for _, route := range routes {

@@ -22,6 +22,28 @@ const (
 	semFace = "c_fill,g_auto,q_auto,f_auto"
 )
 
+// O enquadramento de um prato.
+//
+// Não é o de uma cara, e a diferença importa: `g_face` numa fotografia de
+// comida não encontra nada e cai no centro geométrico — que num prato
+// fotografado de cima é a mesa.
+//
+//	c_fill   corta e preenche, sem deformar
+//	g_auto   o corte segue o que a imagem tem de mais saliente, que num prato
+//	         fotografado é a comida
+//
+// Sem `z_`: afastar um retrato evita a fotografia de passe, afastar um prato só
+// mostra mais mesa.
+const daComida = "c_fill,g_auto,q_auto,f_auto"
+
+// MealURLs devolve os dois tamanhos de uma fotografia de refeição.
+//
+// Maior do que um avatar: uma refeição olha-se, e é a prova do que se comeu —
+// 1024 para a ver, 256 para a lista de registos recentes.
+func (c *Client) MealURLs(u Uploaded) (full, thumb string) {
+	return c.URL(u, daComida+",w_1024,h_1024"), c.URL(u, daComida+",w_256,h_256")
+}
+
 // AvatarURLs devolve os dois tamanhos que a interface desenha.
 //
 // Dois e não um: o ecrã de perfil mostra o avatar grande e a lista de

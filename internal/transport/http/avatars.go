@@ -24,6 +24,22 @@ func (u avatarUploader) UploadAvatar(
 	return full, thumb, up.FaceFound(), nil
 }
 
+// mealUploader guarda as fotografias de refeições. Pasta própria: um prato e um
+// retrato não se enquadram da mesma maneira, e misturá-los numa pasta só torna
+// difícil apagar um sem apagar o outro.
+type mealUploader struct{ c *cloudinary.Client }
+
+func (u mealUploader) UploadMeal(
+	ctx context.Context, image []byte, publicID string,
+) (string, string, error) {
+	up, err := u.c.Upload(ctx, image, publicID)
+	if err != nil {
+		return "", "", err
+	}
+	full, thumb := u.c.MealURLs(up)
+	return full, thumb, nil
+}
+
 func (u avatarUploader) DeleteAvatar(ctx context.Context, publicID string) error {
 	err := u.c.DestroyAvatar(ctx, publicID)
 	// Já não estar lá é o resultado que se queria. Falhar por isso obrigaria

@@ -72,6 +72,8 @@ type CloudinaryConfig struct {
 	APIKey    string
 	APISecret string
 	Folder    string
+	// MealFolder é onde vivem as fotografias de refeições.
+	MealFolder string
 	// BaseURL existe para os testes apontarem para um servidor local.
 	BaseURL string
 }
@@ -107,11 +109,12 @@ func Load() (Config, error) {
 			WebhookSecret:     get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
 		},
 		Cloudinary: CloudinaryConfig{
-			CloudName: get("AIRO_CLOUDINARY_CLOUD_NAME", ""),
-			APIKey:    get("AIRO_CLOUDINARY_API_KEY", ""),
-			APISecret: get("AIRO_CLOUDINARY_API_SECRET", ""),
-			Folder:    get("AIRO_CLOUDINARY_FOLDER", "airo/profiles"),
-			BaseURL:   get("AIRO_CLOUDINARY_BASE_URL", ""),
+			CloudName:  get("AIRO_CLOUDINARY_CLOUD_NAME", ""),
+			APIKey:     get("AIRO_CLOUDINARY_API_KEY", ""),
+			APISecret:  get("AIRO_CLOUDINARY_API_SECRET", ""),
+			Folder:     get("AIRO_CLOUDINARY_FOLDER", "airo/profiles"),
+			MealFolder: get("AIRO_CLOUDINARY_MEAL_FOLDER", "airo/meals"),
+			BaseURL:    get("AIRO_CLOUDINARY_BASE_URL", ""),
 		},
 		CORSOrigins: splitList(get("AIRO_CORS_ORIGINS", "")),
 	}
