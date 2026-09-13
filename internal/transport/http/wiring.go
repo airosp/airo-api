@@ -66,7 +66,8 @@ func Wire(p Platform) Deps {
 		DB:      p.Pool,
 	}
 
-	goalSvc := service.NewGoalService(tx, repo.NewGoalRepo(tx), configs, p.Clock)
+	goals := repo.NewGoalRepo(tx)
+	goalSvc := service.NewGoalService(tx, goals, configs, p.Clock)
 	sessions := repo.NewSessionRepo(tx, catalog)
 	trainingSvc := service.NewTrainingService(sessions, trainingCfg, p.Clock)
 
@@ -77,7 +78,7 @@ func Wire(p Platform) Deps {
 		uploader = avatarUploader{c: p.Images}
 	}
 	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader)
-	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles}
+	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles, Reader: goals}
 	deps.Training = &handlers.Training{Service: trainingSvc, Profiles: profiles, Sessions: sessions}
 	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}
 	// A rota existe sempre; o que muda é a resposta. Sem Cloudinary, diz que

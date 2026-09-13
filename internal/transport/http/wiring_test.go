@@ -65,6 +65,7 @@ func TestWiredAPIRegistersEveryRoute(t *testing.T) {
 		{"POST", "/v1/auth/logout"},
 		{"POST", "/v1/goals"},
 		{"POST", "/v1/goals/assess"},
+		{"GET", "/v1/goals/active"},
 		{"GET", "/v1/training/today"},
 		{"POST", "/v1/training/sessions"},
 		{"GET", "/v1/training/sessions?from=2026-09-01&to=2026-09-13"},

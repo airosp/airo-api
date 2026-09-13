@@ -21,6 +21,7 @@ import (
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
 	airohttp "github.com/airosp/airo-api/internal/transport/http"
+	"github.com/airosp/airo-api/internal/transport/http/dto"
 	"github.com/airosp/airo-api/internal/transport/http/handlers"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
 	"github.com/airosp/airo-api/migrations"
@@ -88,7 +89,7 @@ func serve(t *testing.T) (http.Handler, *pgxpool.Pool, string) {
 	router := airohttp.NewRouter(airohttp.Deps{
 		Log: quiet, Version: "test", DB: pool,
 		Auth:        fakeAuth{userID: userID},
-		Goals:       &handlers.Goals{Service: svc, Profiles: profiles{}},
+		Goals:       &handlers.Goals{Service: svc, Profiles: profiles{}, Reader: repo.NewGoalRepo(tx)},
 		Idempotency: middleware.NewMemoryStore(time.Hour),
 	})
 	return router, pool, userID
@@ -318,4 +319,95 @@ func firstLine(s string) string {
 
 func quietLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+}
+
+// O objetivo tem de voltar. Sem isto, o perfil sobrevivia a mudar de telemóvel
+// e o foco não — e quem reinstalasse a app escolhia outra vez o que já tinha
+// escolhido.
+func TestObjectivoVoltaDepoisDeCriado(t *testing.T) {
+	h, _, _ := serve(t)
+
+	if w := post(t, h, "/v1/goals", fixedBody, nil); w.Code != http.StatusCreated {
+		t.Fatalf("criar = %d: %s", w.Code, w.Body.String())
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/v1/goals/active", nil)
+	r.Header.Set("Authorization", "Bearer token-de-teste")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("ler = %d: %s", w.Code, w.Body.String())
+	}
+
+	var out dto.ActiveGoalResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Direction != "lose_weight" || out.Priority != "weight" || out.Type != "outcome" {
+		t.Fatalf("objetivo = %+v", out)
+	}
+	if out.Status != "active" {
+		t.Fatalf("estado = %q", out.Status)
+	}
+	if out.Journey.Horizon != "fixed" || out.Journey.TargetDate == nil || *out.Journey.TargetDate != "2026-12-29" {
+		t.Fatalf("jornada = %+v", out.Journey)
+	}
+
+	// O alvo é o que a app desenha como "objetivo: 74 kg".
+	var peso *dto.TargetView
+	for i := range out.Targets {
+		if out.Targets[i].Metric == "body_weight" {
+			peso = &out.Targets[i]
+		}
+	}
+	if peso == nil {
+		t.Fatalf("sem alvo de peso: %+v", out.Targets)
+	}
+	if peso.Value != 74 || peso.Unit != "kg" || peso.Direction != "decrease" {
+		t.Fatalf("alvo = %+v", *peso)
+	}
+
+	// ⚠️ O score do Goal Engine nunca sai. Uma resposta que "só devolve o que
+	// está gravado" é o sítio mais fácil de o deixar escapar.
+	if strings.Contains(strings.ToLower(w.Body.String()), "score") {
+		t.Fatalf("o score escapou na resposta: %s", w.Body.String())
+	}
+}
+
+// Sem objetivo, diz-se que não há. Não é um erro: quem acabou de criar a conta
+// ainda não escolheu nada.
+func TestSemObjectivoRespondeQueNaoHa(t *testing.T) {
+	h, _, _ := serve(t)
+	r := httptest.NewRequest(http.MethodGet, "/v1/goals/active", nil)
+	r.Header.Set("Authorization", "Bearer token-de-teste")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("= %d, esperava 404: %s", w.Code, w.Body.String())
+	}
+}
+
+// INVARIANTE 14: horizonte aberto ⇒ sem data-alvo. Sai nulo, e não uma data
+// inventada para o campo não ficar vazio.
+func TestHorizonteAbertoVoltaSemDataAlvo(t *testing.T) {
+	h, _, _ := serve(t)
+	aberto := `{"type":"behavior","horizon":"open_ended","direction":"maintain_weight","priority":"health",
+	 "startDate":"2026-09-12","targetDate":null,
+	 "targets":[{"metric":"sessions_per_week","value":3,"unit":"sessões","direction":"maintain"}]}`
+	if w := post(t, h, "/v1/goals", aberto, nil); w.Code != http.StatusCreated {
+		t.Fatalf("criar = %d: %s", w.Code, w.Body.String())
+	}
+
+	r := httptest.NewRequest(http.MethodGet, "/v1/goals/active", nil)
+	r.Header.Set("Authorization", "Bearer token-de-teste")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("ler = %d: %s", w.Code, w.Body.String())
+	}
+	var out dto.ActiveGoalResponse
+	_ = json.Unmarshal(w.Body.Bytes(), &out)
+	if out.Journey.TargetDate != nil {
+		t.Fatalf("horizonte aberto com data-alvo: %v", *out.Journey.TargetDate)
+	}
 }

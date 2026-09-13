@@ -126,3 +126,39 @@ func FromAssessment(a goal.Assessment) Assessment {
 	}
 	return out
 }
+
+// ActiveGoalResponse é o objetivo em vigor, como a app o desenha.
+//
+// ⚠️ **Sem o score, aqui também.** O mesmo que vale para a avaliação vale para
+// a leitura: `goalEngineConfig.scoring` diz que nunca é mostrado, e o sítio
+// mais fácil de o deixar escapar é numa resposta que "só devolve o que está
+// gravado".
+type ActiveGoalResponse struct {
+	ID        string `json:"id"`
+	Type      string `json:"type"`
+	Horizon   string `json:"horizon"`
+	Direction string `json:"direction"`
+	Priority  string `json:"priority"`
+	Status    string `json:"status"`
+
+	Journey ActiveJourney `json:"journey"`
+	Targets []TargetView  `json:"targets"`
+}
+
+type ActiveJourney struct {
+	ID         string  `json:"id"`
+	Horizon    string  `json:"horizon"`
+	StartDate  string  `json:"startDate"`
+	TargetDate *string `json:"targetDate"`
+	CycleWeeks *int    `json:"cycleWeeks,omitempty"`
+	Status     string  `json:"status"`
+}
+
+type TargetView struct {
+	Metric    string  `json:"metric"`
+	Direction string  `json:"direction"`
+	Baseline  float64 `json:"baseline"`
+	Value     float64 `json:"value"`
+	Unit      string  `json:"unit"`
+	DueDate   *string `json:"dueDate"`
+}

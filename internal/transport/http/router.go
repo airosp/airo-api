@@ -68,6 +68,8 @@ func NewRouter(d Deps) http.Handler {
 		if d.Goals != nil {
 			mux.Handle("POST /v1/goals", private(d.Goals.Create))
 			mux.Handle("POST /v1/goals/assess", private(d.Goals.Assess))
+			mux.Handle("GET /v1/goals/active",
+				middleware.Chain(http.HandlerFunc(d.Goals.Active), middleware.Auth(d.Auth)))
 		}
 		if d.Training != nil {
 			mux.Handle("GET /v1/training/today", private(d.Training.Today))

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -33,6 +34,81 @@ type contextLike = interface {
 type Goals struct {
 	Service  *service.GoalService
 	Profiles ProfileReader
+	Reader   GoalReader
+}
+
+// GoalReader lê o objetivo em vigor.
+//
+// Interface e não o repositório: o handler não tem de saber que existe
+// Postgres, e é o que permite um teste do transporte sem base de dados.
+type GoalReader interface {
+	CurrentGoal(ctx context.Context, userID string) (repo.GoalRow, repo.JourneyRow, error)
+	TargetsOf(ctx context.Context, journeyID string) ([]repo.TargetRow, error)
+}
+
+// Active devolve o objetivo em vigor.
+//
+// É o que faz o objetivo sobreviver a mudar de telemóvel. Sem isto, o perfil
+// voltava e o foco não — e quem reinstalava a app tinha de escolher outra vez
+// o que já tinha escolhido.
+//
+// 404 quando não há: é uma resposta, não um erro. Quem acabou de criar a conta
+// ainda não tem objetivo, e dizer-lhe isso é diferente de falhar.
+func (h Goals) Active(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Reader == nil {
+		apierr.Write(w, apierr.Internal, "Os objetivos estão indisponíveis.", "")
+		return
+	}
+
+	goal, journey, err := h.Reader.CurrentGoal(r.Context(), userID)
+	switch {
+	case errors.Is(err, repo.ErrNotFound):
+		apierr.Write(w, apierr.NotFound, "Ainda não tens um objetivo.", "")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o objetivo.")
+		return
+	}
+
+	targets, err := h.Reader.TargetsOf(r.Context(), journey.ID)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível ler os alvos.")
+		return
+	}
+
+	out := dto.ActiveGoalResponse{
+		ID: goal.ID, Type: goal.Type, Horizon: goal.Horizon,
+		Direction: goal.Direction, Priority: goal.Priority, Status: goal.Status,
+		Journey: dto.ActiveJourney{
+			ID: journey.ID, Horizon: journey.Horizon,
+			StartDate:  journey.StartDate.Format("2006-01-02"),
+			CycleWeeks: journey.CycleWeeks, Status: journey.Status,
+		},
+		Targets: make([]dto.TargetView, 0, len(targets)),
+	}
+	// INVARIANTE 14: horizonte aberto ⇒ sem data-alvo. Sai nulo, e não uma data
+	// inventada para o campo não ficar vazio.
+	if journey.TargetDate != nil {
+		d := journey.TargetDate.Format("2006-01-02")
+		out.Journey.TargetDate = &d
+	}
+	for _, t := range targets {
+		v := dto.TargetView{
+			Metric: t.Metric, Direction: t.Direction,
+			Baseline: t.Baseline, Value: t.Value, Unit: t.Unit,
+		}
+		if t.DueDate != nil {
+			d := t.DueDate.Format("2006-01-02")
+			v.DueDate = &d
+		}
+		out.Targets = append(out.Targets, v)
+	}
+	apierr.WriteJSON(w, http.StatusOK, out)
 }
 
 func (h Goals) Create(w http.ResponseWriter, r *http.Request) {

@@ -277,6 +277,31 @@ func (r *GoalRepo) CurrentGoal(ctx context.Context, userID string) (GoalRow, Jou
 	return g, j, nil
 }
 
+// TargetsOf devolve o que a jornada se propõe medir.
+//
+// Separado do objetivo porque uma jornada pode ter vários alvos — o peso é o
+// que a app mostra hoje, e `sessions_per_week` é o que um horizonte aberto usa
+// em vez dele.
+func (r *GoalRepo) TargetsOf(ctx context.Context, journeyID string) ([]TargetRow, error) {
+	rows, err := r.tx.Q(ctx).Query(ctx,
+		`SELECT metric::text, direction::text, baseline, value, unit, due_date
+		   FROM target WHERE journey_id = $1 ORDER BY metric`, journeyID)
+	if err != nil {
+		return nil, fmt.Errorf("ler alvos: %w", err)
+	}
+	defer rows.Close()
+
+	var out []TargetRow
+	for rows.Next() {
+		var t TargetRow
+		if err := rows.Scan(&t.Metric, &t.Direction, &t.Baseline, &t.Value, &t.Unit, &t.DueDate); err != nil {
+			return nil, fmt.Errorf("ler alvo: %w", err)
+		}
+		out = append(out, t)
+	}
+	return out, rows.Err()
+}
+
 func (r *GoalRepo) PhasesOf(ctx context.Context, journeyID string) ([]PhaseRow, error) {
 	rows, err := r.tx.Q(ctx).Query(ctx,
 		`SELECT kind, position, start_date, end_date FROM phase
