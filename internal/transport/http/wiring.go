@@ -96,6 +96,16 @@ func Wire(p Platform) Deps {
 		Plans: nutritionSvc, Profiles: profiles,
 	}
 
+	// Sem Cloudinary a conta apaga-se na mesma: uma imagem órfã limpa-se
+	// depois, uma conta que não se consegue apagar não.
+	var apagaImagens service.ImageDeleter
+	if p.Images != nil {
+		apagaImagens = avatarUploader{c: p.Images}
+	}
+	deps.Account = &handlers.Account{
+		Service: service.NewAccountService(repo.NewAccountRepo(tx), apagaImagens),
+	}
+
 	deps.Progress = &handlers.Progress{
 		Service: service.NewProgressService(repo.NewProgressRepo(tx), goals, configs.Journey).
 			WithAdaptations(repo.NewAdaptationRepo(tx), goals, repo.NewProfileRepo(tx)),

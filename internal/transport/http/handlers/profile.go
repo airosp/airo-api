@@ -300,3 +300,46 @@ func preferenciasDe(req dto.ProfileRequest) *repo.Preferences {
 	}
 	return &out
 }
+
+// Account é a eliminação da conta.
+//
+// Fica no mesmo handler que o perfil porque é a mesma coisa vista do outro
+// lado: um cria a pessoa no sistema, o outro tira-a.
+type Account struct {
+	Service *service.AccountService
+}
+
+// Delete apaga a conta e tudo o que lhe pertence.
+//
+// `DELETE /v1/account` e não `POST /account/delete`: é uma eliminação, e o
+// método diz-lho. Sem corpo e sem confirmação aqui — a confirmação é do ecrã,
+// que é onde a pessoa está, e pedi-la também no protocolo dava a entender que
+// uma delas pode ser saltada.
+func (h Account) Delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Service == nil {
+		apierr.Write(w, apierr.Internal, "A eliminação de conta está indisponível.", "")
+		return
+	}
+
+	out, err := h.Service.Delete(r.Context(), userID)
+	switch {
+	case errors.Is(err, repo.ErrNotFound):
+		// Já não existe. Quem pediu para apagar queria que deixasse de existir,
+		// e deixou — responder 404 punha a pessoa a duvidar se ficou feito.
+		w.WriteHeader(http.StatusNoContent)
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível apagar a tua conta.")
+		return
+	}
+
+	// O que se regista é o que aconteceu, nunca a quem: o pedido já não tem
+	// dono a partir daqui, e o identificador estaria a apontar para nada.
+	_ = out
+	w.WriteHeader(http.StatusNoContent)
+}
