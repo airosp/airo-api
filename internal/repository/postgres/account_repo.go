@@ -70,3 +70,51 @@ func (r *AccountRepo) Delete(ctx context.Context, userID, phone string) (int64, 
 	})
 	return anonimizadas, err
 }
+
+// ── Limpeza ──────────────────────────────────────────────────────────────────
+
+// Cleanup apaga o que já não serve a ninguém e devolve quantas linhas saíram.
+//
+// Não é higiene por higiene: um desafio expirado guarda o hash de um código e o
+// número de quem o pediu, e guardá-los depois de deixarem de valer é manter
+// dados pessoais sem razão. O mesmo para um token revogado há meses.
+type CleanupResult struct {
+	Challenges int64
+	Tokens     int64
+	Events     int64
+}
+
+// Cleanup corre por períodos configuráveis. Os valores por omissão são
+// generosos de propósito: apagar depressa demais tira o rasto de um incidente
+// antes de alguém o poder investigar.
+func (r *AccountRepo) Cleanup(ctx context.Context, desafiosApos, tokensApos, eventosApos string) (CleanupResult, error) {
+	var out CleanupResult
+
+	tag, err := r.tx.Q(ctx).Exec(ctx,
+		`DELETE FROM otp_challenge
+		  WHERE expires_at < now() - $1::interval`, desafiosApos)
+	if err != nil {
+		return out, fmt.Errorf("limpar desafios: %w", err)
+	}
+	out.Challenges = tag.RowsAffected()
+
+	// Só os revogados **ou** expirados: um token vivo não se apaga, senão a
+	// pessoa é posta fora sem razão.
+	tag, err = r.tx.Q(ctx).Exec(ctx,
+		`DELETE FROM refresh_token
+		  WHERE (revoked_at IS NOT NULL AND revoked_at < now() - $1::interval)
+		     OR (expires_at < now() - $1::interval)`, tokensApos)
+	if err != nil {
+		return out, fmt.Errorf("limpar tokens: %w", err)
+	}
+	out.Tokens = tag.RowsAffected()
+
+	tag, err = r.tx.Q(ctx).Exec(ctx,
+		`DELETE FROM auth_event WHERE occurred_at < now() - $1::interval`, eventosApos)
+	if err != nil {
+		return out, fmt.Errorf("limpar auditoria: %w", err)
+	}
+	out.Events = tag.RowsAffected()
+
+	return out, nil
+}
