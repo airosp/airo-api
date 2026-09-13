@@ -161,3 +161,25 @@ func (c Config) Validate() error {
 	}
 	return nil
 }
+
+// FocusOf traduz um rótulo do plano no foco da sessão.
+//
+// Um rótulo desconhecido cai em corpo inteiro: é o que serve para qualquer dia,
+// e recusar seria deixar alguém sem treino por causa de um nome.
+func (c Config) FocusOf(planLabel string) Focus {
+	if c.IsRecoveryDay(planLabel) {
+		return FocusMobility
+	}
+	if f, ok := c.FocusByPlanLabel[planLabel]; ok {
+		return f
+	}
+	return FocusFull
+}
+
+// TitleOf é o rótulo em português, que é o que a pessoa lê.
+func (c Config) TitleOf(planLabel string) string {
+	if t, ok := c.FocusTitles[c.FocusOf(planLabel)]; ok {
+		return t
+	}
+	return planLabel
+}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/airosp/airo-api/internal/engine/training"
 	"github.com/airosp/airo-api/internal/platform/clock"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
@@ -23,6 +24,11 @@ type Progress struct {
 	Service  *service.ProgressService
 	Profiles ProgressProfileReader
 	Clock    clock.Clock
+	// Marks e Sessions servem a semana: as marcas trazem a precedência do
+	// calendário, o histórico traz o que já está feito.
+	Marks    CalendarStore
+	Sessions SessionHistory
+	Training training.Config
 }
 
 // Snapshot devolve o retrato do progresso.
@@ -294,4 +300,98 @@ func (h Progress) pausar(w http.ResponseWriter, r *http.Request, pausar bool) {
 	apierr.WriteJSON(w, http.StatusOK, map[string]any{
 		"paused": pausar, "changed": mudou,
 	})
+}
+
+// Week devolve a semana, já decidida.
+//
+// Substitui o `buildWeeklyPlan` do telemóvel — e traz a precedência do
+// calendário aplicada, que é a razão de peso: `excepção > ausência > padrão`
+// não pode viver em dois sítios e continuar a dar o mesmo resultado.
+func (h Progress) Week(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Profiles == nil || h.Marks == nil {
+		apierr.Write(w, apierr.Internal, "O plano da semana está indisponível.", "")
+		return
+	}
+
+	now := time.Now().UTC()
+	if h.Clock != nil {
+		now = h.Clock.Now().UTC()
+	}
+	if raw := r.URL.Query().Get("week"); raw != "" {
+		d, err := time.Parse("2006-01-02", raw)
+		if err != nil {
+			apierr.Write(w, apierr.ValidationFailed, "Semana inválida.", "week")
+			return
+		}
+		now = d
+	}
+	// Segunda-feira da semana pedida. A semana começa à segunda em todo o lado.
+	inicio := now.AddDate(0, 0, -((int(now.Weekday()) + 6) % 7))
+	fim := inicio.AddDate(0, 0, 6)
+
+	perfil, err := h.Profiles.Profile(r.Context(), userID)
+	switch {
+	case errors.Is(err, service.ErrProfileMissing):
+		apierr.Write(w, apierr.ValidationFailed, "Perfil incompleto. Cria o teu plano primeiro.", "")
+		return
+	case err != nil && !errors.Is(err, service.ErrWeightMissing):
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o teu perfil.")
+		return
+	}
+	dias, err := h.Profiles.TrainingDaysOf(r.Context(), userID)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o teu plano.")
+		return
+	}
+
+	marcas, err := h.Marks.Marks(r.Context(), userID, inicio, fim)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o calendário.")
+		return
+	}
+
+	overrides := map[string]string{}
+	ausencias := map[string]bool{}
+	notas := map[string]string{}
+	for _, m := range marcas {
+		switch m.Kind {
+		case "workout", "rest":
+			overrides[m.Day.Format("2006-01-02")] = m.Kind
+		case "absence":
+			// Uma ausência ocupa um intervalo: marca-se dia a dia.
+			for d := m.Day; !d.After(m.Until); d = d.AddDate(0, 0, 1) {
+				ausencias[d.Format("2006-01-02")] = true
+			}
+		case "note":
+			notas[m.Day.Format("2006-01-02")] = m.Text
+		}
+	}
+
+	feitos := map[string]bool{}
+	if h.Sessions != nil {
+		historico, err := h.Sessions.History(r.Context(), userID, inicio, fim)
+		if err == nil {
+			for _, s := range historico {
+				if s.Status == "completed" {
+					feitos[s.LocalDay.Format("2006-01-02")] = true
+				}
+			}
+		}
+	}
+
+	cfg := h.Training
+	apierr.WriteJSON(w, http.StatusOK, view.BuildWeek(view.WeekInput{
+		Start: inicio, Today: now,
+		WorkoutDays:     dias,
+		WorkoutMinutes:  perfil.SessionMinutes,
+		RecoveryMinutes: cfg.RecoveryMinutes,
+		Overrides:       overrides, Absences: ausencias, Notes: notas, Done: feitos,
+		FocusOf: func(label string) string { return string(cfg.FocusOf(label)) },
+		TitleOf: func(label string) string { return cfg.TitleOf(label) },
+	}))
 }

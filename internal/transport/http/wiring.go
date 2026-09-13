@@ -117,6 +117,9 @@ func Wire(p Platform) Deps {
 			WithAbsences(repo.NewCalendarRepo(tx)),
 		Profiles: profiles,
 		Clock:    p.Clock,
+		Marks:    repo.NewCalendarRepo(tx),
+		Sessions: sessions,
+		Training: trainingCfg,
 	}
 
 	if len(p.JWTSecret) >= 32 {

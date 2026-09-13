@@ -133,6 +133,8 @@ func NewRouter(d Deps) http.Handler {
 		if d.Progress != nil {
 			mux.Handle("GET /v1/progress/snapshot",
 				middleware.Chain(http.HandlerFunc(d.Progress.Snapshot), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/plan/week",
+				middleware.Chain(http.HandlerFunc(d.Progress.Week), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/progress/adaptations",
 				middleware.Chain(http.HandlerFunc(d.Progress.Adaptations), middleware.Auth(d.Auth)))
 			// ⚠️ Só a pessoa aplica. A Airo propõe — correr sozinha seria mudar
