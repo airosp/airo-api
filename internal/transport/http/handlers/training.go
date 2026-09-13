@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/airosp/airo-api/internal/engine/training"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
 	"github.com/airosp/airo-api/internal/transport/http/apierr"
@@ -38,6 +39,21 @@ type Training struct {
 	// Classes serve as aulas gravadas. Numa aula é ela que diz quanto tempo o
 	// treino pedia — não o motor, e muito menos o cliente.
 	Classes ClassStore
+	// Training traduz o rótulo do dia no foco, para escolher a aula certa.
+	Training training.Config
+}
+
+// seedDoDia — os últimos quatro dígitos da data, como no resto do sistema.
+//
+// A mesma data dá a mesma aula em dois telemóveis, e amanhã dá outra. Escolher
+// ao acaso fazia o treino de hoje mudar a cada vez que alguém abrisse o ecrã.
+func seedDoDia(day time.Time) int {
+	iso := day.Format("20060102")
+	n := 0
+	for _, r := range iso[len(iso)-4:] {
+		n = n*10 + int(r-'0')
+	}
+	return n
 }
 
 func (h Training) Today(w http.ResponseWriter, r *http.Request) {
@@ -67,12 +83,33 @@ func (h Training) Today(w http.ResponseWriter, r *http.Request) {
 	}
 	in.LocalDay = day
 
+	/*
+	 * O dia é uma aula, ou é o plano — e a resposta diz qual.
+	 *
+	 * Não são as duas: dois treinos para o mesmo dia é exactamente a confusão
+	 * que isto existe para resolver. Quando há aula que sirva o foco, o nível e
+	 * o equipamento, o dia é a aula e o motor não entra.
+	 *
+	 * Sem aula que sirva, o dia é o plano — e é essa salvaguarda que impede a
+	 * Airo de marcar um dia de aula que não tem como encher.
+	 */
+	if h.Classes != nil {
+		focus := string(h.Training.FocusOf(in.PlanLabel))
+		aula, err := h.Classes.ForDay(r.Context(), focus, in.Experience, in.Equipment, seedDoDia(day))
+		if err == nil {
+			apierr.WriteJSON(w, http.StatusOK, map[string]any{
+				"kind": "class", "class": paraAula(aula),
+			})
+			return
+		}
+	}
+
 	pkg, _, _, err := h.Service.Today(in)
 	if err != nil {
 		apierr.WriteInternal(w, r, err, "Não foi possível montar o treino de hoje.")
 		return
 	}
-	apierr.WriteJSON(w, http.StatusOK, pkg)
+	apierr.WriteJSON(w, http.StatusOK, map[string]any{"kind": "session", "session": pkg})
 }
 
 // History devolve as sessões de um intervalo de dias.

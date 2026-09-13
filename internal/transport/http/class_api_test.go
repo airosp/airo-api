@@ -87,7 +87,7 @@ func serveTrainingComAulas(t *testing.T, duracao int) (http.Handler, string) {
 	if _, err := pool.Exec(context.Background(),
 		`INSERT INTO workout_class
 		   (id,title,specialist,focus,level,duration_seconds,kcal,video_url,published)
-		 VALUES ('aula_x','Aula de teste','ana-silva','upper','intermediate',$1,300,'https://x/v.mp4',true)`,
+		 VALUES ('aula_x','Aula de teste','ana-silva','full','intermediate',$1,300,'https://x/v.mp4',true)`,
 		duracao); err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,41 @@ func serveTrainingComAulas(t *testing.T, duracao int) (http.Handler, string) {
 		Log: quietLogger(), Version: "test", DB: pool,
 		Auth: fakeAuth{userID: userID},
 		Training: &handlers.Training{
-			Service: svc, Profiles: trainingProfiles{}, Classes: repo.NewClassRepo(tx),
+			Service: svc, Profiles: trainingProfiles{},
+			Classes: repo.NewClassRepo(tx), Training: training.DefaultConfig(),
+		},
+		Idempotency: middleware.NewMemoryStore(time.Hour),
+	}), userID
+}
+
+// serveTrainingComAulasDeFoco semeia uma aula de outro foco, para o dia não a
+// poder usar.
+func serveTrainingComAulasDeFoco(t *testing.T, foco string) (http.Handler, string) {
+	t.Helper()
+	_, pool, userID := serve(t)
+
+	if _, err := pool.Exec(context.Background(),
+		`INSERT INTO workout_class
+		   (id,title,specialist,focus,level,duration_seconds,kcal,video_url,published)
+		 VALUES ('aula_outra','Outra','ana-silva',$1::session_focus,'beginner',900,200,'https://x/v.mp4',true)`,
+		foco); err != nil {
+		t.Fatal(err)
+	}
+
+	tx := repo.NewTxManager(pool)
+	catalog := repo.NewCatalogRepo(tx)
+	if _, err := catalog.SeedExercises(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	svc := service.NewTrainingService(repo.NewSessionRepo(tx, catalog), training.DefaultConfig(),
+		clock.NewFixed(time.Date(2026, 9, 13, 18, 0, 0, 0, time.UTC)))
+
+	return airohttp.NewRouter(airohttp.Deps{
+		Log: quietLogger(), Version: "test", DB: pool,
+		Auth: fakeAuth{userID: userID},
+		Training: &handlers.Training{
+			Service: svc, Profiles: trainingProfiles{},
+			Classes: repo.NewClassRepo(tx), Training: training.DefaultConfig(),
 		},
 		Idempotency: middleware.NewMemoryStore(time.Hour),
 	}), userID
@@ -113,4 +147,56 @@ func serveTrainingComAulas(t *testing.T, duracao int) (http.Handler, string) {
 func postComChave(t *testing.T, h http.Handler, path, body, chave string) *httptest.ResponseRecorder {
 	t.Helper()
 	return post(t, h, path, body, map[string]string{"Idempotency-Key": chave})
+}
+
+// Quando há aula que serve o dia, o dia **é** a aula — e não as duas coisas.
+//
+// Dois treinos para o mesmo dia é exactamente a confusão que isto existe para
+// resolver.
+func TestODiaComAulaEAAula(t *testing.T) {
+	h, _ := serveTrainingComAulas(t, 1500)
+	w := get(t, h, "/v1/training/today?localDay=2026-09-13")
+	if w.Code != http.StatusOK {
+		t.Fatalf("%d: %s", w.Code, w.Body.String())
+	}
+
+	var env struct {
+		Kind  string `json:"kind"`
+		Class struct {
+			ID              string `json:"id"`
+			Title           string `json:"title"`
+			DurationSeconds int    `json:"durationSeconds"`
+		} `json:"class"`
+		Session json.RawMessage `json:"session"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &env); err != nil {
+		t.Fatal(err)
+	}
+
+	// O perfil de teste é "Full Body" e intermédio; a aula semeada é `full`,
+	// intermédia e sem equipamento — logo serve.
+	if env.Kind != "class" {
+		t.Fatalf("esperava uma aula, veio %q", env.Kind)
+	}
+	if env.Class.ID != "aula_x" || env.Class.DurationSeconds != 1500 {
+		t.Errorf("aula errada: %+v", env.Class)
+	}
+	if len(env.Session) > 0 {
+		t.Error("veio aula e plano ao mesmo tempo — é um dia, é um treino")
+	}
+}
+
+// Sem aula que sirva o foco, o dia continua a ser o plano. É a salvaguarda que
+// impede a Airo de marcar um dia de aula que não tem como encher.
+func TestSemAulaQueSirvaODiaEOPlano(t *testing.T) {
+	h, _ := serveTrainingComAulasDeFoco(t, "cardio")
+	w := get(t, h, "/v1/training/today?localDay=2026-09-13")
+
+	var env struct {
+		Kind string `json:"kind"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &env)
+	if env.Kind != "session" {
+		t.Errorf("a única aula é de cardio e o dia é de tronco; veio %q", env.Kind)
+	}
 }

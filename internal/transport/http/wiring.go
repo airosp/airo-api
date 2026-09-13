@@ -85,7 +85,8 @@ func Wire(p Platform) Deps {
 	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles, Reader: goals}
 	deps.Training = &handlers.Training{
 		Service: trainingSvc, Profiles: profiles, Sessions: sessions,
-		Classes: repo.NewClassRepo(tx),
+		Classes:  repo.NewClassRepo(tx),
+		Training: trainingCfg,
 	}
 	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}
 	// A rota existe sempre; o que muda é a resposta. Sem Cloudinary, diz que

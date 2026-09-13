@@ -75,6 +75,18 @@ func TestTodayEndpoint(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("%d: %s", w.Code, w.Body.String())
 	}
+	// A resposta diz **qual** dos dois o dia é. Sem aula que sirva, é o plano.
+	var envelope struct {
+		Kind    string          `json:"kind"`
+		Session json.RawMessage `json:"session"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if envelope.Kind != "session" {
+		t.Fatalf("sem aulas, o dia devia ser o plano; veio %q", envelope.Kind)
+	}
+
 	var pkg struct {
 		SessionID string `json:"sessionId"`
 		TotalSets int    `json:"totalSets"`
@@ -97,7 +109,7 @@ func TestTodayEndpoint(t *testing.T) {
 		} `json:"steps"`
 		CompletionThresholdSeconds int `json:"completionThresholdSeconds"`
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &pkg); err != nil {
+	if err := json.Unmarshal(envelope.Session, &pkg); err != nil {
 		t.Fatal(err)
 	}
 	if pkg.SessionID == "" || pkg.TotalSets == 0 || len(pkg.Steps) == 0 {

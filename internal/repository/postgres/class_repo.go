@@ -99,3 +99,51 @@ func (r *ClassRepo) Get(ctx context.Context, id string) (ClassRow, error) {
 	}
 	return c, err
 }
+
+// ForDay escolhe a aula do dia, ou nada.
+//
+// A escolha é **determinística pelo dia**, como tudo o resto: o mesmo dia dá a
+// mesma aula em dois telemóveis, e amanhã dá outra. Uma escolha aleatória fazia
+// o treino de hoje mudar a cada abertura do ecrã.
+//
+// O nível é **até** ao da pessoa, não igual: uma aula de iniciante serve um
+// intermédio — é mais fácil, não é impossível. Ao contrário não serve.
+func (r *ClassRepo) ForDay(ctx context.Context, focus, level string, equipment []string, seed int) (ClassRow, error) {
+	ordem := map[string]int{"beginner": 1, "intermediate": 2, "advanced": 3}
+	tecto, ok := ordem[level]
+	if !ok {
+		tecto = 1
+	}
+
+	var c ClassRow
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`WITH servem AS (
+		   SELECT id, title, specialist, focus, level, duration_seconds, kcal,
+		          video_url, COALESCE(thumbnail_url,'') AS thumb, summary, muscles, equipment,
+		          row_number() OVER (ORDER BY id) - 1 AS n,
+		          count(*) OVER () AS total
+		     FROM workout_class
+		    WHERE published
+		      AND focus::text = $1
+		      AND CASE level::text WHEN 'beginner' THEN 1
+		                           WHEN 'intermediate' THEN 2
+		                           ELSE 3 END <= $2
+		      AND ($3::text[] IS NULL
+		           OR cardinality(equipment) = 0
+		           OR equipment <@ $3::text[])
+		 )
+		 SELECT id, title, specialist, focus, level, duration_seconds, kcal,
+		        video_url, thumb, summary, muscles, equipment
+		   FROM servem
+		  WHERE n = $4 % total`,
+		focus, tecto, equipment, seed,
+	).Scan(&c.ID, &c.Title, &c.Specialist, &c.Focus, &c.Level,
+		&c.DurationSeconds, &c.Kcal, &c.VideoURL, &c.ThumbnailURL,
+		&c.Summary, &c.Muscles, &c.Equipment)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Sem aula que sirva, o dia é o plano. É a salvaguarda que impede a
+		// Airo de marcar um dia de aula que não tem como encher.
+		return ClassRow{}, ErrNotFound
+	}
+	return c, err
+}

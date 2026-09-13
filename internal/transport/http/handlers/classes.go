@@ -14,6 +14,9 @@ import (
 type ClassStore interface {
 	Published(ctx context.Context, f repo.ClassFilter) ([]repo.ClassRow, error)
 	Get(ctx context.Context, id string) (repo.ClassRow, error)
+	// ForDay escolhe a aula do dia, ou devolve ErrNotFound — e aí o dia é o
+	// plano.
+	ForDay(ctx context.Context, focus, level string, equipment []string, seed int) (repo.ClassRow, error)
 }
 
 // ClassProfileReader dá o equipamento e o nível de quem pergunta.
@@ -108,6 +111,10 @@ func paraAula(c repo.ClassRow) map[string]any {
 		"equipment": nonNilStrings(c.Equipment),
 		// A etiqueta que o cartão mostra, já escrita: "Tronco · 38 min".
 		"label": etiquetaDeAula(c),
+		// O foco sozinho, para quem já mostra a duração ao lado e não a quer
+		// dizer duas vezes em dez centímetros.
+		"focusLabel": focoPorExtenso(c.Focus),
+		"levelLabel": nivelPorExtenso(c.Level),
 	}
 	if c.ThumbnailURL != "" {
 		out["thumbnailUrl"] = c.ThumbnailURL
@@ -130,11 +137,21 @@ var niveisPorExtenso = map[string]string{
 }
 
 func etiquetaDeAula(c repo.ClassRow) string {
-	foco, ok := focosPorExtenso[c.Focus]
-	if !ok {
-		foco = c.Focus
+	return focoPorExtenso(c.Focus) + " · " + plural(c.DurationSeconds/60) + " min"
+}
+
+func focoPorExtenso(f string) string {
+	if v, ok := focosPorExtenso[f]; ok {
+		return v
 	}
-	return foco + " · " + plural(c.DurationSeconds/60) + " min"
+	return f
+}
+
+func nivelPorExtenso(l string) string {
+	if v, ok := niveisPorExtenso[l]; ok {
+		return v
+	}
+	return l
 }
 
 func plural(n int) string {
