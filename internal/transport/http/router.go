@@ -87,6 +87,15 @@ func NewRouter(d Deps) http.Handler {
 		if d.Nutrition != nil {
 			mux.Handle("POST /v1/nutrition/meal-photo",
 				middleware.Chain(http.HandlerFunc(d.Nutrition.MealPhoto), middleware.Auth(d.Auth)))
+			// O diário. `PUT` com o identificador no caminho é idempotente por
+			// construção, e por isso fica fora da cadeia de idempotência —
+			// guardar a resposta por chave seria guardar o que já é repetível.
+			mux.Handle("PUT /v1/nutrition/logs/{id}",
+				middleware.Chain(http.HandlerFunc(d.Nutrition.SaveLog), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/nutrition/logs",
+				middleware.Chain(http.HandlerFunc(d.Nutrition.ReadLogs), middleware.Auth(d.Auth)))
+			mux.Handle("DELETE /v1/nutrition/logs/{id}",
+				middleware.Chain(http.HandlerFunc(d.Nutrition.DeleteLog), middleware.Auth(d.Auth)))
 		}
 	}
 

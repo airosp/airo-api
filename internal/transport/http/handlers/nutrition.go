@@ -7,8 +7,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
+	"time"
 
+	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/transport/http/apierr"
+	"github.com/airosp/airo-api/internal/transport/http/dto"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
 )
 
@@ -18,8 +22,211 @@ type MealUploader interface {
 	UploadMeal(ctx context.Context, image []byte, publicID string) (full, thumb string, err error)
 }
 
+// MealLogStore guarda o diário alimentar.
+type MealLogStore interface {
+	SaveLog(ctx context.Context, userID string, l repo.MealLog) error
+	Logs(ctx context.Context, userID string, from, to time.Time) ([]repo.MealLog, error)
+	DeleteLog(ctx context.Context, userID, clientID string) (bool, error)
+}
+
 type Nutrition struct {
 	Photos MealUploader
+	Logs   MealLogStore
+}
+
+// SaveLog grava um registo do diário.
+//
+// `PUT` com o identificador no caminho, e não `POST`: o registo nasce no
+// telemóvel, muitas vezes sem rede, e é ele que lhe dá o nome. Mandar o mesmo
+// registo duas vezes tem de ser mandar o mesmo registo — numa rede fraca isso
+// acontece sempre, e com `POST` o almoço aparecia três vezes.
+func (h Nutrition) SaveLog(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Logs == nil {
+		apierr.Write(w, apierr.Internal, "O diário está indisponível.", "")
+		return
+	}
+
+	clientID := strings.TrimSpace(r.PathValue("id"))
+	if clientID == "" || len(clientID) > 128 {
+		apierr.Write(w, apierr.ValidationFailed, "Identificador do registo inválido.", "id")
+		return
+	}
+
+	var req dto.MealLogRequest
+	if err := decode(r, &req); err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Corpo do pedido inválido.", "")
+		return
+	}
+
+	log, campo, msg := validarRegisto(clientID, req)
+	if campo != "" {
+		apierr.Write(w, apierr.ValidationFailed, msg, campo)
+		return
+	}
+
+	if err := h.Logs.SaveLog(r.Context(), userID, log); err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível gravar o registo.")
+		return
+	}
+	apierr.WriteJSON(w, http.StatusOK, paraResposta(log))
+}
+
+// ReadLogs devolve os registos de um intervalo.
+func (h Nutrition) ReadLogs(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Logs == nil {
+		apierr.Write(w, apierr.Internal, "O diário está indisponível.", "")
+		return
+	}
+
+	from, err := time.Parse("2006-01-02", r.URL.Query().Get("from"))
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Data inicial inválida.", "from")
+		return
+	}
+	to, err := time.Parse("2006-01-02", r.URL.Query().Get("to"))
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Data final inválida.", "to")
+		return
+	}
+	if to.Before(from) {
+		apierr.Write(w, apierr.ValidationFailed, "O fim é antes do início.", "to")
+		return
+	}
+	// Um intervalo sem limite é um pedido que fica cada vez mais lento à medida
+	// que a pessoa usa a app. Um ano chega para qualquer ecrã que exista.
+	if to.Sub(from) > 366*24*time.Hour {
+		apierr.Write(w, apierr.ValidationFailed, "Pede no máximo um ano de cada vez.", "to")
+		return
+	}
+
+	logs, err := h.Logs.Logs(r.Context(), userID, from, to)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o diário.")
+		return
+	}
+
+	out := dto.MealLogsResponse{Logs: make([]dto.MealLogResponse, 0, len(logs))}
+	for _, l := range logs {
+		out.Logs = append(out.Logs, paraResposta(l))
+	}
+	apierr.WriteJSON(w, http.StatusOK, out)
+}
+
+// DeleteLog apaga um registo.
+//
+// Responde 204 exista ou não: apagar o que já não está é o resultado que se
+// queria, e obrigar o telemóvel a distinguir os dois casos só lhe dava trabalho
+// para chegar à mesma conclusão.
+func (h Nutrition) DeleteLog(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Logs == nil {
+		apierr.Write(w, apierr.Internal, "O diário está indisponível.", "")
+		return
+	}
+	if _, err := h.Logs.DeleteLog(r.Context(), userID, r.PathValue("id")); err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível apagar o registo.")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func validarRegisto(clientID string, req dto.MealLogRequest) (repo.MealLog, string, string) {
+	l := repo.MealLog{
+		ClientID: clientID,
+		Slot:     req.Slot,
+		Status:   req.Status,
+		Portion:  req.Portion,
+		Kcal:     req.Kcal,
+		Protein:  req.Macros.Protein,
+		Carbs:    req.Macros.Carbs,
+		Fat:      req.Macros.Fat,
+		Source:   req.Source,
+	}
+
+	if !oneOf(l.Slot, "breakfast", "lunch", "snack", "dinner", "supper") {
+		return l, "slot", "Refeição desconhecida."
+	}
+	if !oneOf(l.Status, "planned", "eaten", "partial", "skipped", "substituted", "custom") {
+		return l, "status", "Estado desconhecido."
+	}
+	if !oneOf(l.Source, "plan", "manual", "photo") {
+		return l, "source", "Origem desconhecida."
+	}
+	// O esquema tem um CHECK entre 0 e 1. Sem validar aqui, 1.5 saía como 500.
+	if l.Portion < 0 || l.Portion > 1 {
+		return l, "portion", "A fracção consumida vai de 0 a 1."
+	}
+	if l.Kcal < 0 || l.Kcal > 20000 {
+		return l, "kcal", "Calorias fora do esperado."
+	}
+	for campo, v := range map[string]float64{
+		"macros.protein": l.Protein, "macros.carbs": l.Carbs, "macros.fat": l.Fat,
+	} {
+		if v < 0 || v > 2000 {
+			return l, campo, "Macronutriente fora do esperado."
+		}
+	}
+
+	at, err := time.Parse(time.RFC3339, req.RecordedAt)
+	if err != nil {
+		return l, "recordedAt", "Momento do registo inválido."
+	}
+	l.RecordedAt = at
+
+	dia, err := time.Parse("2006-01-02", req.LocalDay)
+	if err != nil {
+		return l, "localDay", "Dia inválido."
+	}
+	l.LocalDay = dia
+
+	l.Label = opcional(req.Label)
+	l.PortionLabel = opcional(req.PortionLabel)
+	l.PhotoURL = opcional(req.PhotoURL)
+	l.PhotoThumb = opcional(req.PhotoThumbURL)
+	return l, "", ""
+}
+
+func paraResposta(l repo.MealLog) dto.MealLogResponse {
+	out := dto.MealLogResponse{
+		ID: l.ClientID, Slot: l.Slot, Status: l.Status, Portion: l.Portion,
+		Kcal: l.Kcal, Source: l.Source,
+		Label: deref(l.Label), PortionLabel: deref(l.PortionLabel),
+		PhotoURL: deref(l.PhotoURL), PhotoThumbURL: deref(l.PhotoThumb),
+		RecordedAt: l.RecordedAt.UTC().Format(time.RFC3339),
+		LocalDay:   l.LocalDay.Format("2006-01-02"),
+	}
+	out.Macros.Protein = l.Protein
+	out.Macros.Carbs = l.Carbs
+	out.Macros.Fat = l.Fat
+	return out
+}
+
+func opcional(v string) *string {
+	if strings.TrimSpace(v) == "" {
+		return nil
+	}
+	return &v
+}
+
+func deref(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
 }
 
 // MealPhotoResponse é o que a app recebe.
