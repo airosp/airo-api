@@ -445,3 +445,78 @@ func (h Nutrition) mexerNaRefeicao(w http.ResponseWriter, r *http.Request, troca
 	apierr.WriteJSON(w, http.StatusOK, view.BuildNutritionDay(
 		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy, out.Swapped, out.HydrationMl))
 }
+
+// Rebalance propõe o resto do dia depois de uma refeição ter corrido diferente.
+//
+// `POST` e não `GET`: o cliente manda o que já comeu hoje, que o servidor pode
+// ainda não ter. E **só propõe** — aplicar é outro gesto, no ecrã, de quem come.
+func (h Nutrition) Rebalance(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Plans == nil || h.Profiles == nil {
+		apierr.Write(w, apierr.Internal, "O plano alimentar está indisponível.", "")
+		return
+	}
+
+	var req struct {
+		LocalDay string   `json:"localDay"`
+		Consumed int      `json:"consumedKcal"`
+		Eaten    []string `json:"eatenSlots"`
+	}
+	if err := decode(r, &req); err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Corpo do pedido inválido.", "")
+		return
+	}
+	if req.Consumed < 0 {
+		apierr.Write(w, apierr.ValidationFailed, "Consumo inválido.", "consumedKcal")
+		return
+	}
+
+	day := time.Now().UTC().Truncate(24 * time.Hour)
+	if req.LocalDay != "" {
+		d, err := time.Parse("2006-01-02", req.LocalDay)
+		if err != nil {
+			apierr.Write(w, apierr.ValidationFailed, "Dia inválido.", "localDay")
+			return
+		}
+		day = d
+	}
+
+	in, err := h.Profiles.NutritionProfile(r.Context(), userID, day)
+	switch {
+	case errors.Is(err, service.ErrProfileMissing):
+		apierr.Write(w, apierr.ValidationFailed, "Perfil incompleto. Cria o teu plano primeiro.", "")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o teu perfil.")
+		return
+	}
+
+	comidas := make(map[string]bool, len(req.Eaten))
+	for _, s := range req.Eaten {
+		comidas[s] = true
+	}
+
+	out, err := h.Plans.Rebalance(r.Context(), in, req.Consumed, comidas)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível reequilibrar o dia.")
+		return
+	}
+
+	dia := view.BuildNutritionDay(service.NutritionToday{}.Strategy, out.Day,
+		in.TrainsToday, true, nil, 0)
+	apierr.WriteJSON(w, http.StatusOK, map[string]any{
+		"day":      dia,
+		"consumed": out.Consumed,
+		"delta":    out.Delta,
+		// `applied: false` quer dizer "as contas já fechavam" — e o ecrã tem de
+		// o dizer em vez de mostrar uma proposta igual ao que já lá estava.
+		"applied": out.Applied,
+		// `floored` diz que não se conseguiu descontar tudo sem uma refeição
+		// deixar de ser refeição. Fingir que fechou seria pior.
+		"floored": out.Floored,
+	})
+}

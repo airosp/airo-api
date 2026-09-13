@@ -168,6 +168,8 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Nutrition.SwapMeal), middleware.Auth(d.Auth)))
 			mux.Handle("DELETE /v1/nutrition/meals/{slot}/swap",
 				middleware.Chain(http.HandlerFunc(d.Nutrition.ResetMeal), middleware.Auth(d.Auth)))
+			mux.Handle("POST /v1/nutrition/rebalance",
+				middleware.Chain(http.HandlerFunc(d.Nutrition.Rebalance), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/nutrition/logs",
 				middleware.Chain(http.HandlerFunc(d.Nutrition.ReadLogs), middleware.Auth(d.Auth)))
 			mux.Handle("DELETE /v1/nutrition/logs/{id}",

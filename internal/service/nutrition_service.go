@@ -228,3 +228,61 @@ func sexoDe(s *string) *goal.Sex {
 	v := goal.Sex(*s)
 	return &v
 }
+
+// ── Reequilíbrio ─────────────────────────────────────────────────────────────
+
+// RebalanceResult é o que o ecrã mostra antes de alguém aceitar.
+type RebalanceResult struct {
+	Day      nutrition.DayPlan
+	Consumed int
+	Delta    int
+	Applied  bool
+	Floored  bool
+}
+
+// Rebalance propõe o resto do dia depois de uma refeição ter corrido diferente.
+//
+// ⚠️ **Só a pedido, e só propõe.** Reequilibrar sozinho a cada registo
+// transforma um almoço pesado num jantar de 300 kcal sem ninguém pedir, e a
+// pessoa descobre pelo prato.
+//
+// `consumed` vem do cliente porque é ele que tem o diário do dia a decorrer —
+// o servidor tem os registos que já subiram, e a refeição que acabou de ser
+// comida pode ainda não ter chegado.
+func (s *NutritionService) Rebalance(ctx context.Context, in NutritionTodayInput, consumed int, comidas map[string]bool) (RebalanceResult, error) {
+	hoje, err := s.Today(ctx, in)
+	if err != nil {
+		return RebalanceResult{}, err
+	}
+
+	// As que faltam: as que ainda não foram comidas, pela ordem do dia.
+	faltam := make([]nutrition.PlannedMeal, 0, len(hoje.Day.Meals))
+	for _, m := range hoje.Day.Meals {
+		if !comidas[string(m.Slot)] {
+			faltam = append(faltam, m)
+		}
+	}
+
+	out := nutrition.Rebalance(nutrition.RebalanceInput{
+		DayTarget: hoje.Day.Kcal, Consumed: consumed, Remaining: faltam,
+	})
+
+	// Recompõe o dia: as comidas ficam como estavam — já foram — e as que
+	// faltam levam o alvo novo.
+	novo := hoje.Day
+	novo.Meals = make([]nutrition.PlannedMeal, 0, len(hoje.Day.Meals))
+	i := 0
+	for _, m := range hoje.Day.Meals {
+		if comidas[string(m.Slot)] {
+			novo.Meals = append(novo.Meals, m)
+			continue
+		}
+		novo.Meals = append(novo.Meals, out.Meals[i])
+		i++
+	}
+
+	return RebalanceResult{
+		Day: novo, Consumed: consumed,
+		Delta: out.Delta, Applied: out.Applied, Floored: out.Floored,
+	}, nil
+}
