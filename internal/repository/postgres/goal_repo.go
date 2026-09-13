@@ -405,3 +405,83 @@ func (r *GoalRepo) LastAssessmentID(ctx context.Context, journeyID string) (stri
 	}
 	return id, err
 }
+
+// ── Pausas ───────────────────────────────────────────────────────────────────
+//
+// Uma pausa não é abandonar: é dizer "não conto com isto esta semana". E tem de
+// sair do denominador da adesão — sem isso, avisar que se vai estar fora sai
+// mais caro do que desaparecer sem dizer nada, que é exactamente o incentivo
+// errado.
+
+// PauseJourney abre uma pausa. Abrir duas vezes não abre uma segunda.
+func (r *GoalRepo) PauseJourney(ctx context.Context, userID, journeyID, reason string, at time.Time) (bool, error) {
+	var id string
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`INSERT INTO journey_pause (journey_id, paused_at, reason)
+		 SELECT j.id, $3, NULLIF($4,'')
+		   FROM journey j JOIN goal g ON g.id = j.goal_id
+		  WHERE j.id = $1 AND g.user_id = $2
+		    AND NOT EXISTS (SELECT 1 FROM journey_pause p
+		                     WHERE p.journey_id = j.id AND p.resumed_at IS NULL)
+		 RETURNING id`, journeyID, userID, at, reason).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Ou a jornada não é desta pessoa, ou já estava em pausa. As duas
+		// respondem o mesmo: não há nada a fazer.
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("pausar jornada: %w", err)
+	}
+	return true, nil
+}
+
+// ResumeJourney fecha a pausa aberta.
+func (r *GoalRepo) ResumeJourney(ctx context.Context, userID, journeyID string, at time.Time) (bool, error) {
+	tag, err := r.tx.Q(ctx).Exec(ctx,
+		`UPDATE journey_pause p SET resumed_at = $3
+		   FROM journey j JOIN goal g ON g.id = j.goal_id
+		  WHERE p.journey_id = j.id AND j.id = $1 AND g.user_id = $2
+		    AND p.resumed_at IS NULL`, journeyID, userID, at)
+	if err != nil {
+		return false, fmt.Errorf("retomar jornada: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+// PausedDays conta os dias em pausa dentro de um intervalo.
+//
+// Conta **dias inteiros** e nunca menos de zero: uma pausa de duas horas não
+// tira um dia à conta, e uma pausa que ainda não fechou conta até hoje.
+func (r *GoalRepo) PausedDays(ctx context.Context, journeyID string, from, to time.Time) (int, error) {
+	var dias int
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`SELECT COALESCE(SUM(
+		          GREATEST(0, EXTRACT(EPOCH FROM (
+		            LEAST(COALESCE(resumed_at, $3), $3) - GREATEST(paused_at, $2)
+		          )) / 86400)::int
+		        ), 0)
+		   FROM journey_pause
+		  WHERE journey_id = $1
+		    AND paused_at < $3
+		    AND (resumed_at IS NULL OR resumed_at > $2)`, journeyID, from, to).Scan(&dias)
+	if err != nil {
+		return 0, fmt.Errorf("contar dias de pausa: %w", err)
+	}
+	return dias, nil
+}
+
+// IsPaused diz se a jornada está em pausa agora.
+func (r *GoalRepo) IsPaused(ctx context.Context, journeyID string) (bool, *time.Time, error) {
+	var desde time.Time
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`SELECT paused_at FROM journey_pause
+		  WHERE journey_id = $1 AND resumed_at IS NULL
+		  ORDER BY paused_at DESC LIMIT 1`, journeyID).Scan(&desde)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil, nil
+	}
+	if err != nil {
+		return false, nil, err
+	}
+	return true, &desde, nil
+}

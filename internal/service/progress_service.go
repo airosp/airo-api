@@ -21,6 +21,10 @@ type ProgressReader interface {
 type JourneyReader interface {
 	CurrentGoal(ctx context.Context, userID string) (repo.GoalRow, repo.JourneyRow, error)
 	TargetsOf(ctx context.Context, journeyID string) ([]repo.TargetRow, error)
+	// PausedDays saem do denominador da adesão. Sem isto, avisar que se vai
+	// estar fora sai mais caro do que desaparecer sem dizer nada.
+	PausedDays(ctx context.Context, journeyID string, from, to time.Time) (int, error)
+	IsPaused(ctx context.Context, journeyID string) (bool, *time.Time, error)
 }
 
 type ProgressService struct {
@@ -63,6 +67,13 @@ type Snapshot struct {
 	// Comum às duas.
 	MetricKey    string
 	WeeksElapsed int
+
+	JourneyID string
+	// Paused muda o que o ecrã diz: "em pausa desde 3 de setembro" não é a
+	// mesma coisa que uma adesão baixa, e mostrá-las igual culpa quem avisou.
+	Paused      bool
+	PausedSince *time.Time
+	PausedDays  int
 }
 
 type Forecast struct {
@@ -134,11 +145,18 @@ func (s *ProgressService) Snapshot(ctx context.Context, in SnapshotInput) (Snaps
 		SessionDurationMinutes: in.SessionMinutes,
 		TrainingDays:           in.TrainingDays,
 	}
+	// Os dias em pausa saem do período avaliado: são dias que ninguém se
+	// comprometeu a treinar.
+	pausados, err := s.journeys.PausedDays(ctx, j.ID, j.StartDate, in.Now)
+	if err != nil {
+		return Snapshot{}, err
+	}
 	adesao := journey.ComputeAdherence(s.cfg, journey.AdherenceInput{
 		Sessions:       registos,
 		Plan:           plano,
 		PeriodStartISO: j.StartDate.UTC().Format(time.RFC3339),
 		PeriodEndISO:   in.Now.UTC().Format(time.RFC3339),
+		ExcludedDays:   pausados,
 	})
 
 	leituras := make([]journey.Measurement, 0, len(medicoes))
@@ -152,7 +170,16 @@ func (s *ProgressService) Snapshot(ctx context.Context, in SnapshotInput) (Snaps
 	semanas := journey.WeeksSince(j.StartDate.UTC().Format(time.RFC3339), in.Now.UTC().Format(time.RFC3339))
 	minutos := minutosExecutados(sessoes, in.Now)
 
+	emPausa, desde, err := s.journeys.IsPaused(ctx, j.ID)
+	if err != nil {
+		return Snapshot{}, err
+	}
+
 	out := Snapshot{
+		Paused:       emPausa,
+		PausedSince:  desde,
+		PausedDays:   pausados,
+		JourneyID:    j.ID,
 		Horizon:      j.Horizon,
 		Adherence:    adesao,
 		Trend:        tendencia,
@@ -454,3 +481,30 @@ func inteiroDe(v any) *int {
 
 // ErrSemAdaptacoes — o serviço foi montado sem onde as guardar.
 var ErrSemAdaptacoes = errors.New("adaptações indisponíveis")
+
+// JourneyPauser abre e fecha pausas.
+type JourneyPauser interface {
+	PauseJourney(ctx context.Context, userID, journeyID, reason string, at time.Time) (bool, error)
+	ResumeJourney(ctx context.Context, userID, journeyID string, at time.Time) (bool, error)
+}
+
+// Pause põe a jornada em pausa.
+//
+// Não é abandonar: é dizer "não conto com isto esta semana". Os dias saem do
+// denominador da adesão — e é essa a diferença entre avisar e desaparecer.
+func (s *ProgressService) Pause(ctx context.Context, userID, journeyID, reason string, at time.Time) (bool, error) {
+	p, ok := s.journeys.(JourneyPauser)
+	if !ok {
+		return false, ErrSemJornada
+	}
+	return p.PauseJourney(ctx, userID, journeyID, reason, at)
+}
+
+// Resume fecha a pausa.
+func (s *ProgressService) Resume(ctx context.Context, userID, journeyID string, at time.Time) (bool, error) {
+	p, ok := s.journeys.(JourneyPauser)
+	if !ok {
+		return false, ErrSemJornada
+	}
+	return p.ResumeJourney(ctx, userID, journeyID, at)
+}

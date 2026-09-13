@@ -29,6 +29,19 @@ type ProgressSnapshot struct {
 	Progression *ProgressionView `json:"progression,omitempty"`
 
 	Risks []RiskView `json:"risks"`
+
+	// Paused muda o que o ecrã diz. Uma adesão baixa porque alguém avisou que
+	// ia estar fora não é uma adesão baixa — e mostrá-las igual culpa quem
+	// avisou.
+	Paused *PausedView `json:"paused,omitempty"`
+	// JourneyID é o que os botões de pausa e retoma precisam.
+	JourneyID string `json:"journeyId,omitempty"`
+}
+
+type PausedView struct {
+	Since string `json:"since"`
+	Days  int    `json:"days"`
+	Label string `json:"label"`
 }
 
 type TrendView struct {
@@ -95,6 +108,13 @@ type RiskView struct {
 type SnapshotData struct {
 	Horizon   string
 	MetricKey string
+
+	JourneyID string
+	// Paused muda o que o ecrã diz — ver `PausedView`.
+	Paused      bool
+	PausedSince *time.Time
+	PausedDays  int
+
 	Trend     *journey.Trend
 	Adherence journey.Adherence
 	Risks     []journey.Risk
@@ -115,7 +135,14 @@ type SnapshotData struct {
 }
 
 func BuildProgressSnapshot(s SnapshotData) ProgressSnapshot {
-	out := ProgressSnapshot{Horizon: s.Horizon, Risks: []RiskView{}}
+	out := ProgressSnapshot{Horizon: s.Horizon, Risks: []RiskView{}, JourneyID: s.JourneyID}
+	if s.Paused && s.PausedSince != nil {
+		out.Paused = &PausedView{
+			Since: s.PausedSince.Format("2006-01-02"),
+			Days:  s.PausedDays,
+			Label: "Em pausa desde " + diaPorExtenso(*s.PausedSince) + ".",
+		}
+	}
 
 	if s.Trend != nil {
 		out.Trend = &TrendView{

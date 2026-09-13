@@ -111,6 +111,12 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Progress.Adaptations), middleware.Auth(d.Auth)))
 			// ⚠️ Só a pessoa aplica. A Airo propõe — correr sozinha seria mudar
 			// o plano de alguém sem lhe perguntar.
+			// Pausar não passa pela idempotência: pausar duas vezes é estar
+			// em pausa, e a resposta diz `changed: false`.
+			mux.Handle("POST /v1/journeys/{id}/pause",
+				middleware.Chain(http.HandlerFunc(d.Progress.Pause), middleware.Auth(d.Auth)))
+			mux.Handle("POST /v1/journeys/{id}/resume",
+				middleware.Chain(http.HandlerFunc(d.Progress.Resume), middleware.Auth(d.Auth)))
 			mux.Handle("POST /v1/adaptations/{id}/apply",
 				middleware.Chain(http.HandlerFunc(d.Progress.Apply), middleware.Auth(d.Auth)))
 			mux.Handle("POST /v1/adaptations/{id}/dismiss",

@@ -92,11 +92,15 @@ func (h Progress) Snapshot(w http.ResponseWriter, r *http.Request) {
 // que isso protege é a que mantém a apresentação substituível.
 func paraVista(s service.Snapshot) view.SnapshotData {
 	out := view.SnapshotData{
-		Horizon:   s.Horizon,
-		MetricKey: s.MetricKey,
-		Trend:     s.Trend,
-		Adherence: s.Adherence,
-		Risks:     s.Risks,
+		JourneyID:   s.JourneyID,
+		Paused:      s.Paused,
+		PausedSince: s.PausedSince,
+		PausedDays:  s.PausedDays,
+		Horizon:     s.Horizon,
+		MetricKey:   s.MetricKey,
+		Trend:       s.Trend,
+		Adherence:   s.Adherence,
+		Risks:       s.Risks,
 	}
 	if s.Forecast != nil {
 		out.TemPrevisao = true
@@ -233,4 +237,61 @@ func paraVistaAdaptacoes(rows []repo.AdaptationRow) []view.AdaptationRowLike {
 		})
 	}
 	return out
+}
+
+// Pause põe a jornada em pausa.
+//
+// "Vou estar fora duas semanas" não é o mesmo que desaparecer, e o sistema tem
+// de saber a diferença: os dias em pausa saem do denominador da adesão. Sem
+// isso, avisar sai mais caro do que não avisar.
+func (h Progress) Pause(w http.ResponseWriter, r *http.Request) { h.pausar(w, r, true) }
+
+// Resume retoma.
+func (h Progress) Resume(w http.ResponseWriter, r *http.Request) { h.pausar(w, r, false) }
+
+func (h Progress) pausar(w http.ResponseWriter, r *http.Request, pausar bool) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Service == nil {
+		apierr.Write(w, apierr.Internal, "A jornada está indisponível.", "")
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		apierr.Write(w, apierr.ValidationFailed, "Jornada desconhecida.", "id")
+		return
+	}
+
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	// O corpo é opcional: dizer porquê ajuda, exigi-lo não.
+	_ = decode(r, &req)
+
+	now := time.Now().UTC()
+	if h.Clock != nil {
+		now = h.Clock.Now().UTC()
+	}
+
+	var mudou bool
+	var err error
+	if pausar {
+		mudou, err = h.Service.Pause(r.Context(), userID, id, req.Reason, now)
+	} else {
+		mudou, err = h.Service.Resume(r.Context(), userID, id, now)
+	}
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível mudar o estado da jornada.")
+		return
+	}
+
+	// `changed: false` é resposta, não erro: pausar o que já está em pausa é
+	// pedir o estado em que já se está.
+	apierr.WriteJSON(w, http.StatusOK, map[string]any{
+		"paused": pausar, "changed": mudou,
+	})
 }
