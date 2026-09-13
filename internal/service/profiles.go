@@ -25,14 +25,15 @@ var (
 // e porque a tradução é uma decisão: sem plano ainda, o dia é de corpo inteiro,
 // que é melhor do que não haver treino nenhum para mostrar.
 type Profiles struct {
+	prefs    *repo.PreferenceRepo
 	repo     *repo.ProfileRepo
 	uploader Uploader
 	// NutritionGoal por omissão até o objectivo existir.
 	defaultNutritionGoal string
 }
 
-func NewProfiles(r *repo.ProfileRepo, up Uploader) *Profiles {
-	return &Profiles{repo: r, uploader: up, defaultNutritionGoal: "maintain"}
+func NewProfiles(r *repo.ProfileRepo, up Uploader, prefs *repo.PreferenceRepo) *Profiles {
+	return &Profiles{repo: r, uploader: up, prefs: prefs, defaultNutritionGoal: "maintain"}
 }
 
 // SaveProfileInput é o que a app manda no fim do onboarding.
@@ -55,6 +56,9 @@ type SaveProfileInput struct {
 	MealsPerDay    int
 	FoodBudget     string
 	FoodExclusions []string
+
+	// Nil quer dizer "não mexer". Ver a nota em `dto.ProfileRequest`.
+	Preferences *repo.Preferences
 }
 
 // SavedProfile é o perfil como fica depois de gravado — o que a app desenha.
@@ -75,6 +79,10 @@ type SavedProfile struct {
 	FoodExclusions []string `json:"foodExclusions"`
 	PhotoURL       string   `json:"photoUrl,omitempty"`
 	Complete       bool     `json:"complete"`
+
+	PinnedExercises       []string                         `json:"pinnedExercises"`
+	ExcludedExercises     []string                         `json:"excludedExercises"`
+	ExercisePrescriptions map[string]training.Prescription `json:"exercisePrescriptions"`
 }
 
 // Save grava o perfil e devolve-o como ficou.
@@ -94,6 +102,13 @@ func (p *Profiles) Save(ctx ctxLike, userID string, in SaveProfileInput, now tim
 		FoodExclusions: in.FoodExclusions,
 	}, now); err != nil {
 		return SavedProfile{}, err
+	}
+	// Nil quer dizer "não mexer": um cliente antigo que não as envie não apaga
+	// as escolhas de quem ainda não actualizou a app.
+	if in.Preferences != nil && p.prefs != nil {
+		if err := p.prefs.Replace(c, userID, *in.Preferences); err != nil {
+			return SavedProfile{}, err
+		}
 	}
 	return p.Read(c, userID)
 }
@@ -180,7 +195,7 @@ func (p *Profiles) Read(ctx ctxLike, userID string) (SavedProfile, error) {
 	if row.Sex != nil {
 		sex = *row.Sex
 	}
-	return SavedProfile{
+	out := SavedProfile{
 		DisplayName: row.DisplayName, Age: row.Age, Sex: sex,
 		HeightCm: row.HeightCm, WeightKg: row.WeightKg,
 		Experience: row.Experience, WorkoutDays: nonNilInts(row.WorkoutDays),
@@ -189,7 +204,22 @@ func (p *Profiles) Read(ctx ctxLike, userID string) (SavedProfile, error) {
 		MealsPerDay: row.MealsPerDay, FoodBudget: row.FoodBudget,
 		FoodExclusions: nonNil(row.FoodExclusions), PhotoURL: deref(row.PhotoURL),
 		Complete: row.Complete,
-	}, nil
+		// Listas vazias e não `null`: ver a nota logo abaixo.
+		PinnedExercises:       []string{},
+		ExcludedExercises:     []string{},
+		ExercisePrescriptions: map[string]training.Prescription{},
+	}
+
+	if p.prefs != nil {
+		prefs, err := p.prefs.Read(asContext(ctx), userID)
+		if err != nil {
+			return SavedProfile{}, fmt.Errorf("ler preferências: %w", err)
+		}
+		out.PinnedExercises = prefs.Pinned
+		out.ExcludedExercises = prefs.Excluded
+		out.ExercisePrescriptions = prefs.Prescriptions
+	}
+	return out, nil
 }
 
 // JSON com `null` onde a app espera uma lista faz `map` rebentar no cliente.
@@ -266,13 +296,27 @@ func (p *Profiles) TrainingProfile(ctx ctxLike, userID string, day time.Time) (T
 	if planned, ok := p.repo.PlanLabelOn(c, userID, day); ok {
 		label = planned
 	}
-	return TodayInput{
+	out := TodayInput{
 		PlanLabel:      label,
 		Experience:     row.Experience,
 		Equipment:      row.Equipment,
 		WorkoutMinutes: row.WorkoutMinutes,
 		LocalDay:       day,
-	}, nil
+	}
+
+	// As escolhas da pessoa entram no motor. Sem elas o servidor montava uma
+	// sessão diferente da que o telemóvel tem, o Modo Foco reparava e voltava
+	// ao motor local — quem personalizava o plano deixava de receber o pacote.
+	if p.prefs != nil {
+		prefs, err := p.prefs.Read(c, userID)
+		if err != nil {
+			return TodayInput{}, fmt.Errorf("ler preferências: %w", err)
+		}
+		out.Pinned = prefs.Pinned
+		out.Excluded = prefs.Excluded
+		out.Prescriptions = prefs.Prescriptions
+	}
+	return out, nil
 }
 
 // NutritionProfile dá ao serviço de nutrição o que o pedido não traz.

@@ -48,7 +48,7 @@ func serveProfileCom(t *testing.T, up service.Uploader) (http.Handler, string) {
 	}
 
 	tx := repo.NewTxManager(pool)
-	profiles := service.NewProfiles(repo.NewProfileRepo(tx), up)
+	profiles := service.NewProfiles(repo.NewProfileRepo(tx), up, repo.NewPreferenceRepo(tx))
 	fixed := clock.NewFixed(time.Date(2026, 9, 13, 8, 0, 0, 0, time.UTC))
 
 	router := airohttp.NewRouter(airohttp.Deps{

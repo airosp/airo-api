@@ -6,7 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/airosp/airo-api/internal/engine/training"
 	"github.com/airosp/airo-api/internal/platform/clock"
+	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
 	"github.com/airosp/airo-api/internal/transport/http/apierr"
 	"github.com/airosp/airo-api/internal/transport/http/dto"
@@ -167,6 +169,7 @@ func validateProfile(req dto.ProfileRequest) (service.SaveProfileInput, string, 
 		MealsPerDay:    req.MealsPerDay,
 		FoodBudget:     or(req.FoodBudget, "medium"),
 		FoodExclusions: req.FoodExclusions,
+		Preferences:    preferenciasDe(req),
 	}
 
 	if in.DisplayName == "" {
@@ -261,4 +264,39 @@ func or(v, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+// preferenciasDe traduz as preferências de exercício, quando o pedido as traz.
+//
+// Devolve nil quando **nenhuma** das três vem — ausente é "não mexer". Basta
+// uma delas para o conjunto ser substituído: mandar só os fixados e ficar com
+// os excluídos antigos daria um estado que ninguém pediu.
+func preferenciasDe(req dto.ProfileRequest) *repo.Preferences {
+	if req.Pinned == nil && req.Excluded == nil && req.Prescriptions == nil {
+		return nil
+	}
+	out := repo.Preferences{
+		Pinned:        []string{},
+		Excluded:      []string{},
+		Prescriptions: map[string]training.Prescription{},
+	}
+	if req.Pinned != nil {
+		out.Pinned = *req.Pinned
+	}
+	if req.Excluded != nil {
+		out.Excluded = *req.Excluded
+	}
+	if req.Prescriptions != nil {
+		for id, pres := range *req.Prescriptions {
+			// Um exercício sem séries não é um exercício — invariante 13. Aqui
+			// ignora-se em silêncio em vez de recusar o perfil todo: a
+			// prescrição é um extra, e recusar a gravação do nome e do peso por
+			// causa de um número mal formado seria desproporcionado.
+			if pres.Sets < 1 || pres.Target < 1 {
+				continue
+			}
+			out.Prescriptions[id] = training.Prescription{Sets: pres.Sets, Target: pres.Target}
+		}
+	}
+	return &out
 }

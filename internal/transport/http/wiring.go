@@ -77,7 +77,8 @@ func Wire(p Platform) Deps {
 	if p.Images != nil {
 		uploader = avatarUploader{c: p.Images}
 	}
-	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader)
+	prefs := repo.NewPreferenceRepo(tx)
+	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader, prefs)
 	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles, Reader: goals}
 	deps.Training = &handlers.Training{Service: trainingSvc, Profiles: profiles, Sessions: sessions}
 	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}

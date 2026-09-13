@@ -72,7 +72,7 @@ func serveHistorico(t *testing.T) http.Handler {
 		Auth: fakeAuth{userID: userID},
 		Training: &handlers.Training{
 			Service:  service.NewTrainingService(sessions, training.DefaultConfig(), fixed),
-			Profiles: service.NewProfiles(repo.NewProfileRepo(tx), nil),
+			Profiles: service.NewProfiles(repo.NewProfileRepo(tx), nil, repo.NewPreferenceRepo(tx)),
 			Sessions: sessions,
 		},
 		Idempotency: middleware.NewMemoryStore(time.Hour),
