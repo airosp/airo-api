@@ -68,7 +68,7 @@ func TestEnvioMontaOPedidoQueAMetaEspera(t *testing.T) {
 	if tpl["name"] != "otp_login_pt" {
 		t.Fatalf("template = %v", tpl["name"])
 	}
-	if tpl["language"].(map[string]any)["code"] != "pt_PT" {
+	if tpl["language"].(map[string]any)["code"] != "pt_BR" {
 		t.Fatalf("língua = %v", tpl["language"])
 	}
 

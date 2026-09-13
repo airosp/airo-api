@@ -36,7 +36,8 @@ type Config struct {
 	// Template aprovado, categoria AUTHENTICATION.
 	Template string
 	// Language é o código de língua do template. Um template aprovado em
-	// `pt_PT` não aceita `pt_BR`: são templates diferentes para a Meta.
+	// `pt_BR` não aceita `pt_PT`: para a Meta são templates diferentes, e o
+	// erro é o mesmo que o de um nome inexistente — 132001.
 	Language string
 	// GraphVersion fixa a versão da API. Não seguir a mais recente é
 	// deliberado: uma mudança de versão tem de ser uma decisão, não uma
@@ -65,7 +66,11 @@ func New(cfg Config) (*Sender, error) {
 		return nil, errors.New("whatsapp: falta AIRO_WHATSAPP_TEMPLATE")
 	}
 	if cfg.Language == "" {
-		cfg.Language = "pt_PT"
+		// `pt_BR` e não `pt_PT`: é a língua em que o template desta conta está
+		// aprovado. O valor por omissão segue a conta, não a variante do país
+		// — um por omissão errado é o que volta a morder num ambiente novo,
+		// onde ninguém pensou em definir a variável.
+		cfg.Language = "pt_BR"
 	}
 	if cfg.GraphVersion == "" {
 		cfg.GraphVersion = defaultGraphVersion

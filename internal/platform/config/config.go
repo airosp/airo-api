@@ -78,7 +78,7 @@ func Load() (Config, error) {
 			// whatsapp-service/README.md para este mesmo número. `airo_otp`
 			// era um nome inventado por mim e não existe em lado nenhum.
 			Template:      get("AIRO_WHATSAPP_TEMPLATE", "otp_login_pt"),
-			Language:      get("AIRO_WHATSAPP_LANGUAGE", "pt_PT"),
+			Language:      get("AIRO_WHATSAPP_LANGUAGE", "pt_BR"),
 			BaseURL:       get("AIRO_WHATSAPP_BASE_URL", ""),
 			GraphVersion:  get("AIRO_WHATSAPP_GRAPH_VERSION", ""),
 			WebhookSecret: get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
