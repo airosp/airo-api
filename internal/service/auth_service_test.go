@@ -386,3 +386,91 @@ func TestDeliveryFailureIsReported(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+// undeliverableSender recusa dizendo que o número não recebe por este canal.
+type undeliverableSender struct{}
+
+func (undeliverableSender) Send(context.Context, string, string, string) (string, error) {
+	return "", semWhatsApp{}
+}
+
+type semWhatsApp struct{}
+
+func (semWhatsApp) Error() string       { return "o número não tem WhatsApp" }
+func (semWhatsApp) Undeliverable() bool { return true }
+
+// Uma entrega que falha por culpa nossa não pode gastar o orçamento de quem
+// pediu.
+//
+// Aconteceu a sério: um template mal configurado esgotou cinco de cinco
+// tentativas de alguém e deixou-o de fora durante vinte horas — sem uma única
+// mensagem enviada. O castigo era inteiramente por um erro nosso.
+func TestEntregaFalhadaNaoGastaOrcamento(t *testing.T) {
+	svc, sender, _, _ := authSetup(t)
+	ctx := context.Background()
+
+	sender.fail = true
+	// O limite por número é 5 à hora. Seis falhas seguidas: se cada uma
+	// gastasse, a sexta vinha recusada por limite em vez de por entrega.
+	for i := 1; i <= 6; i++ {
+		_, err := svc.RequestOTP(ctx, service.RequestOTPInput{
+			RawPhone: testPhone, Channel: "auto", DeviceID: "device-1", IPHash: "hash-ip",
+		})
+		if errors.Is(err, service.ErrRateLimited) {
+			t.Fatalf("tentativa %d recusada por limite: as falhas de entrega gastaram orçamento", i)
+		}
+		if !errors.Is(err, service.ErrDeliveryFailed) {
+			t.Fatalf("tentativa %d: esperava falha de entrega, deu %v", i, err)
+		}
+	}
+
+	// E o orçamento continua inteiro: quando a entrega volta a funcionar, o
+	// pedido passa.
+	sender.fail = false
+	if _, err := svc.RequestOTP(ctx, service.RequestOTPInput{
+		RawPhone: testPhone, Channel: "auto", DeviceID: "device-1", IPHash: "hash-ip",
+	}); err != nil {
+		t.Fatalf("depois de seis falhas nossas, o pedido bom devia passar: %v", err)
+	}
+	if sender.code(testE164) == "" {
+		t.Fatal("o código devia ter sido entregue")
+	}
+}
+
+// O número que não tem WhatsApp **gasta** na mesma.
+//
+// É informação sobre o pedido, não sobre nós: sem custo, bastava repetir contra
+// números sem WhatsApp para gastar a nossa quota na Meta à vontade.
+func TestNumeroSemWhatsAppGastaOrcamento(t *testing.T) {
+	_, pool, _ := setup(t)
+	mr := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	t.Cleanup(func() { _ = rdb.Close() })
+
+	pepper := make([]byte, 32)
+	if _, err := rand.Read(pepper); err != nil {
+		t.Fatal(err)
+	}
+	svc := service.NewAuthService(
+		repo.NewAuthRepo(repo.NewTxManager(pool)),
+		auth.NewRedisLimiter(rdb), undeliverableSender{},
+		service.DefaultAuthConfig(pepper),
+		clock.NewFixed(time.Date(2026, 9, 12, 10, 0, 0, 0, time.UTC)))
+
+	ctx := context.Background()
+	pedir := func() error {
+		_, err := svc.RequestOTP(ctx, service.RequestOTPInput{
+			RawPhone: testPhone, Channel: "auto", DeviceID: "device-2", IPHash: "hash-ip-2",
+		})
+		return err
+	}
+
+	for i := 1; i <= 5; i++ {
+		if err := pedir(); !errors.Is(err, service.ErrUndeliverable) {
+			t.Fatalf("tentativa %d: esperava não-entregável, deu %v", i, err)
+		}
+	}
+	if err := pedir(); !errors.Is(err, service.ErrRateLimited) {
+		t.Fatalf("a sexta devia bater no limite; deu %v", err)
+	}
+}

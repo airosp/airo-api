@@ -37,25 +37,25 @@ func TestLimitAllowsUpToMaxThenRefuses(t *testing.T) {
 	limit := Limit{Max: 5, Window: time.Hour}
 
 	for i := 1; i <= 5; i++ {
-		ok, _, err := l.Allow(ctx, "phone:+258841234567", limit)
+		g, err := l.Allow(ctx, "phone:+258841234567", limit)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !ok {
+		if !g.Allowed {
 			t.Fatalf("pedido %d devia passar", i)
 		}
 	}
-	ok, retry, err := l.Allow(ctx, "phone:+258841234567", limit)
+	g, err := l.Allow(ctx, "phone:+258841234567", limit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ok {
+	if g.Allowed {
 		t.Fatal("o sexto devia ser recusado")
 	}
-	if retry <= 0 || retry > time.Hour {
-		t.Fatalf("retry-after %v", retry)
+	if g.RetryAfter <= 0 || g.RetryAfter > time.Hour {
+		t.Fatalf("retry-after %v", g.RetryAfter)
 	}
-	t.Logf("5 passaram, o 6.º recusado com retry-after de %v", retry.Round(time.Minute))
+	t.Logf("5 passaram, o 6.º recusado com retry-after de %v", g.RetryAfter.Round(time.Minute))
 }
 
 // A janela é **deslizante**, não fixa.
@@ -75,31 +75,31 @@ func TestWindowSlidesInsteadOfResetting(t *testing.T) {
 
 	// Cinco pedidos, um a cada dez minutos: t=0, 10, 20, 30, 40.
 	for i := 0; i < 5; i++ {
-		if ok, _, _ := l.Allow(ctx, "k", limit); !ok {
+		if g, _ := l.Allow(ctx, "k", limit); !g.Allowed {
 			t.Fatalf("pedido %d (aos %d min)", i, i*10)
 		}
 		advance(l, 10*time.Minute)
 	}
 	// Agora t=50: os cinco estão todos dentro da janela.
-	if ok, _, _ := l.Allow(ctx, "k", limit); ok {
+	if g, _ := l.Allow(ctx, "k", limit); g.Allowed {
 		t.Fatal("aos 50 minutos os cinco ainda contam")
 	}
 
 	// t=61: só o primeiro (t=0) saiu da janela. Abre **uma** vaga.
 	advance(l, 11*time.Minute)
-	if ok, _, _ := l.Allow(ctx, "k", limit); !ok {
+	if g, _ := l.Allow(ctx, "k", limit); !g.Allowed {
 		t.Fatal("aos 61 minutos o primeiro já saiu — devia abrir uma vaga")
 	}
-	if ok, _, _ := l.Allow(ctx, "k", limit); ok {
+	if g, _ := l.Allow(ctx, "k", limit); g.Allowed {
 		t.Fatal("abriu uma vaga, não duas: os outros quatro ainda contam")
 	}
 
 	// t=71: sai o segundo (t=10), abre outra.
 	advance(l, 10*time.Minute)
-	if ok, _, _ := l.Allow(ctx, "k", limit); !ok {
+	if g, _ := l.Allow(ctx, "k", limit); !g.Allowed {
 		t.Fatal("aos 71 minutos o segundo já saiu")
 	}
-	if ok, _, _ := l.Allow(ctx, "k", limit); ok {
+	if g, _ := l.Allow(ctx, "k", limit); g.Allowed {
 		t.Fatal("uma de cada vez, à medida que saem")
 	}
 }
@@ -113,10 +113,10 @@ func TestKeysAreIndependent(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		l.Allow(ctx, "phone:a", limit)
 	}
-	if ok, _, _ := l.Allow(ctx, "phone:a", limit); ok {
+	if g, _ := l.Allow(ctx, "phone:a", limit); g.Allowed {
 		t.Fatal("a devia estar travado")
 	}
-	if ok, _, _ := l.Allow(ctx, "phone:b", limit); !ok {
+	if g, _ := l.Allow(ctx, "phone:b", limit); !g.Allowed {
 		t.Fatal("b não tem nada a ver com a")
 	}
 }
@@ -221,11 +221,11 @@ func TestLimiterFailsClosed(t *testing.T) {
 	l, srv := limiter(t)
 	srv.Close()
 
-	ok, _, err := l.Allow(context.Background(), "k", Limit{Max: 5, Window: time.Hour})
+	g, err := l.Allow(context.Background(), "k", Limit{Max: 5, Window: time.Hour})
 	if err == nil {
 		t.Fatal("devia devolver erro")
 	}
-	if ok {
+	if g.Allowed {
 		t.Fatal("com o Redis em baixo, o limite não pode deixar passar")
 	}
 }

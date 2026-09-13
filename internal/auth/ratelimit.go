@@ -54,7 +54,25 @@ func DefaultLimits() Limits {
 
 // Limiter permite e consome, e diz quando será permitido de novo.
 type Limiter interface {
-	Allow(ctx context.Context, key string, limit Limit) (ok bool, retryAfter time.Duration, err error)
+	Allow(ctx context.Context, key string, limit Limit) (Grant, error)
+	// Refund devolve o que uma autorização consumiu.
+	//
+	// Existe porque um pedido que não chegou a entregar nada não devia gastar
+	// o orçamento de quem o fez. Um template mal configurado da nossa parte
+	// esgotou cinco de cinco tentativas de alguém e deixou-o de fora durante
+	// vinte horas — sem uma única mensagem enviada.
+	Refund(ctx context.Context, key, token string) error
+}
+
+// Grant é o que uma autorização concede.
+//
+// Traz o `Token` do que foi consumido para poder ser devolvido. Sem ele, a
+// devolução teria de adivinhar qual entrada apagar — e no eixo global apagaria
+// a de outra pessoa.
+type Grant struct {
+	Allowed    bool
+	RetryAfter time.Duration
+	Token      string
 }
 
 // RedisLimiter é uma janela deslizante em Redis.
@@ -95,30 +113,50 @@ if used >= max then
   return {0, retry}
 end
 
-redis.call('ZADD', key, now, now .. '-' .. math.random(1000000))
+local token = now .. '-' .. math.random(1000000)
+redis.call('ZADD', key, now, token)
 redis.call('PEXPIRE', key, math.ceil(window / 1000000))
-return {1, 0}
+return {1, 0, token}
 `
 
-func (l *RedisLimiter) Allow(ctx context.Context, key string, limit Limit) (bool, time.Duration, error) {
+func (l *RedisLimiter) Allow(ctx context.Context, key string, limit Limit) (Grant, error) {
 	if limit.Max <= 0 || limit.Window <= 0 {
-		return true, 0, nil
+		return Grant{Allowed: true}, nil
 	}
 	now := l.now().UnixNano()
 
 	res, err := l.rdb.Eval(ctx, slidingWindow, []string{"rl:" + key},
 		now, limit.Window.Nanoseconds(), limit.Max).Result()
 	if err != nil {
-		return false, 0, fmt.Errorf("limite: %w", err)
+		return Grant{}, fmt.Errorf("limite: %w", err)
 	}
 
 	values, ok := res.([]any)
-	if !ok || len(values) != 2 {
-		return false, 0, fmt.Errorf("limite: resposta inesperada %v", res)
+	if !ok || len(values) < 2 {
+		return Grant{}, fmt.Errorf("limite: resposta inesperada %v", res)
 	}
 	allowed, _ := values[0].(int64)
 	retry, _ := values[1].(int64)
-	return allowed == 1, time.Duration(retry), nil
+
+	g := Grant{Allowed: allowed == 1, RetryAfter: time.Duration(retry)}
+	if len(values) > 2 {
+		g.Token, _ = values[2].(string)
+	}
+	return g, nil
+}
+
+// Refund apaga a entrada que a autorização criou.
+//
+// Um token vazio não é erro: quer dizer que não se consumiu nada — um eixo sem
+// limite, por exemplo — e não há o que devolver.
+func (l *RedisLimiter) Refund(ctx context.Context, key, token string) error {
+	if token == "" {
+		return nil
+	}
+	if err := l.rdb.ZRem(ctx, "rl:"+key, token).Err(); err != nil {
+		return fmt.Errorf("devolver limite: %w", err)
+	}
+	return nil
 }
 
 // OTPRequest é o pedido a avaliar contra os cinco eixos.
@@ -136,6 +174,9 @@ type Decision struct {
 	// à pessoa **qual** limite bateu diz ao atacante o que contornar.
 	Axis       string
 	RetryAfter time.Duration
+	// Consumed é o que esta decisão gastou, para poder ser devolvido se o
+	// pedido não chegar a produzir nada.
+	Consumed []Consumption
 }
 
 // Guard avalia um pedido de código contra todos os eixos.
@@ -157,6 +198,8 @@ func Guard(ctx context.Context, l Limiter, limits Limits, req OTPRequest) (Decis
 		{"device", "device:" + req.DeviceID, limits.PerDeviceDay},
 	}
 
+	var consumed []Consumption
+
 	for _, c := range checks {
 		// Um eixo sem valor — sem IP, sem dispositivo — não trava nem conta.
 		// Recusar por falta de dados poria de fora quem usa uma rede que não
@@ -164,13 +207,43 @@ func Guard(ctx context.Context, l Limiter, limits Limits, req OTPRequest) (Decis
 		if c.key == c.axis+":" || c.limit.Max <= 0 {
 			continue
 		}
-		ok, retry, err := l.Allow(ctx, c.key, c.limit)
+		g, err := l.Allow(ctx, c.key, c.limit)
 		if err != nil {
 			return Decision{}, err
 		}
-		if !ok {
-			return Decision{Allowed: false, Axis: c.axis, RetryAfter: retry}, nil
+		if !g.Allowed {
+			// Os eixos já consumidos são devolvidos: este pedido não vai
+			// acontecer, e ficar com o orçamento gasto num pedido recusado
+			// castiga duas vezes pela mesma coisa.
+			refund(ctx, l, consumed)
+			return Decision{Allowed: false, Axis: c.axis, RetryAfter: g.RetryAfter}, nil
+		}
+		if g.Token != "" {
+			consumed = append(consumed, Consumption{Key: c.key, Token: g.Token})
 		}
 	}
-	return Decision{Allowed: true}, nil
+	return Decision{Allowed: true, Consumed: consumed}, nil
+}
+
+// Consumption é uma entrada consumida num eixo, e o que é preciso para a
+// devolver.
+type Consumption struct {
+	Key   string
+	Token string
+}
+
+// Refund devolve tudo o que a decisão consumiu.
+//
+// Chama-se quando o pedido autorizado não chegou a produzir nada — uma entrega
+// que falhou por nossa causa. Um erro a devolver não se propaga: perder a
+// devolução é mau, mas não é motivo para transformar uma falha de entrega numa
+// segunda falha em cima.
+func Refund(ctx context.Context, l Limiter, d Decision) {
+	refund(ctx, l, d.Consumed)
+}
+
+func refund(ctx context.Context, l Limiter, consumed []Consumption) {
+	for _, c := range consumed {
+		_ = l.Refund(ctx, c.Key, c.Token)
+	}
 }

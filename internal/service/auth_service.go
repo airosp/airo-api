@@ -147,10 +147,25 @@ func (s *AuthService) RequestOTP(ctx context.Context, in RequestOTPInput) (Reque
 
 	if _, err := s.sender.Send(ctx, phone, code, channel); err != nil {
 		_ = s.repo.AppendAuthEvent(ctx, "otp_delivery_failed", nil, &phone, device, nil)
+
 		var u Undeliverable
 		if errors.As(err, &u) && u.Undeliverable() {
+			// Aqui o orçamento **fica gasto**. O número não recebe por este
+			// canal, e isso é informação sobre o pedido: sem custo, bastava
+			// repetir contra números sem WhatsApp para gastar a nossa quota na
+			// Meta à vontade.
 			return RequestOTPResult{}, fmt.Errorf("%w: %v", ErrUndeliverable, err)
 		}
+
+		// A falha é nossa — configuração, rede, a Meta em baixo. Quem pediu não
+		// fez nada de errado e não recebeu mensagem nenhuma: devolve-se o que
+		// o pedido consumiu.
+		//
+		// Sem isto, um template mal configurado esgotou cinco de cinco
+		// tentativas de alguém e deixou-o de fora vinte horas, sem uma única
+		// mensagem enviada. O castigo era inteiramente por um erro nosso.
+		auth.Refund(ctx, s.limiter, decision)
+
 		return RequestOTPResult{}, fmt.Errorf("%w: %v", ErrDeliveryFailed, err)
 	}
 	_ = s.repo.AppendAuthEvent(ctx, "otp_requested", nil, &phone, device, map[string]any{"channel": channel})
