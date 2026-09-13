@@ -24,12 +24,21 @@ TRIES="${1:-5}"
 for i in $(seq 1 "$TRIES"); do
   start=$(date +%s)
   printf '[%s] deploy %d/%d… ' "$(date +%T)" "$i" "$TRIES"
+  # `|| true`: a primeira chamada ao painel depois de um tempo parado fecha a
+  # ligação sem responder (curl 52). Com `set -e` isso matava o script em vez
+  # de tentar outra vez — e a tentativa seguinte funciona sempre.
+  code=0
   curl -sS -m 900 -X POST \
     -H "Authorization: Bearer $EASYPANEL_TOKEN" \
     -H "Content-Type: application/json" \
     -d "{\"json\":{\"projectName\":\"$PROJECT\",\"serviceName\":\"$SERVICE\",\"forceRebuild\":true}}" \
-    "$PANEL/api/trpc/services.app.deployService" >/dev/null
+    "$PANEL/api/trpc/services.app.deployService" >/dev/null 2>&1 || code=$?
   took=$(( $(date +%s) - start ))
+  if [ "$code" -ne 0 ]; then
+    echo "sem resposta (curl $code) — nova tentativa"
+    sleep 3
+    continue
+  fi
   echo "${took}s"
 
   if [ "$took" -ge 30 ]; then
