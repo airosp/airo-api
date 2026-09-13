@@ -65,6 +65,9 @@ func Wire(p Platform) Deps {
 		Version: p.Version,
 		DB:      p.Pool,
 	}
+	if p.Redis != nil {
+		deps.Cache = redisPinger{c: p.Redis}
+	}
 
 	goals := repo.NewGoalRepo(tx)
 	goalSvc := service.NewGoalService(tx, goals, configs, p.Clock)
@@ -158,3 +161,9 @@ func (s logSender) Send(_ context.Context, phone, code, channel string) (string,
 		"phone", auth.MaskPhone(phone), "channel", channel, "codigo_desenvolvimento", code)
 	return "dev-" + time.Now().Format("150405"), nil
 }
+
+// redisPinger deixa o `/readyz` verificar o Redis sem o handler saber que
+// existe um cliente de Redis.
+type redisPinger struct{ c redis.UniversalClient }
+
+func (r redisPinger) Ping(ctx context.Context) error { return r.c.Ping(ctx).Err() }

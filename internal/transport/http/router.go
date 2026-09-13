@@ -15,6 +15,8 @@ type Deps struct {
 	Version string
 	DB      handlers.Pinger
 	Schema  handlers.SchemaChecker
+	// Cache é o Redis, para o `/readyz` o poder verificar.
+	Cache handlers.Pinger
 
 	// Auth é opcional durante o desenvolvimento: sem ele, as rotas protegidas
 	// não são registadas. Nunca ficam abertas — uma rota de escrita sem
@@ -39,7 +41,7 @@ type Deps struct {
 func NewRouter(d Deps) http.Handler {
 	mux := http.NewServeMux()
 
-	health := handlers.Health{Version: d.Version, DB: d.DB, Schema: d.Schema}
+	health := handlers.Health{Version: d.Version, DB: d.DB, Schema: d.Schema, Cache: d.Cache}
 	mux.HandleFunc("GET /healthz", health.Live)
 	mux.HandleFunc("GET /readyz", health.Ready)
 
