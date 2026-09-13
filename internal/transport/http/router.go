@@ -27,6 +27,7 @@ type Deps struct {
 	Nutrition   *handlers.Nutrition
 	Progress    *handlers.Progress
 	Account     *handlers.Account
+	Catalog     *handlers.Catalog
 	Idempotency middleware.Store
 
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
@@ -53,7 +54,7 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/logout", d.AuthAPI.Logout)
 	}
 
-	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil) {
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -96,6 +97,18 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Profile.Photo), middleware.Auth(d.Auth)))
 			mux.Handle("DELETE /v1/profile/photo",
 				middleware.Chain(http.HandlerFunc(d.Profile.DeletePhoto), middleware.Auth(d.Auth)))
+		}
+		if d.Catalog != nil {
+			// Leituras puras do catálogo: fora da idempotência, e sem tocar em
+			// nada de quem pergunta.
+			mux.Handle("GET /v1/exercises",
+				middleware.Chain(http.HandlerFunc(d.Catalog.Exercises), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/exercises/{id}",
+				middleware.Chain(http.HandlerFunc(d.Catalog.Exercise), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/foods",
+				middleware.Chain(http.HandlerFunc(d.Catalog.Foods), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/foods/{id}/substitutes",
+				middleware.Chain(http.HandlerFunc(d.Catalog.FoodSubstitutes), middleware.Auth(d.Auth)))
 		}
 		if d.Account != nil {
 			// Apagar a conta fica fora da idempotência: apagar duas vezes é

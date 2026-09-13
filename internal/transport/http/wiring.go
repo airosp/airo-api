@@ -102,6 +102,7 @@ func Wire(p Platform) Deps {
 	if p.Images != nil {
 		apagaImagens = avatarUploader{c: p.Images}
 	}
+	deps.Catalog = &handlers.Catalog{Training: trainingCfg, Nutrition: configs.Nutrition}
 	deps.Account = &handlers.Account{
 		Service: service.NewAccountService(repo.NewAccountRepo(tx), apagaImagens),
 	}
