@@ -69,20 +69,32 @@ type Adaptation struct {
 }
 
 type Config struct {
-	Version          string                  `json:"version"`
-	EnergyAdjustment map[GoalType]Band       `json:"energyAdjustment"`
-	MinDailyCalories int                     `json:"minDailyCalories"`
-	Protein          map[GoalType]float64    `json:"protein"`
-	MinFatRatio      float64                 `json:"minFatRatio"`
-	MinCarbsG        int                     `json:"minCarbsG"`
-	MealSplit        map[int][]float64       `json:"mealSplit"`
-	SlotsByCount     map[int][]Slot          `json:"slotsByCount"`
-	RoleMacroShift   map[string]MacroShift   `json:"roleMacroShift"`
-	WorkoutMeals     map[string]WorkoutMeals `json:"workoutMeals"`
-	KcalPerKg        float64                 `json:"kcalPerKg"`
-	Assessment       Assessment              `json:"assessment"`
-	Adaptation       Adaptation              `json:"adaptation"`
-	CycleWeeks       int                     `json:"cycleWeeks"`
+	Version          string               `json:"version"`
+	EnergyAdjustment map[GoalType]Band    `json:"energyAdjustment"`
+	MinDailyCalories int                  `json:"minDailyCalories"`
+	Protein          map[GoalType]float64 `json:"protein"`
+	MinFatRatio      float64              `json:"minFatRatio"`
+	MinCarbsG        int                  `json:"minCarbsG"`
+	MealSplit        map[int][]float64    `json:"mealSplit"`
+	// Hydration: quanta água por dia. Ver `hydration.go` — nenhum destes
+	// números está validado clinicamente.
+	Hydration struct {
+		MlPerKg           float64 `json:"mlPerKg"`
+		MlPerTrainingHour float64 `json:"mlPerTrainingHour"`
+		MinMl             int     `json:"minMl"`
+		MaxMl             int     `json:"maxMl"`
+		// FallbackMl é o que se diz quando não se sabe o peso. Não é um alvo:
+		// é a recusa honesta de calcular sem o dado que a conta precisa.
+		FallbackMl int `json:"fallbackMl"`
+	} `json:"hydration"`
+
+	SlotsByCount   map[int][]Slot          `json:"slotsByCount"`
+	RoleMacroShift map[string]MacroShift   `json:"roleMacroShift"`
+	WorkoutMeals   map[string]WorkoutMeals `json:"workoutMeals"`
+	KcalPerKg      float64                 `json:"kcalPerKg"`
+	Assessment     Assessment              `json:"assessment"`
+	Adaptation     Adaptation              `json:"adaptation"`
+	CycleWeeks     int                     `json:"cycleWeeks"`
 }
 
 // DefaultConfig são os valores em vigor no cliente. Servem de omissão para a
@@ -108,6 +120,13 @@ func DefaultConfig() Config {
 			4: {0.25, 0.35, 0.15, 0.25},
 			5: {0.22, 0.30, 0.13, 0.25, 0.10},
 		},
+		Hydration: struct {
+			MlPerKg           float64 `json:"mlPerKg"`
+			MlPerTrainingHour float64 `json:"mlPerTrainingHour"`
+			MinMl             int     `json:"minMl"`
+			MaxMl             int     `json:"maxMl"`
+			FallbackMl        int     `json:"fallbackMl"`
+		}{MlPerKg: 35, MlPerTrainingHour: 500, MinMl: 1500, MaxMl: 4000, FallbackMl: 2000},
 		SlotsByCount: map[int][]Slot{
 			3: {Breakfast, Lunch, Dinner},
 			4: {Breakfast, Lunch, Snack, Dinner},

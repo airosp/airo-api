@@ -376,7 +376,7 @@ func (h Nutrition) Today(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apierr.WriteJSON(w, http.StatusOK, view.BuildNutritionDay(
-		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy, out.Swapped))
+		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy, out.Swapped, out.HydrationMl))
 }
 
 // SwapMeal troca uma refeição por outra proposta.
@@ -443,5 +443,5 @@ func (h Nutrition) mexerNaRefeicao(w http.ResponseWriter, r *http.Request, troca
 		return
 	}
 	apierr.WriteJSON(w, http.StatusOK, view.BuildNutritionDay(
-		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy, out.Swapped))
+		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy, out.Swapped, out.HydrationMl))
 }

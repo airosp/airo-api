@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -107,5 +108,38 @@ func TestMaskKeepsEnoughToInvestigateAndNotEnoughToIdentify(t *testing.T) {
 	}
 	if MaskPhone("123") != "[oculto]" {
 		t.Error("um número curto demais é ocultado por inteiro")
+	}
+}
+
+// T6.10 — o IP nunca é guardado em claro.
+//
+// Para contar pedidos por origem, o hash chega. O IP em claro é dado pessoal e
+// não tem de existir em lado nenhum — nem na base de dados, nem nos contadores
+// de limite, nem nos registos.
+func TestOIPNuncaFicaEmClaro(t *testing.T) {
+	ips := []string{"41.94.12.7", "2001:db8::1", "192.168.1.1"}
+	for _, ip := range ips {
+		h := HashIP(ip)
+		if h == "" {
+			t.Errorf("HashIP(%q) devolveu vazio", ip)
+			continue
+		}
+		if strings.Contains(h, ip) {
+			t.Errorf("o IP %q aparece no hash %q", ip, h)
+		}
+		// Estável: o mesmo IP tem de dar o mesmo contador, senão o limite por
+		// origem não limita nada.
+		if HashIP(ip) != h {
+			t.Errorf("HashIP(%q) não é estável", ip)
+		}
+	}
+
+	// IPs diferentes não podem colidir — colidir seria limitar a pessoa errada.
+	if HashIP(ips[0]) == HashIP(ips[2]) {
+		t.Error("dois IPs diferentes deram o mesmo hash")
+	}
+	// Sem IP não se inventa um.
+	if HashIP("") != "" {
+		t.Error("sem IP devia devolver vazio")
 	}
 }

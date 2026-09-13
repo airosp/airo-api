@@ -64,6 +64,17 @@ type NutritionDay struct {
 	// TrainsToday muda o que as refeições em torno do treino fazem, e o ecrã
 	// diz porquê.
 	TrainsToday bool `json:"trainsToday"`
+	// Hydration é o alvo de água do dia, em mililitros. Acompanha o peso e o
+	// treino — um alvo fixo era o mesmo para quem pesa 55 e para quem pesa 95.
+	Hydration HydrationView `json:"hydration"`
+}
+
+type HydrationView struct {
+	TargetMl int `json:"targetMl"`
+	// StepMl é quanto conta um toque no botão. Vem daqui para o copo ser o
+	// mesmo em todo o lado.
+	StepMl int    `json:"stepMl"`
+	Label  string `json:"label"`
 }
 
 var roleLabels = map[string]string{
@@ -73,7 +84,7 @@ var roleLabels = map[string]string{
 }
 
 // BuildNutritionDay monta a resposta que o ecrã de nutrição desenha.
-func BuildNutritionDay(s nutrition.Strategy2, d nutrition.DayPlan, trainsToday, stored bool, swapped map[string]bool) NutritionDay {
+func BuildNutritionDay(s nutrition.Strategy2, d nutrition.DayPlan, trainsToday, stored bool, swapped map[string]bool, hydrationMl int) NutritionDay {
 	out := NutritionDay{
 		DayISO:        d.DayISO,
 		CalorieTarget: d.Kcal,
@@ -83,6 +94,10 @@ func BuildNutritionDay(s nutrition.Strategy2, d nutrition.DayPlan, trainsToday, 
 		Meals:       make([]MealView, 0, len(d.Meals)),
 		Basis:       basisText(s, stored),
 		TrainsToday: trainsToday,
+		Hydration: HydrationView{
+			TargetMl: hydrationMl, StepMl: 250,
+			Label: decimal(float64(hydrationMl)/1000, 1) + " L",
+		},
 	}
 
 	for _, m := range d.Meals {

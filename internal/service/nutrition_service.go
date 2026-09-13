@@ -64,6 +64,8 @@ type NutritionToday struct {
 	// Swapped são as refeições que a pessoa trocou, para o ecrã as poder marcar
 	// como escolha dela e não como proposta.
 	Swapped map[string]bool
+	// HydrationMl é o alvo de água do dia. Acompanha o peso e o treino.
+	HydrationMl int
 }
 
 // aplicarTrocas remonta as refeições que a pessoa trocou.
@@ -163,7 +165,15 @@ func (s *NutritionService) Today(ctx context.Context, in NutritionTodayInput) (N
 	if err != nil {
 		return NutritionToday{}, err
 	}
-	return NutritionToday{Strategy: strategy, Day: day, FromStoredStrategy: stored, Swapped: trocadas}, nil
+	agua := nutrition.HydrationTarget(s.nutCfg, nutrition.HydrationInput{
+		BodyWeightKg:   in.WeightKg,
+		TrainsToday:    in.TrainsToday,
+		SessionMinutes: in.SessionMinutes,
+	})
+	return NutritionToday{
+		Strategy: strategy, Day: day, FromStoredStrategy: stored,
+		Swapped: trocadas, HydrationMl: agua,
+	}, nil
 }
 
 // strategyFor prefere a decisão gravada e só calcula quando não há nenhuma.
