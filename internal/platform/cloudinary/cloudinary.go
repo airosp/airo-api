@@ -193,6 +193,22 @@ func (c *Client) URL(u Uploaded, transform string) string {
 		transform, u.Version, u.PublicID, format)
 }
 
+// ErrNotFound é a imagem que já lá não estava.
+//
+// A Cloudinary responde 200 com `result: not found` — não é erro de rede nem de
+// assinatura. Sem o distinguir, um `public_id` errado passava por sucesso e
+// ninguém dava conta de que nada tinha sido apagado.
+var ErrNotFound = errors.New("cloudinary: imagem não encontrada")
+
+// DestroyAvatar apaga a fotografia de perfil de alguém.
+//
+// Compõe o identificador com a pasta, que é como a imagem lá está: o envio
+// manda `folder` e `public_id` em campos separados, e a Cloudinary junta-os.
+// Apagar sem a pasta devolve "not found" e não apaga nada.
+func (c *Client) DestroyAvatar(ctx context.Context, publicID string) error {
+	return c.Destroy(ctx, c.cfg.Folder+"/"+publicID)
+}
+
 // Destroy apaga a imagem.
 func (c *Client) Destroy(ctx context.Context, publicID string) error {
 	params := map[string]string{
@@ -221,11 +237,29 @@ func (c *Client) Destroy(ctx context.Context, publicID string) error {
 		return fmt.Errorf("cloudinary: apagar: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<16))
+
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, 1<<16))
+	if err != nil {
+		return fmt.Errorf("cloudinary: apagar: ler resposta: %w", err)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("cloudinary: apagar: HTTP %d", resp.StatusCode)
 	}
-	return nil
+
+	var parsed struct {
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return fmt.Errorf("cloudinary: apagar: resposta ilegível")
+	}
+	switch parsed.Result {
+	case "ok":
+		return nil
+	case "not found":
+		return ErrNotFound
+	default:
+		return fmt.Errorf("cloudinary: apagar: %s", parsed.Result)
+	}
 }
 
 // sign assina os parâmetros como a Cloudinary espera: ordenados por nome,

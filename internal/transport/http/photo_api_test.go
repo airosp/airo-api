@@ -20,6 +20,9 @@ type uploaderFalso struct {
 	publicID string
 	cara     bool
 	erro     error
+
+	apagados   []string
+	erroApagar error
 }
 
 func (u *uploaderFalso) UploadAvatar(
@@ -37,6 +40,14 @@ func (u *uploaderFalso) UploadAvatar(
 	base := "https://res.cloudinary.test/savanapoint/image/upload/" + corte
 	return base + ",w_512,h_512/v1/airo/profiles/" + publicID + ".jpg",
 		base + ",w_128,h_128/v1/airo/profiles/" + publicID + ".jpg", u.cara, nil
+}
+
+func (u *uploaderFalso) DeleteAvatar(_ context.Context, publicID string) error {
+	if u.erroApagar != nil {
+		return u.erroApagar
+	}
+	u.apagados = append(u.apagados, publicID)
+	return nil
 }
 
 // jpeg é o menor ficheiro que passa pela verificação dos primeiros bytes.
@@ -188,9 +199,10 @@ func TestSemCaraOCorteMuda(t *testing.T) {
 	}
 }
 
-// Apagar tira o endereço do perfil.
+// Apagar tira o endereço do perfil **e** a imagem.
 func TestApagarFotografia(t *testing.T) {
-	h, _ := serveProfileCom(t, &uploaderFalso{cara: true})
+	up := &uploaderFalso{cara: true}
+	h, _ := serveProfileCom(t, up)
 	if w := put(t, h, "/v1/profile", perfilValido); w.Code != http.StatusOK {
 		t.Fatal(w.Body.String())
 	}
@@ -209,6 +221,48 @@ func TestApagarFotografia(t *testing.T) {
 	_ = json.Unmarshal(w.Body.Bytes(), &saved)
 	if saved.PhotoURL != "" {
 		t.Fatalf("ainda lá está: %s", saved.PhotoURL)
+	}
+	// Sem isto, "remover" era só desligar o endereço: o ficheiro continuava na
+	// Cloudinary, público a quem tivesse o link, para sempre.
+	if len(up.apagados) != 1 {
+		t.Fatalf("a imagem não foi apagada: %v", up.apagados)
+	}
+}
+
+// Se a imagem não puder ser apagada, o perfil **não** se limpa.
+//
+// A ordem é essa de propósito: ao contrário, uma falha deixava o ficheiro lá com
+// o perfil já limpo, e ninguém voltava a saber que ele existia. O endereço é
+// público a quem o tenha — "remover" tem de querer dizer removido.
+func TestFalhaAoApagarNaoLimpaOPerfil(t *testing.T) {
+	up := &uploaderFalso{cara: true}
+	h, _ := serveProfileCom(t, up)
+	if w := put(t, h, "/v1/profile", perfilValido); w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
+	}
+	if w := enviarFoto(t, h, "retrato.jpg", jpeg()); w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
+	}
+
+	up.erroApagar = errors.New("a Cloudinary está em baixo")
+	r := httptest.NewRequest(http.MethodDelete, "/v1/profile/photo", nil)
+	r.Header.Set("Authorization", "Bearer token-de-teste")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("= %d, esperava 500: %s", w.Code, w.Body.String())
+	}
+
+	// E a fotografia continua no perfil: apontar para uma imagem que ainda
+	// existe é honesto; dizer que se removeu o que não se removeu não é.
+	r = httptest.NewRequest(http.MethodGet, "/v1/profile", nil)
+	r.Header.Set("Authorization", "Bearer token-de-teste")
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	var lido service.SavedProfile
+	_ = json.Unmarshal(w.Body.Bytes(), &lido)
+	if lido.PhotoURL == "" {
+		t.Fatal("o perfil foi limpo apesar de a imagem continuar lá")
 	}
 }
 

@@ -103,6 +103,9 @@ func (p *Profiles) Save(ctx ctxLike, userID string, in SaveProfileInput, now tim
 // fotografia é gravada.
 type Uploader interface {
 	UploadAvatar(ctx context.Context, image []byte, publicID string) (full, thumb string, faceFound bool, err error)
+	// DeleteAvatar apaga a imagem. Uma imagem que já lá não está **não** é
+	// erro: quem pede para remover quer que deixe de existir, e já não existe.
+	DeleteAvatar(ctx context.Context, publicID string) error
 }
 
 // ErrNoUploader é o que se diz quando não há para onde enviar.
@@ -136,13 +139,24 @@ func (p *Profiles) SavePhoto(ctx ctxLike, userID string, image []byte, now time.
 	return p.Read(c, userID)
 }
 
-// RemovePhoto tira a fotografia do perfil.
+// RemovePhoto tira a fotografia do perfil e apaga-a.
 //
-// Não apaga da Cloudinary: o envio seguinte substitui-a pelo mesmo public_id, e
-// apagar agora só acrescentaria uma chamada que pode falhar a uma operação que
-// já fez o que interessa.
+// **Primeiro a imagem, depois o perfil**, e a ordem importa. Ao contrário, uma
+// falha ao apagar deixava o ficheiro na Cloudinary com o perfil já limpo — e
+// ninguém voltaria a saber que ele lá estava. O endereço é público a quem o
+// tenha: "remover" tem de querer dizer removido.
+//
+// O risco da ordem escolhida é o oposto — imagem apagada e perfil ainda a
+// apontar-lhe — e é o menos mau: vê-se logo, e repetir resolve.
 func (p *Profiles) RemovePhoto(ctx ctxLike, userID string, now time.Time) (SavedProfile, error) {
 	c := asContext(ctx)
+
+	if p.uploader != nil {
+		if err := p.uploader.DeleteAvatar(c, userID); err != nil {
+			return SavedProfile{}, err
+		}
+	}
+
 	found, err := p.repo.SetPhoto(c, userID, nil, now)
 	if err != nil {
 		return SavedProfile{}, err

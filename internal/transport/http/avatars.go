@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 
 	"github.com/airosp/airo-api/internal/platform/cloudinary"
 )
@@ -21,4 +22,14 @@ func (u avatarUploader) UploadAvatar(
 	}
 	full, thumb := u.c.AvatarURLs(up)
 	return full, thumb, up.FaceFound(), nil
+}
+
+func (u avatarUploader) DeleteAvatar(ctx context.Context, publicID string) error {
+	err := u.c.DestroyAvatar(ctx, publicID)
+	// Já não estar lá é o resultado que se queria. Falhar por isso obrigaria
+	// alguém a carregar duas vezes para limpar um perfil que já estava limpo.
+	if errors.Is(err, cloudinary.ErrNotFound) {
+		return nil
+	}
+	return err
 }

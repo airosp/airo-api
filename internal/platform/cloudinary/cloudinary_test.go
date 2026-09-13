@@ -2,11 +2,13 @@ package cloudinary_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -166,4 +168,57 @@ func sha1Hex(s string) string {
 	h := newSHA1()
 	h.Write([]byte(s))
 	return hexOf(h.Sum(nil))
+}
+
+// Apagar tem de levar a pasta no identificador.
+//
+// O envio manda `folder` e `public_id` em campos separados e a Cloudinary
+// junta-os. Apagar só com o `public_id` responde **200 com "not found"** — não
+// falha, não apaga, e ninguém dá por nada.
+func TestApagarLevaAPasta(t *testing.T) {
+	var recebido url.Values
+
+	c := cliente(t, func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		recebido, _ = url.ParseQuery(string(body))
+		_, _ = w.Write([]byte(`{"result":"ok"}`))
+	})
+
+	if err := c.DestroyAvatar(context.Background(), "u1"); err != nil {
+		t.Fatal(err)
+	}
+	if got := recebido.Get("public_id"); got != "airo/profiles/u1" {
+		t.Fatalf("public_id = %q, esperava a pasta incluída", got)
+	}
+	// A CDN guarda o endereço. Sem isto, a fotografia apagada continuava a ser
+	// servida durante horas.
+	if recebido.Get("invalidate") != "true" {
+		t.Fatal("apagar tem de invalidar a cache")
+	}
+	if recebido.Get("api_key") != "chave" || recebido.Get("signature") == "" {
+		t.Fatal("o pedido tem de ir assinado")
+	}
+}
+
+// "not found" tem erro próprio: é o resultado que se queria, não uma falha,
+// mas um identificador errado não pode passar por sucesso.
+func TestApagarOQueNaoExiste(t *testing.T) {
+	c := cliente(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"result":"not found"}`))
+	})
+	err := c.DestroyAvatar(context.Background(), "u1")
+	if !errors.Is(err, cloudinary.ErrNotFound) {
+		t.Fatalf("erro = %v, esperava ErrNotFound", err)
+	}
+}
+
+// Qualquer outro resultado é falha, e diz qual.
+func TestApagarComResultadoInesperado(t *testing.T) {
+	c := cliente(t, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"result":"rate limited"}`))
+	})
+	err := c.DestroyAvatar(context.Background(), "u1")
+	if err == nil || !strings.Contains(err.Error(), "rate limited") {
+		t.Fatalf("erro = %v", err)
+	}
 }
