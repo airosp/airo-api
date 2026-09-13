@@ -74,6 +74,13 @@ func NewRouter(d Deps) http.Handler {
 		if d.Training != nil {
 			mux.Handle("GET /v1/training/today", private(d.Training.Today))
 			mux.Handle("POST /v1/training/sessions", private(d.Training.Record))
+			// Abrir a sessão e receber os eventos. O lote é idempotente por
+			// construção — os eventos deduplicam-se pelo instante —, por isso
+			// fica fora da cadeia de idempotência.
+			mux.Handle("POST /v1/training/sessions/open",
+				middleware.Chain(http.HandlerFunc(d.Training.Open), middleware.Auth(d.Auth)))
+			mux.Handle("POST /v1/training/sessions/{id}/events",
+				middleware.Chain(http.HandlerFunc(d.Training.Events), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/training/sessions",
 				middleware.Chain(http.HandlerFunc(d.Training.History), middleware.Auth(d.Auth)))
 		}
@@ -99,6 +106,13 @@ func NewRouter(d Deps) http.Handler {
 			// O plano do dia não passa pela idempotência: é uma leitura.
 			mux.Handle("GET /v1/nutrition/today",
 				middleware.Chain(http.HandlerFunc(d.Nutrition.Today), middleware.Auth(d.Auth)))
+			// Trocar uma refeição não passa pela idempotência de propósito:
+			// cada toque é um pedido novo — "mostra-me outra" — e repetir tem
+			// de dar coisa diferente.
+			mux.Handle("POST /v1/nutrition/meals/{slot}/swap",
+				middleware.Chain(http.HandlerFunc(d.Nutrition.SwapMeal), middleware.Auth(d.Auth)))
+			mux.Handle("DELETE /v1/nutrition/meals/{slot}/swap",
+				middleware.Chain(http.HandlerFunc(d.Nutrition.ResetMeal), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/nutrition/logs",
 				middleware.Chain(http.HandlerFunc(d.Nutrition.ReadLogs), middleware.Auth(d.Auth)))
 			mux.Handle("DELETE /v1/nutrition/logs/{id}",

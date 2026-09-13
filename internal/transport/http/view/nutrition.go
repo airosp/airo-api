@@ -42,7 +42,11 @@ type MealView struct {
 	// a etiqueta; não a deduz da hora.
 	Role      string `json:"role"`
 	RoleLabel string `json:"roleLabel,omitempty"`
-	Kcal      int    `json:"kcal"`
+	// Swapped marca a refeição que a pessoa trocou. O ecrã mostra-a como
+	// escolha dela e oferece o caminho de volta — sem isto, "repor" aparecia
+	// em refeições que ninguém tinha mexido.
+	Swapped bool `json:"swapped,omitempty"`
+	Kcal    int  `json:"kcal"`
 	// Share é a fatia do dia, de 0 a 1 — já calculada, para a barra não ter de
 	// dividir por um total que pode ser zero.
 	Share  float64        `json:"share"`
@@ -69,7 +73,7 @@ var roleLabels = map[string]string{
 }
 
 // BuildNutritionDay monta a resposta que o ecrã de nutrição desenha.
-func BuildNutritionDay(s nutrition.Strategy2, d nutrition.DayPlan, trainsToday, stored bool) NutritionDay {
+func BuildNutritionDay(s nutrition.Strategy2, d nutrition.DayPlan, trainsToday, stored bool, swapped map[string]bool) NutritionDay {
 	out := NutritionDay{
 		DayISO:        d.DayISO,
 		CalorieTarget: d.Kcal,
@@ -93,6 +97,7 @@ func BuildNutritionDay(s nutrition.Strategy2, d nutrition.DayPlan, trainsToday, 
 			Subtitle:  subtitleOf(m),
 			Role:      m.Role,
 			RoleLabel: roleLabels[m.Role],
+			Swapped:   swapped[string(m.Slot)],
 			Kcal:      m.Kcal,
 			Share:     share,
 			Macros: MacroTargets{

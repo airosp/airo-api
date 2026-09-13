@@ -90,7 +90,7 @@ func Wire(p Platform) Deps {
 	if p.MealImages != nil {
 		refeicoes = mealUploader{c: p.MealImages}
 	}
-	nutritionSvc := service.NewNutritionService(goals, configs.Nutrition, configs.Goal)
+	nutritionSvc := service.NewNutritionService(goals, repo.NewMealPrefRepo(tx), configs.Nutrition, configs.Goal)
 	deps.Nutrition = &handlers.Nutrition{
 		Photos: refeicoes, Logs: repo.NewNutritionRepo(tx),
 		Plans: nutritionSvc, Profiles: profiles,

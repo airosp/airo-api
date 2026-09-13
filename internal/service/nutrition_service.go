@@ -10,6 +10,13 @@ import (
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 )
 
+// MealPreferences guarda e lê as trocas de refeição de um dia.
+type MealPreferences interface {
+	Read(ctx context.Context, userID string, day time.Time) (map[string]int, error)
+	Bump(ctx context.Context, userID string, day time.Time, slot string) (int, error)
+	Reset(ctx context.Context, userID string, day time.Time, slot string) error
+}
+
 // StrategyReader lê a estratégia nutricional em vigor.
 type StrategyReader interface {
 	CurrentStrategy(ctx context.Context, userID string, day time.Time) (repo.StrategyRow, error)
@@ -17,12 +24,13 @@ type StrategyReader interface {
 
 type NutritionService struct {
 	strategies StrategyReader
+	meals      MealPreferences
 	nutCfg     nutrition.Config
 	goalCfg    goal.Config
 }
 
-func NewNutritionService(s StrategyReader, nutCfg nutrition.Config, goalCfg goal.Config) *NutritionService {
-	return &NutritionService{strategies: s, nutCfg: nutCfg, goalCfg: goalCfg}
+func NewNutritionService(s StrategyReader, meals MealPreferences, nutCfg nutrition.Config, goalCfg goal.Config) *NutritionService {
+	return &NutritionService{strategies: s, meals: meals, nutCfg: nutCfg, goalCfg: goalCfg}
 }
 
 // NutritionTodayInput é o que o motor precisa e o pedido não traz. Vem todo do
@@ -53,7 +61,83 @@ type NutritionToday struct {
 	// feita agora. Não é detalhe de implementação: é a diferença entre um
 	// número que a pessoa aceitou e um número que apareceu.
 	FromStoredStrategy bool
+	// Swapped são as refeições que a pessoa trocou, para o ecrã as poder marcar
+	// como escolha dela e não como proposta.
+	Swapped map[string]bool
 }
+
+// aplicarTrocas remonta as refeições que a pessoa trocou.
+func (s *NutritionService) aplicarTrocas(ctx context.Context, in NutritionTodayInput, day *nutrition.DayPlan) (map[string]bool, error) {
+	trocadas := map[string]bool{}
+	if s.meals == nil {
+		return trocadas, nil
+	}
+	variantes, err := s.meals.Read(ctx, in.UserID, in.LocalDay)
+	if err != nil {
+		return nil, err
+	}
+	if len(variantes) == 0 {
+		return trocadas, nil
+	}
+
+	for i, meal := range day.Meals {
+		variante, ok := variantes[string(meal.Slot)]
+		if !ok {
+			continue
+		}
+		/*
+		 * Uma remontagem por toque, em cadeia.
+		 *
+		 * `RebuildMeal` procura uma composição diferente da que recebe. Partir
+		 * sempre da proposta original fazia o segundo toque devolver o que o
+		 * primeiro já tinha dado — a pessoa carregava e nada mudava.
+		 *
+		 * Refazer a cadeia reproduz exactamente a sequência de toques que o
+		 * telemóvel fazia quando isto vivia lá. São poucas iterações: é o número
+		 * de vezes que alguém carregou hoje naquela refeição.
+		 */
+		nova := meal
+		for v := 1; v <= variante; v++ {
+			nova, err = nutrition.RebuildMeal(s.nutCfg, nutrition.RebuildMealInput{
+				Meal: nova, Diet: in.Diet, Variant: v,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+		day.Meals[i] = nova
+		trocadas[string(meal.Slot)] = true
+	}
+	return trocadas, nil
+}
+
+// SwapMeal troca uma refeição por outra proposta, e devolve o dia inteiro.
+//
+// Devolve o dia todo e não só a refeição: o ecrã mostra o dia, e uma resposta
+// parcial obrigava-o a juntar duas verdades — que é como se perde a soma.
+func (s *NutritionService) SwapMeal(ctx context.Context, in NutritionTodayInput, slot string) (NutritionToday, error) {
+	if s.meals == nil {
+		return NutritionToday{}, ErrSemTrocas
+	}
+	if _, err := s.meals.Bump(ctx, in.UserID, in.LocalDay, slot); err != nil {
+		return NutritionToday{}, err
+	}
+	return s.Today(ctx, in)
+}
+
+// ResetMeal devolve uma refeição à proposta do plano.
+func (s *NutritionService) ResetMeal(ctx context.Context, in NutritionTodayInput, slot string) (NutritionToday, error) {
+	if s.meals == nil {
+		return NutritionToday{}, ErrSemTrocas
+	}
+	if err := s.meals.Reset(ctx, in.UserID, in.LocalDay, slot); err != nil {
+		return NutritionToday{}, err
+	}
+	return s.Today(ctx, in)
+}
+
+// ErrSemTrocas — o serviço foi montado sem onde guardar as trocas.
+var ErrSemTrocas = errors.New("trocas de refeição indisponíveis")
 
 // Today monta o plano alimentar do dia.
 func (s *NutritionService) Today(ctx context.Context, in NutritionTodayInput) (NutritionToday, error) {
@@ -72,7 +156,14 @@ func (s *NutritionService) Today(ctx context.Context, in NutritionTodayInput) (N
 	if err != nil {
 		return NutritionToday{}, err
 	}
-	return NutritionToday{Strategy: strategy, Day: day, FromStoredStrategy: stored}, nil
+
+	// As trocas da pessoa entram por cima da proposta. O alvo de cada refeição
+	// não muda — `RebuildMeal` preserva-o —, por isso o dia continua a fechar.
+	trocadas, err := s.aplicarTrocas(ctx, in, &day)
+	if err != nil {
+		return NutritionToday{}, err
+	}
+	return NutritionToday{Strategy: strategy, Day: day, FromStoredStrategy: stored, Swapped: trocadas}, nil
 }
 
 // strategyFor prefere a decisão gravada e só calcula quando não há nenhuma.

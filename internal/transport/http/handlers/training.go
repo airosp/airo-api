@@ -246,3 +246,109 @@ func localDay(r *http.Request) (time.Time, error) {
 	}
 	return time.Parse("2006-01-02", raw)
 }
+
+// ── Sessão ao vivo ───────────────────────────────────────────────────────────
+
+// Open abre a sessão do dia, para os eventos terem onde aterrar.
+//
+// É preciso porque `GET /v1/training/today` não grava nada: o pacote é montado
+// e devolvido. Criar uma linha sempre que alguém espreita o treino de hoje
+// encheria o histórico de sessões que ninguém fez.
+func (h Training) Open(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+
+	day, err := localDay(r)
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Dia inválido.", "localDay")
+		return
+	}
+
+	in, err := h.Profiles.TrainingProfile(r.Context(), userID, day)
+	switch {
+	case errors.Is(err, service.ErrProfileMissing):
+		apierr.Write(w, apierr.ValidationFailed, "Perfil incompleto. Cria o teu plano primeiro.", "")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o teu perfil.")
+		return
+	}
+	in.LocalDay = day
+
+	id, err := h.Service.Open(r.Context(), userID, in)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível abrir o treino.")
+		return
+	}
+	apierr.WriteJSON(w, http.StatusCreated, map[string]string{"sessionId": id})
+}
+
+// Events recebe o que aconteceu durante a sessão.
+//
+// O cliente acumula **factos** e envia-os em lote, inclusive depois de voltar a
+// ter rede. Não conclui nada: quem decide se a sessão conta, se marca o dia e
+// se soma à sequência é o servidor.
+//
+// ⚠️ `session_ended` não traz `status`. Traz `durationSeconds`. Deixar o cliente
+// mandar `"completed"` devolvia-lhe a regra pela porta das traseiras.
+func (h Training) Events(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+
+	sessionID := r.PathValue("id")
+	if sessionID == "" {
+		apierr.Write(w, apierr.ValidationFailed, "Sessão desconhecida.", "id")
+		return
+	}
+
+	var req dto.SessionEventsRequest
+	if err := decode(r, &req); err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Corpo do pedido inválido.", "")
+		return
+	}
+	if len(req.Events) == 0 {
+		apierr.Write(w, apierr.ValidationFailed, "Sem eventos para gravar.", "events")
+		return
+	}
+
+	day, err := time.Parse("2006-01-02", req.LocalDay)
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Dia inválido.", "localDay")
+		return
+	}
+
+	eventos := make([]service.SessionEvent, 0, len(req.Events))
+	for _, e := range req.Events {
+		at, err := time.Parse(time.RFC3339, e.At)
+		if err != nil {
+			// Um evento sem instante não se ordena nem se deduplica. Recusa-se o
+			// evento, não o lote: perder trinta séries por causa de uma é pior.
+			continue
+		}
+		eventos = append(eventos, service.SessionEvent{
+			Kind: e.Type, StepIndex: e.Index, Payload: e.Payload, At: at,
+		})
+	}
+
+	out, err := h.Service.AppendEvents(r.Context(), userID, sessionID, eventos, day)
+	switch {
+	case errors.Is(err, repo.ErrNotFound):
+		apierr.Write(w, apierr.NotFound, "Essa sessão não existe.", "id")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível gravar o treino.")
+		return
+	}
+
+	apierr.WriteJSON(w, http.StatusOK, dto.SessionEventsResponse{
+		Accepted: out.Accepted, Duplicates: out.Duplicates,
+		Ended: out.Ended, Status: out.Status,
+		CountsForStreak: out.CountsForStreak, Streak: out.Streak,
+	})
+}

@@ -376,5 +376,72 @@ func (h Nutrition) Today(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	apierr.WriteJSON(w, http.StatusOK, view.BuildNutritionDay(
-		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy))
+		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy, out.Swapped))
+}
+
+// SwapMeal troca uma refeição por outra proposta.
+//
+// `POST` e não `PUT`: cada toque é um pedido novo — "mostra-me outra" — e não a
+// declaração de um estado. Repetir dá coisa diferente de propósito, que é
+// exactamente o que quem carrega quer.
+func (h Nutrition) SwapMeal(w http.ResponseWriter, r *http.Request) {
+	h.mexerNaRefeicao(w, r, true)
+}
+
+// ResetMeal devolve a refeição à proposta do plano.
+func (h Nutrition) ResetMeal(w http.ResponseWriter, r *http.Request) {
+	h.mexerNaRefeicao(w, r, false)
+}
+
+var slotsValidos = map[string]bool{
+	"breakfast": true, "lunch": true, "snack": true, "dinner": true, "supper": true,
+}
+
+func (h Nutrition) mexerNaRefeicao(w http.ResponseWriter, r *http.Request, trocar bool) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Plans == nil || h.Profiles == nil {
+		apierr.Write(w, apierr.Internal, "O plano alimentar está indisponível.", "")
+		return
+	}
+
+	slot := r.PathValue("slot")
+	if !slotsValidos[slot] {
+		// Um enum recusado pela base de dados chega ao cliente como 500, e 500
+		// quer dizer "a culpa é nossa". Isto é do pedido, e diz-se o campo.
+		apierr.Write(w, apierr.ValidationFailed, "Refeição desconhecida.", "slot")
+		return
+	}
+
+	day, err := localDay(r)
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Dia inválido.", "localDay")
+		return
+	}
+
+	in, err := h.Profiles.NutritionProfile(r.Context(), userID, day)
+	switch {
+	case errors.Is(err, service.ErrProfileMissing):
+		apierr.Write(w, apierr.ValidationFailed, "Perfil incompleto. Cria o teu plano primeiro.", "")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o teu perfil.")
+		return
+	}
+
+	var out service.NutritionToday
+	if trocar {
+		out, err = h.Plans.SwapMeal(r.Context(), in, slot)
+	} else {
+		out, err = h.Plans.ResetMeal(r.Context(), in, slot)
+	}
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível mudar a refeição.")
+		return
+	}
+	apierr.WriteJSON(w, http.StatusOK, view.BuildNutritionDay(
+		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy, out.Swapped))
 }

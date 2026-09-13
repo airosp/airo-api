@@ -440,3 +440,58 @@ func ScaleItemsTo(items []MealItem, targetKcal float64) []MealItem {
 	}
 	return out
 }
+
+type RebuildMealInput struct {
+	Meal PlannedMeal
+	Diet DietProfile
+	// Variant sobe a cada troca: tocar outra vez dá outra proposta em vez de
+	// devolver a mesma.
+	Variant int
+}
+
+// RebuildMeal remonta uma refeição com outra composição, mantendo intactos o
+// alvo calórico e o de macros — trocar não pode desfazer as contas do dia.
+//
+// Porte de `rebuildMeal` em `meal-engine.ts`.
+//
+// ⚠️ O passo da semente tem de ser **1**. `pickOne` indexa com `seed % n`, e um
+// passo maior fixa qualquer categoria cujo comprimento o divida: com passo 7 o
+// vegetal nunca mudava, porque há exactamente 7 vegetais.
+//
+// O segundo eixo é a receita. Uma refeição "equilibrada" nasce de uma receita, e
+// às vezes só há uma aceitável para aquele alvo — aí a semente não muda nada e a
+// troca não fazia rigorosamente nada. Quando isso acontece monta-se por
+// alimentos, que é o que dá alternativa de facto.
+func RebuildMeal(c Config, in RebuildMealInput) (PlannedMeal, error) {
+	base := seedFromDay(in.Meal.ID)
+	atual := assinatura(in.Meal.Items)
+
+	for step := 0; step < 10; step++ {
+		for _, comReceita := range []bool{true, false} {
+			items, err := buildMeal(buildMealInput{
+				Slot: in.Meal.Slot, Kcal: float64(in.Meal.Kcal), Macros: in.Meal.Macros,
+				Diet: in.Diet, Role: in.Meal.Role,
+				Seed: base + in.Variant + step, AllowRecipe: comReceita,
+			})
+			if err != nil {
+				return PlannedMeal{}, err
+			}
+			if assinatura(items) != atual {
+				out := in.Meal
+				out.Items = items
+				return out, nil
+			}
+		}
+	}
+	// Sem alternativa possível (dieta muito restrita), devolve-se o que havia.
+	// Não é erro: é a resposta honesta de "não há outra coisa que sirva".
+	return in.Meal, nil
+}
+
+func assinatura(items []MealItem) string {
+	ids := make([]string, 0, len(items))
+	for _, i := range items {
+		ids = append(ids, i.FoodID)
+	}
+	return strings.Join(ids, "+")
+}

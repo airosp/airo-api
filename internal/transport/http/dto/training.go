@@ -78,3 +78,35 @@ type SessionBlocks struct {
 type SessionHistoryResponse struct {
 	Sessions []SessionHistoryItem `json:"sessions"`
 }
+
+// SessionEventsRequest é o lote de factos de uma sessão.
+//
+// ⚠️ **Sem `status`.** Quem decide se a sessão conta é o servidor. O cliente diz
+// o que aconteceu e quando.
+type SessionEventsRequest struct {
+	// LocalDay é o dia **do utilizador**: um treino à uma da manhã em Maputo é
+	// dia anterior em UTC.
+	LocalDay string         `json:"localDay"`
+	Events   []SessionEvent `json:"events"`
+}
+
+type SessionEvent struct {
+	At   string `json:"at"`
+	Type string `json:"type"`
+	// Index é o passo da linha do tempo a que o evento pertence, quando faz
+	// sentido — um `session_ended` não tem passo.
+	Index   *int           `json:"index,omitempty"`
+	Payload map[string]any `json:"payload,omitempty"`
+}
+
+type SessionEventsResponse struct {
+	Accepted int `json:"accepted"`
+	// Duplicates são os que já lá estavam. Reenviar é normal, não é erro: é o
+	// que acontece quando a rede cai a meio do envio.
+	Duplicates int  `json:"duplicates"`
+	Ended      bool `json:"ended"`
+	// Preenchidos só quando o `session_ended` chegou.
+	Status          string `json:"status,omitempty"`
+	CountsForStreak bool   `json:"countsForStreak,omitempty"`
+	Streak          int    `json:"streak,omitempty"`
+}
