@@ -36,9 +36,18 @@ type Config struct {
 	// Template aprovado, categoria AUTHENTICATION.
 	Template string
 	// Language é o código de língua do template. Um template aprovado em
-	// `pt_BR` não aceita `pt_PT`: para a Meta são templates diferentes, e o
-	// erro é o mesmo que o de um nome inexistente — 132001.
+	// `en_US` não aceita `en`: para a Meta são templates diferentes, e o erro
+	// é o mesmo que o de um nome inexistente — 132001.
 	Language string
+	// Fallbacks são línguas a tentar quando a primeira não existe.
+	//
+	// Existe porque "está em inglês" não diz se é `en` ou `en_US`, e cada
+	// palpite errado custava uma ida ao servidor e uma pessoa de fora. Um
+	// 132001 quer dizer que **nada foi enviado**, por isso tentar a seguinte
+	// custa uma chamada e nunca uma segunda mensagem.
+	//
+	// Quando uma pega, é dito em voz alta com o valor a fixar.
+	Fallbacks []string
 	// GraphVersion fixa a versão da API. Não seguir a mais recente é
 	// deliberado: uma mudança de versão tem de ser uma decisão, não uma
 	// surpresa numa terça-feira.
@@ -66,11 +75,12 @@ func New(cfg Config) (*Sender, error) {
 		return nil, errors.New("whatsapp: falta AIRO_WHATSAPP_TEMPLATE")
 	}
 	if cfg.Language == "" {
-		// `pt_BR` e não `pt_PT`: é a língua em que o template desta conta está
-		// aprovado. O valor por omissão segue a conta, não a variante do país
-		// — um por omissão errado é o que volta a morder num ambiente novo,
-		// onde ninguém pensou em definir a variável.
-		cfg.Language = "pt_BR"
+		cfg.Language = "en_US"
+	}
+	if cfg.Fallbacks == nil {
+		// As variantes que a Meta trata como línguas distintas e que um
+		// humano descreveria com a mesma palavra.
+		cfg.Fallbacks = []string{"en", "en_GB", "en_US", "pt_BR", "pt_PT"}
 	}
 	if cfg.GraphVersion == "" {
 		cfg.GraphVersion = defaultGraphVersion
@@ -180,13 +190,56 @@ func (noWhatsAppError) Undeliverable() bool { return true }
 func (s *Sender) Send(ctx context.Context, phone, code, _ string) (string, error) {
 	to := strings.TrimPrefix(strings.TrimSpace(phone), "+")
 
+	var firstErr error
+	for i, lang := range s.languages() {
+		id, err := s.sendWith(ctx, to, code, lang)
+		if err == nil {
+			if i > 0 {
+				// Uma língua de recurso funcionou. Dizê-lo com o valor exacto
+				// poupa a próxima pessoa a esta descoberta.
+				s.cfg.Log.Warn("whatsapp: a língua configurada não existe — usada uma alternativa",
+					"configurada", s.cfg.Language, "usada", lang,
+					"fixar", "AIRO_WHATSAPP_LANGUAGE="+lang)
+			}
+			return id, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+		// Só se tenta outra língua quando é **esta** que não existe. Qualquer
+		// outro erro — número inválido, quota, template reprovado — não muda
+		// com a língua, e insistir só gastava chamadas.
+		var g graphError
+		if !errors.As(err, &g) || g.Code != 132001 {
+			return "", err
+		}
+	}
+	return "", firstErr
+}
+
+// languages devolve a língua configurada seguida das alternativas, sem
+// repetições.
+func (s *Sender) languages() []string {
+	out := []string{s.cfg.Language}
+	seen := map[string]bool{s.cfg.Language: true}
+	for _, l := range s.cfg.Fallbacks {
+		if l = strings.TrimSpace(l); l != "" && !seen[l] {
+			seen[l] = true
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// sendWith faz uma tentativa, numa língua.
+func (s *Sender) sendWith(ctx context.Context, to, code, lang string) (string, error) {
 	body := templateRequest{
 		MessagingProduct: "whatsapp",
 		To:               to,
 		Type:             "template",
 		Template: template{
 			Name:     s.cfg.Template,
-			Language: language{Code: s.cfg.Language},
+			Language: language{Code: lang},
 			Components: []component{
 				{Type: "body", Parameters: []parameter{{Type: "text", Text: code}}},
 				// O botão de copiar. Num template de autenticação a Meta
@@ -249,7 +302,7 @@ func (s *Sender) Send(ctx context.Context, phone, code, _ string) (string, error
 			// nossa configuração. Dizer qual a variável poupa a próxima hora.
 			s.cfg.Log.Error("whatsapp: template mal configurado — nenhuma tentativa vai passar",
 				append(args,
-					"template", s.cfg.Template, "lingua", s.cfg.Language,
+					"template", s.cfg.Template, "lingua", lang,
 					"corrigir", "AIRO_WHATSAPP_TEMPLATE e AIRO_WHATSAPP_LANGUAGE")...)
 			return "", *parsed.Error
 		}

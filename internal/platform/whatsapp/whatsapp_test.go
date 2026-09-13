@@ -20,7 +20,7 @@ func newSender(t *testing.T, h http.HandlerFunc) *whatsapp.Sender {
 	s, err := whatsapp.New(whatsapp.Config{
 		PhoneNumberID: "183024074892062",
 		Token:         "token-de-teste",
-		Template:      "otp_login_pt",
+		Template:      "otp_auth",
 		BaseURL:       srv.URL,
 		Log:           quiet(),
 	})
@@ -65,10 +65,10 @@ func TestEnvioMontaOPedidoQueAMetaEspera(t *testing.T) {
 	}
 
 	tpl := got["template"].(map[string]any)
-	if tpl["name"] != "otp_login_pt" {
+	if tpl["name"] != "otp_auth" {
 		t.Fatalf("template = %v", tpl["name"])
 	}
-	if tpl["language"].(map[string]any)["code"] != "pt_BR" {
+	if tpl["language"].(map[string]any)["code"] != "en_US" {
 		t.Fatalf("língua = %v", tpl["language"])
 	}
 
@@ -138,7 +138,7 @@ func TestOCodigoNaoAparaceNoRegisto(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	s, err := whatsapp.New(whatsapp.Config{
-		PhoneNumberID: "1", Token: "t", Template: "otp_login_pt",
+		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
 		BaseURL: srv.URL, Log: logTo(&buf),
 	})
 	if err != nil {
@@ -219,7 +219,7 @@ func TestOCodigoDeErroDaMetaApareceNoRegisto(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	s, err := whatsapp.New(whatsapp.Config{
-		PhoneNumberID: "1", Token: "t", Template: "otp_login_pt",
+		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
 		BaseURL: srv.URL, Log: logTo(&buf),
 	})
 	if err != nil {
@@ -237,7 +237,7 @@ func TestOCodigoDeErroDaMetaApareceNoRegisto(t *testing.T) {
 	if !strings.Contains(registo, "AIRO_WHATSAPP_TEMPLATE") {
 		t.Fatalf("o registo tem de dizer o que corrigir: %s", registo)
 	}
-	if !strings.Contains(registo, "otp_login_pt") {
+	if !strings.Contains(registo, "otp_auth") {
 		t.Fatalf("o registo tem de dizer que template falhou: %s", registo)
 	}
 	// O código de autenticação continua fora do registo, mesmo em erro.
@@ -258,5 +258,99 @@ func TestVersaoDoGraphPorOmissao(t *testing.T) {
 	}
 	if !strings.HasPrefix(path, "/v23.0/") {
 		t.Fatalf("caminho = %q, esperava v23.0", path)
+	}
+}
+
+// "Está em inglês" não diz se é `en` ou `en_US`. Cada palpite errado custava
+// uma ida ao servidor e uma pessoa de fora — por isso tenta-se.
+//
+// Um 132001 quer dizer que **nada foi enviado**: a tentativa seguinte custa uma
+// chamada e nunca uma segunda mensagem.
+func TestLinguaDeRecursoQuandoAPrimeiraNaoExiste(t *testing.T) {
+	var tentadas []string
+	var buf strings.Builder
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		var req map[string]any
+		_ = json.Unmarshal(body, &req)
+		lang := req["template"].(map[string]any)["language"].(map[string]any)["code"].(string)
+		tentadas = append(tentadas, lang)
+
+		if lang != "en_US" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"message":"(#132001) Template name does not exist in the translation","code":132001}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"messages":[{"id":"wamid.OK"}]}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	s, err := whatsapp.New(whatsapp.Config{
+		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
+		Language: "pt_BR", Fallbacks: []string{"en", "en_US"},
+		BaseURL: srv.URL, Log: logTo(&buf),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	id, err := s.Send(context.Background(), "+258841234567", "483920", "whatsapp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id != "wamid.OK" {
+		t.Fatalf("identificador = %q", id)
+	}
+	if len(tentadas) != 3 || tentadas[0] != "pt_BR" || tentadas[2] != "en_US" {
+		t.Fatalf("línguas tentadas = %v", tentadas)
+	}
+	// E diz qual fixar, para não se ficar a depender da tentativa.
+	if !strings.Contains(buf.String(), "AIRO_WHATSAPP_LANGUAGE=en_US") {
+		t.Fatalf("o registo tem de dizer o valor a fixar: %s", buf.String())
+	}
+}
+
+// Um erro que não é de língua não se repete noutra língua: o número inválido
+// continua inválido, e insistir só gasta chamadas.
+func TestOutroErroNaoTentaOutraLingua(t *testing.T) {
+	tentativas := 0
+	s := newSender(t, func(w http.ResponseWriter, _ *http.Request) {
+		tentativas++
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"Invalid recipient","code":131026}}`))
+	})
+	_, err := s.Send(context.Background(), "+258840000000", "123456", "whatsapp")
+	if !errors.Is(err, whatsapp.ErrNoWhatsApp) {
+		t.Fatalf("erro = %v", err)
+	}
+	if tentativas != 1 {
+		t.Fatalf("%d tentativas: só devia tentar uma vez", tentativas)
+	}
+}
+
+// Quando nenhuma língua existe, o erro que chega é o da língua configurada —
+// não o da última alternativa, que ninguém pediu.
+func TestNenhumaLinguaExisteDevolveOPrimeiroErro(t *testing.T) {
+	var buf strings.Builder
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"(#132001) Template name does not exist in the translation","code":132001}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	s, err := whatsapp.New(whatsapp.Config{
+		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
+		Language: "pt_BR", Fallbacks: []string{"en", "en_US"},
+		BaseURL: srv.URL, Log: logTo(&buf),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Send(context.Background(), "+258841234567", "123456", "whatsapp"); err == nil {
+		t.Fatal("devia falhar")
+	}
+	if !strings.Contains(buf.String(), "lingua=pt_BR") {
+		t.Fatalf("o registo tem de dizer a língua configurada: %s", buf.String())
 	}
 }

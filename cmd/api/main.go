@@ -136,6 +136,7 @@ func main() {
 			Language:      cfg.WhatsApp.Language,
 			BaseURL:       cfg.WhatsApp.BaseURL,
 			GraphVersion:  cfg.WhatsApp.GraphVersion,
+			Fallbacks:     cfg.WhatsApp.LanguageFallbacks,
 			Log:           log,
 		})
 		if err != nil {

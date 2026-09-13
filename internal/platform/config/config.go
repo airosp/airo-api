@@ -55,8 +55,10 @@ type WhatsAppConfig struct {
 	// problema sem enviar mensagens ao telefone de alguém.
 	BaseURL string
 	// GraphVersion fixa a versão da API. Vazio usa a que o pacote traz.
-	GraphVersion  string
-	WebhookSecret string
+	GraphVersion string
+	// LanguageFallbacks são línguas a tentar quando a configurada não existe.
+	LanguageFallbacks []string
+	WebhookSecret     string
 }
 
 func (c Config) IsProduction() bool { return c.Env == Production }
@@ -74,14 +76,15 @@ func Load() (Config, error) {
 		WhatsApp: WhatsAppConfig{
 			PhoneNumberID: get("AIRO_WHATSAPP_PHONE_NUMBER_ID", ""),
 			Token:         get("AIRO_WHATSAPP_TOKEN", ""),
-			// O template aprovado nesta conta, documentado em
-			// whatsapp-service/README.md para este mesmo número. `airo_otp`
-			// era um nome inventado por mim e não existe em lado nenhum.
-			Template:      get("AIRO_WHATSAPP_TEMPLATE", "otp_login_pt"),
-			Language:      get("AIRO_WHATSAPP_LANGUAGE", "pt_BR"),
-			BaseURL:       get("AIRO_WHATSAPP_BASE_URL", ""),
-			GraphVersion:  get("AIRO_WHATSAPP_GRAPH_VERSION", ""),
-			WebhookSecret: get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
+			// O template de autenticação aprovado nesta conta.
+			Template: get("AIRO_WHATSAPP_TEMPLATE", "otp_auth"),
+			Language: get("AIRO_WHATSAPP_LANGUAGE", "en_US"),
+			// Línguas a tentar quando a configurada não existe. Vazio usa as
+			// que o pacote traz.
+			LanguageFallbacks: splitList(get("AIRO_WHATSAPP_LANGUAGE_FALLBACKS", "")),
+			BaseURL:           get("AIRO_WHATSAPP_BASE_URL", ""),
+			GraphVersion:      get("AIRO_WHATSAPP_GRAPH_VERSION", ""),
+			WebhookSecret:     get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
 		},
 		CORSOrigins: splitList(get("AIRO_CORS_ORIGINS", "")),
 	}
