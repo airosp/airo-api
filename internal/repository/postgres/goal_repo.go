@@ -214,6 +214,31 @@ func (r *GoalRepo) InsertStrategy(ctx context.Context, userID, journeyID string,
 	return id, nil
 }
 
+// CurrentStrategy é a estratégia nutricional em vigor no dia indicado.
+//
+// A estratégia é uma **decisão gravada**, não uma conta a refazer: o alvo
+// calórico foi apresentado à pessoa quando o objectivo nasceu, e recalculá-lo a
+// cada pedido faria o número mudar debaixo dela sempre que o peso ou os dias de
+// treino mudassem um bocadinho.
+//
+// `effective_to` nulo quer dizer "ainda em vigor" — é o estado normal.
+func (r *GoalRepo) CurrentStrategy(ctx context.Context, userID string, day time.Time) (StrategyRow, error) {
+	var s StrategyRow
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`SELECT goal, calorie_target, protein_g, carbs_g, fat_g, tdee_estimated
+		   FROM nutrition_strategy
+		  WHERE user_id = $1
+		    AND effective_from <= $2
+		    AND (effective_to IS NULL OR effective_to >= $2)
+		  ORDER BY effective_from DESC, created_at DESC
+		  LIMIT 1`, userID, day,
+	).Scan(&s.Goal, &s.CalorieTarget, &s.ProteinG, &s.CarbsG, &s.FatG, &s.TDEEEstimated)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return StrategyRow{}, ErrNotFound
+	}
+	return s, err
+}
+
 // AppendEvent escreve no histórico imutável.
 //
 // Nunca é editado nem apagado: é dele que se reconstrói a razão pela qual o

@@ -89,7 +89,11 @@ func Wire(p Platform) Deps {
 	if p.MealImages != nil {
 		refeicoes = mealUploader{c: p.MealImages}
 	}
-	deps.Nutrition = &handlers.Nutrition{Photos: refeicoes, Logs: repo.NewNutritionRepo(tx)}
+	nutritionSvc := service.NewNutritionService(goals, configs.Nutrition, configs.Goal)
+	deps.Nutrition = &handlers.Nutrition{
+		Photos: refeicoes, Logs: repo.NewNutritionRepo(tx),
+		Plans: nutritionSvc, Profiles: profiles,
+	}
 
 	if len(p.JWTSecret) >= 32 {
 		tokens := auth.NewTokenIssuer(p.JWTSecret, p.Clock.Now)

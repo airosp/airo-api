@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/airosp/airo-api/internal/engine/nutrition"
 	"github.com/airosp/airo-api/internal/engine/training"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 )
@@ -272,4 +273,52 @@ func (p *Profiles) TrainingProfile(ctx ctxLike, userID string, day time.Time) (T
 		WorkoutMinutes: row.WorkoutMinutes,
 		LocalDay:       day,
 	}, nil
+}
+
+// NutritionProfile dá ao serviço de nutrição o que o pedido não traz.
+//
+// A dieta, o orçamento e as exclusões vêm do perfil — recebê-los no corpo era
+// deixar o cliente escolher o que come hoje, e isso é o plano que decide.
+func (p *Profiles) NutritionProfile(ctx ctxLike, userID string, day time.Time) (NutritionTodayInput, error) {
+	c := asContext(ctx)
+	row, err := p.repo.Profile(c, userID)
+	// Ao contrário do treino, aqui o peso é preciso: sem ele não há proteína
+	// por quilo nem gasto. Um plano alimentar sem peso não é um plano.
+	if err != nil {
+		return NutritionTodayInput{}, err
+	}
+
+	return NutritionTodayInput{
+		UserID: userID,
+		Diet: nutrition.DietProfile{
+			Style:       nutrition.DietStyle(row.DietStyle),
+			MealsPerDay: row.MealsPerDay,
+			Budget:      nutrition.Budget(row.FoodBudget),
+			Exclusions:  row.FoodExclusions,
+		},
+		Training: nutrition.TrainingLoad{
+			SessionsPerWeek: len(row.WorkoutDays),
+			WorkoutTime:     row.WorkoutTime,
+		},
+		// A segunda-feira é o dia 0, como no plano e no perfil.
+		TrainsToday: treinaEm(row.WorkoutDays, (int(day.Weekday())+6)%7),
+
+		WeightKg:       row.WeightKg,
+		HeightCm:       row.HeightCm,
+		Age:            row.Age,
+		Sex:            row.Sex,
+		DaysPerWeek:    len(row.WorkoutDays),
+		SessionMinutes: row.WorkoutMinutes,
+
+		LocalDay: day,
+	}, nil
+}
+
+func treinaEm(days []int, index int) bool {
+	for _, d := range days {
+		if d == index {
+			return true
+		}
+	}
+	return false
 }

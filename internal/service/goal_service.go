@@ -287,10 +287,7 @@ func (s *GoalService) buildStrategy(in CreateGoalInput, a goal.Assessment) (repo
 		tdee = s.cfg.Nutrition.MinDailyCalories
 	}
 
-	goalType := nutrition.GoalType(in.NutritionGoal)
-	if goalType == "" {
-		goalType = nutrition.Maintain
-	}
+	goalType := nutritionGoalOf(in)
 	target := nutrition.ComputeCalorieTarget(s.cfg.Nutrition, nutrition.CalorieTargetInput{
 		TDEEKcal: float64(tdee), GoalType: goalType,
 	})
@@ -301,4 +298,36 @@ func (s *GoalService) buildStrategy(in CreateGoalInput, a goal.Assessment) (repo
 		ProteinG: macros.Protein, CarbsG: macros.Carbs, FatG: macros.Fat,
 		TDEEEstimated: tdee,
 	}, nil
+}
+
+// nutritionGoalOf deriva o objectivo nutricional do objectivo declarado.
+//
+// Estava preso em `maintain`: quem pedia para ganhar massa recebia um alvo de
+// manutenção. Passou despercebido porque nada lia a estratégia de volta — o
+// número ficava gravado e nunca era mostrado a ninguém.
+//
+// A ordem é a de `clientGoalFrom` em `mobile/lib/api/goal-map.ts`, e tem de ser
+// a mesma: é a inversão exacta do que o cliente envia. Trocar dois ramos muda o
+// alvo calórico de quem já tem objectivo criado.
+func nutritionGoalOf(in CreateGoalInput) nutrition.GoalType {
+	// Um objectivo nutricional declarado no pedido manda — é o caso de quem
+	// escolhe a nutrição sem passar por um objectivo de peso.
+	if in.NutritionGoal != "" && in.NutritionGoal != "maintain" {
+		return nutrition.GoalType(in.NutritionGoal)
+	}
+	switch {
+	case in.Priority == "performance":
+		return nutrition.Performance
+	case in.Type == "behavior" || in.Priority == "health":
+		return nutrition.Health
+	case in.Direction == "gain_weight" || in.Priority == "muscle":
+		return nutrition.GainMuscle
+	// A app não envia `maintenance` — os quatro objectivos dela caem todos nos
+	// ramos acima ou no de baixo. Está aqui porque o contrato tem o valor, e
+	// sem ele quem o declarasse recebia um défice que não pediu.
+	case in.Type == "maintenance":
+		return nutrition.Maintain
+	default:
+		return nutrition.LoseFat
+	}
 }

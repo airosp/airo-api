@@ -1,0 +1,238 @@
+[
+ {
+  "id": "matapa_com_xima",
+  "name": "Matapa com xima",
+  "serves": 1,
+  "slots": [
+   "lunch",
+   "dinner"
+  ],
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "ingredients": [
+   {
+    "foodId": "matapa",
+    "grams": 180
+   },
+   {
+    "foodId": "xima",
+    "grams": 250
+   },
+   {
+    "foodId": "peanuts",
+    "grams": 20
+   }
+  ]
+ },
+ {
+  "id": "frango_arroz_salada",
+  "name": "Frango com arroz e salada",
+  "serves": 1,
+  "slots": [
+   "lunch",
+   "dinner"
+  ],
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "ingredients": [
+   {
+    "foodId": "chicken",
+    "grams": 130
+   },
+   {
+    "foodId": "rice",
+    "grams": 180
+   },
+   {
+    "foodId": "tomato_salad",
+    "grams": 120
+   },
+   {
+    "foodId": "oil",
+    "grams": 8
+   }
+  ]
+ },
+ {
+  "id": "feijao_couve_xima",
+  "name": "Feijão com couve e xima",
+  "serves": 1,
+  "slots": [
+   "lunch",
+   "dinner"
+  ],
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "ingredients": [
+   {
+    "foodId": "beans",
+    "grams": 180
+   },
+   {
+    "foodId": "couve",
+    "grams": 150
+   },
+   {
+    "foodId": "xima",
+    "grams": 220
+   }
+  ]
+ },
+ {
+  "id": "peixe_batata_quiabo",
+  "name": "Peixe com batata e quiabo",
+  "serves": 1,
+  "slots": [
+   "lunch",
+   "dinner"
+  ],
+  "styles": [
+   "omnivore",
+   "high_protein"
+  ],
+  "ingredients": [
+   {
+    "foodId": "fish_local",
+    "grams": 140
+   },
+   {
+    "foodId": "potato",
+    "grams": 200
+   },
+   {
+    "foodId": "okra",
+    "grams": 120
+   },
+   {
+    "foodId": "oil",
+    "grams": 7
+   }
+  ]
+ },
+ {
+  "id": "papa_amendoim_banana",
+  "name": "Papa de milho com amendoim e banana",
+  "serves": 1,
+  "slots": [
+   "breakfast",
+   "supper"
+  ],
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian",
+   "vegan"
+  ],
+  "ingredients": [
+   {
+    "foodId": "maize_porridge",
+    "grams": 250
+   },
+   {
+    "foodId": "peanuts",
+    "grams": 25
+   },
+   {
+    "foodId": "banana",
+    "grams": 100
+   }
+  ]
+ },
+ {
+  "id": "ovos_pao_abacate",
+  "name": "Ovos com pão e abacate",
+  "serves": 1,
+  "slots": [
+   "breakfast"
+  ],
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian"
+  ],
+  "ingredients": [
+   {
+    "foodId": "eggs",
+    "grams": 120
+   },
+   {
+    "foodId": "bread",
+    "grams": 70
+   },
+   {
+    "foodId": "avocado",
+    "grams": 60
+   }
+  ]
+ },
+ {
+  "id": "aveia_leite_manga",
+  "name": "Aveia com leite e manga",
+  "serves": 1,
+  "slots": [
+   "breakfast",
+   "snack"
+  ],
+  "styles": [
+   "omnivore",
+   "high_protein",
+   "vegetarian"
+  ],
+  "ingredients": [
+   {
+    "foodId": "oats",
+    "grams": 60
+   },
+   {
+    "foodId": "milk",
+    "grams": 200
+   },
+   {
+    "foodId": "mango",
+    "grams": 120
+   }
+  ]
+ },
+ {
+  "id": "soja_couscous",
+  "name": "Soja com cuscuz e legumes",
+  "serves": 1,
+  "slots": [
+   "lunch",
+   "dinner"
+  ],
+  "styles": [
+   "vegetarian",
+   "vegan",
+   "high_protein"
+  ],
+  "ingredients": [
+   {
+    "foodId": "soya",
+    "grams": 50
+   },
+   {
+    "foodId": "couscous",
+    "grams": 180
+   },
+   {
+    "foodId": "carrot",
+    "grams": 100
+   },
+   {
+    "foodId": "oil",
+    "grams": 8
+   }
+  ]
+ }
+]

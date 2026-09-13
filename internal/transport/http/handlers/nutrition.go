@@ -11,9 +11,11 @@ import (
 	"time"
 
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
+	"github.com/airosp/airo-api/internal/service"
 	"github.com/airosp/airo-api/internal/transport/http/apierr"
 	"github.com/airosp/airo-api/internal/transport/http/dto"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
+	"github.com/airosp/airo-api/internal/transport/http/view"
 )
 
 // MealUploader guarda a fotografia de uma refeição e devolve os endereços já
@@ -30,8 +32,10 @@ type MealLogStore interface {
 }
 
 type Nutrition struct {
-	Photos MealUploader
-	Logs   MealLogStore
+	Photos   MealUploader
+	Logs     MealLogStore
+	Plans    *service.NutritionService
+	Profiles NutritionProfileReader
 }
 
 // SaveLog grava um registo do diário.
@@ -321,4 +325,56 @@ func nomeAleatorio() (string, error) {
 		return "", errors.New("gerar nome: " + err.Error())
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// NutritionProfileReader dá ao handler o que o motor precisa e o pedido não traz.
+type NutritionProfileReader interface {
+	NutritionProfile(ctx contextLike, userID string, day time.Time) (service.NutritionTodayInput, error)
+}
+
+// Today devolve o plano alimentar do dia, já decidido.
+//
+// O alvo calórico, os macros, a repartição pelas refeições e os alimentos de
+// cada uma são decisões — e nenhuma delas volta a ser tomada no telemóvel. O
+// cliente desenha os cartões que aqui vão.
+func (h Nutrition) Today(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Plans == nil || h.Profiles == nil {
+		apierr.Write(w, apierr.Internal, "O plano alimentar está indisponível.", "")
+		return
+	}
+
+	day, err := localDay(r)
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Dia inválido.", "localDay")
+		return
+	}
+
+	in, err := h.Profiles.NutritionProfile(r.Context(), userID, day)
+	switch {
+	case errors.Is(err, service.ErrProfileMissing):
+		apierr.Write(w, apierr.ValidationFailed, "Perfil incompleto. Cria o teu plano primeiro.", "")
+		return
+	case errors.Is(err, service.ErrWeightMissing):
+		// Ao contrário do treino, aqui o peso faz falta a sério: sem ele não há
+		// proteína por quilo nem gasto. Dizer o que falta é melhor do que
+		// devolver um plano inventado.
+		apierr.Write(w, apierr.ValidationFailed, "Falta o teu peso para calcular o plano alimentar.", "weightKg")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o teu perfil.")
+		return
+	}
+
+	out, err := h.Plans.Today(r.Context(), in)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível montar o plano de hoje.")
+		return
+	}
+	apierr.WriteJSON(w, http.StatusOK, view.BuildNutritionDay(
+		out.Strategy, out.Day, in.TrainsToday, out.FromStoredStrategy))
 }
