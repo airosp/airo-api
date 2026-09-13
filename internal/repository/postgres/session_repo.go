@@ -128,6 +128,24 @@ func (r *SessionRepo) Insert(ctx context.Context, s SessionRow, prescriptions []
 			return err
 		}
 
+		/*
+		 * Tudo de uma vez, e não linha a linha.
+		 *
+		 * Eram duas idas à base de dados por exercício e mais uma por série:
+		 * com nove exercícios e três séries cada, quarenta e cinco viagens. Com
+		 * a base de dados noutro continente isso são **onze segundos**, e o
+		 * telemóvel desistia ao fim de doze com a transacção a meio — o treino
+		 * perdia-se e o registo dizia `context canceled`.
+		 *
+		 * Duas instruções, dois `unnest`. As mesmas linhas, uma viagem cada.
+		 */
+		posicoes := make([]int32, 0, len(prescriptions))
+		exercicios := make([]string, 0, len(prescriptions))
+		papeis := make([]string, 0, len(prescriptions))
+		series := make([]int32, 0, len(prescriptions))
+		alvos := make([][]byte, 0, len(prescriptions))
+		descansos := make([]int32, 0, len(prescriptions))
+
 		for _, p := range prescriptions {
 			exerciseID, ok := ids[p.ExerciseSlug]
 			if !ok {
@@ -140,42 +158,94 @@ func (r *SessionRepo) Insert(ctx context.Context, s SessionRow, prescriptions []
 			if err != nil {
 				return err
 			}
+			posicoes = append(posicoes, int32(p.Position))
+			exercicios = append(exercicios, exerciseID)
+			papeis = append(papeis, p.Role)
+			series = append(series, int32(p.Sets))
+			alvos = append(alvos, target)
+			descansos = append(descansos, int32(p.RestSeconds))
+		}
 
-			var prescriptionID string
-			err = q.QueryRow(ctx,
-				`INSERT INTO exercise_prescription
-				   (session_id, exercise_id, position, role, sets, target, rest_seconds)
-				 VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-				sessionID, exerciseID, p.Position, p.Role, p.Sets, target, p.RestSeconds,
-			).Scan(&prescriptionID)
-			if err != nil {
-				return fmt.Errorf("gravar prescrição %d: %w", p.Position, err)
+		// `RETURNING id, position` e não só `id`: a ordem de retorno de um
+		// INSERT múltiplo não é garantida, e assumi-la ligaria séries ao
+		// exercício errado — um erro que ninguém veria até alguém ler o
+		// histórico com atenção.
+		rows, err := q.Query(ctx,
+			`INSERT INTO exercise_prescription
+			   (session_id, exercise_id, position, role, sets, target, rest_seconds)
+			 SELECT $1, e.id, u.position, u.role::session_role, u.sets, u.target, u.rest
+			   FROM unnest($2::uuid[], $3::smallint[], $4::text[], $5::smallint[],
+			               $6::jsonb[], $7::integer[])
+			        AS u(exercise_id, position, role, sets, target, rest)
+			   JOIN exercise e ON e.id = u.exercise_id
+			 RETURNING id, position`,
+			sessionID, exercicios, posicoes, papeis, series, alvos, descansos)
+		if err != nil {
+			return fmt.Errorf("gravar prescrições: %w", err)
+		}
+
+		porPosicao := make(map[int]string, len(prescriptions))
+		for rows.Next() {
+			var id string
+			var posicao int
+			if err := rows.Scan(&id, &posicao); err != nil {
+				rows.Close()
+				return fmt.Errorf("ler prescrição gravada: %w", err)
 			}
+			porPosicao[posicao] = id
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("gravar prescrições: %w", err)
+		}
 
+		var (
+			setPrescricoes []string
+			setIndices     []int32
+			setAlvos       [][]byte
+			setActuais     [][]byte
+			setFeitas      []bool
+			setQuando      []*time.Time
+		)
+		for _, p := range prescriptions {
+			prescriptionID, ok := porPosicao[p.Position]
+			if !ok {
+				return fmt.Errorf("prescrição %d não voltou do INSERT", p.Position)
+			}
 			for _, set := range p.Detail {
 				setTarget, err := json.Marshal(set.Target)
 				if err != nil {
 					return err
 				}
-				var actual any
+				var actual []byte
 				if set.Actual != nil {
-					b, err := json.Marshal(set.Actual)
-					if err != nil {
+					if actual, err = json.Marshal(set.Actual); err != nil {
 						return err
 					}
-					actual = b
 				}
-				var completedAt any
+				var quando *time.Time
 				if set.Completed {
-					completedAt = s.OccurredAt
+					at := s.OccurredAt
+					quando = &at
 				}
-				if _, err := q.Exec(ctx,
-					`INSERT INTO exercise_set (prescription_id, index, target, actual, completed, completed_at)
-					 VALUES ($1,$2,$3,$4,$5,$6)`,
-					prescriptionID, set.Index, setTarget, actual, set.Completed, completedAt); err != nil {
-					return fmt.Errorf("gravar série %d: %w", set.Index, err)
-				}
+				setPrescricoes = append(setPrescricoes, prescriptionID)
+				setIndices = append(setIndices, int32(set.Index))
+				setAlvos = append(setAlvos, setTarget)
+				setActuais = append(setActuais, actual)
+				setFeitas = append(setFeitas, set.Completed)
+				setQuando = append(setQuando, quando)
 			}
+		}
+
+		if len(setPrescricoes) == 0 {
+			return nil
+		}
+		if _, err := q.Exec(ctx,
+			`INSERT INTO exercise_set (prescription_id, index, target, actual, completed, completed_at)
+			 SELECT * FROM unnest($1::uuid[], $2::smallint[], $3::jsonb[], $4::jsonb[],
+			                      $5::boolean[], $6::timestamptz[])`,
+			setPrescricoes, setIndices, setAlvos, setActuais, setFeitas, setQuando); err != nil {
+			return fmt.Errorf("gravar séries: %w", err)
 		}
 		return nil
 	})
