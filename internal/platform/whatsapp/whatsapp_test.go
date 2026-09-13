@@ -20,7 +20,7 @@ func newSender(t *testing.T, h http.HandlerFunc) *whatsapp.Sender {
 	s, err := whatsapp.New(whatsapp.Config{
 		PhoneNumberID: "183024074892062",
 		Token:         "token-de-teste",
-		Template:      "otp_auth",
+		Template:      "otp_auth_pt",
 		BaseURL:       srv.URL,
 		Log:           quiet(),
 	})
@@ -65,10 +65,10 @@ func TestEnvioMontaOPedidoQueAMetaEspera(t *testing.T) {
 	}
 
 	tpl := got["template"].(map[string]any)
-	if tpl["name"] != "otp_auth" {
+	if tpl["name"] != "otp_auth_pt" {
 		t.Fatalf("template = %v", tpl["name"])
 	}
-	if tpl["language"].(map[string]any)["code"] != "en_US" {
+	if tpl["language"].(map[string]any)["code"] != "pt_BR" {
 		t.Fatalf("língua = %v", tpl["language"])
 	}
 
@@ -138,7 +138,7 @@ func TestOCodigoNaoAparaceNoRegisto(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	s, err := whatsapp.New(whatsapp.Config{
-		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
+		PhoneNumberID: "1", Token: "t", Template: "otp_auth_pt",
 		BaseURL: srv.URL, Log: logTo(&buf),
 	})
 	if err != nil {
@@ -219,7 +219,7 @@ func TestOCodigoDeErroDaMetaApareceNoRegisto(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	s, err := whatsapp.New(whatsapp.Config{
-		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
+		PhoneNumberID: "1", Token: "t", Template: "otp_auth_pt",
 		BaseURL: srv.URL, Log: logTo(&buf),
 	})
 	if err != nil {
@@ -237,7 +237,7 @@ func TestOCodigoDeErroDaMetaApareceNoRegisto(t *testing.T) {
 	if !strings.Contains(registo, "AIRO_WHATSAPP_TEMPLATE") {
 		t.Fatalf("o registo tem de dizer o que corrigir: %s", registo)
 	}
-	if !strings.Contains(registo, "otp_auth") {
+	if !strings.Contains(registo, "otp_auth_pt") {
 		t.Fatalf("o registo tem de dizer que template falhou: %s", registo)
 	}
 	// O código de autenticação continua fora do registo, mesmo em erro.
@@ -287,7 +287,7 @@ func TestLinguaDeRecursoQuandoAPrimeiraNaoExiste(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	s, err := whatsapp.New(whatsapp.Config{
-		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
+		PhoneNumberID: "1", Token: "t", Template: "otp_auth_pt",
 		Language: "pt_BR", Fallbacks: []string{"en", "en_US"},
 		BaseURL: srv.URL, Log: logTo(&buf),
 	})
@@ -340,7 +340,7 @@ func TestNenhumaLinguaExisteDevolveOPrimeiroErro(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	s, err := whatsapp.New(whatsapp.Config{
-		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
+		PhoneNumberID: "1", Token: "t", Template: "otp_auth_pt",
 		Language: "pt_BR", Fallbacks: []string{"en", "en_US"},
 		BaseURL: srv.URL, Log: logTo(&buf),
 	})

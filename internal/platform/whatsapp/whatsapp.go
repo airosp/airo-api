@@ -36,8 +36,9 @@ type Config struct {
 	// Template aprovado, categoria AUTHENTICATION.
 	Template string
 	// Language é o código de língua do template. Um template aprovado em
-	// `en_US` não aceita `en`: para a Meta são templates diferentes, e o erro
-	// é o mesmo que o de um nome inexistente — 132001.
+	// `pt_BR` não aceita `pt_PT`, nem `en_US` aceita `en`: para a Meta são
+	// templates diferentes, e o erro é o mesmo que o de um nome inexistente —
+	// 132001. Foi o que tornou três palpites seguidos indistinguíveis.
 	Language string
 	// Fallbacks são línguas a tentar quando a primeira não existe.
 	//
@@ -75,12 +76,12 @@ func New(cfg Config) (*Sender, error) {
 		return nil, errors.New("whatsapp: falta AIRO_WHATSAPP_TEMPLATE")
 	}
 	if cfg.Language == "" {
-		cfg.Language = "en_US"
+		cfg.Language = "pt_BR"
 	}
 	if cfg.Fallbacks == nil {
 		// As variantes que a Meta trata como línguas distintas e que um
 		// humano descreveria com a mesma palavra.
-		cfg.Fallbacks = []string{"en", "en_GB", "en_US", "pt_BR", "pt_PT"}
+		cfg.Fallbacks = []string{"pt_BR", "pt_PT", "en_US", "en", "en_GB"}
 	}
 	if cfg.GraphVersion == "" {
 		cfg.GraphVersion = defaultGraphVersion
