@@ -52,6 +52,18 @@ func main() {
 		fmt.Printf("  %-22s %s\n", kind, at.Format("15:04:05"))
 	}
 
+	var comFoto int
+	var ultimaFoto *string
+	_ = pool.QueryRow(ctx,
+		`SELECT count(*) FROM profile WHERE photo_url IS NOT NULL`).Scan(&comFoto)
+	_ = pool.QueryRow(ctx,
+		`SELECT photo_url FROM profile WHERE photo_url IS NOT NULL
+		  ORDER BY updated_at DESC LIMIT 1`).Scan(&ultimaFoto)
+	fmt.Printf("\nperfis com fotografia: %d\n", comFoto)
+	if ultimaFoto != nil {
+		fmt.Println("a mais recente:", *ultimaFoto)
+	}
+
 	var users, devices, tokens, profiles int
 	_ = pool.QueryRow(ctx, `SELECT count(*) FROM app_user`).Scan(&users)
 	_ = pool.QueryRow(ctx, `SELECT count(*) FROM device`).Scan(&devices)
