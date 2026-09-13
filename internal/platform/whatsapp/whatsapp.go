@@ -24,7 +24,10 @@ import (
 	"time"
 )
 
-const defaultGraphVersion = "v21.0"
+// A mesma versão que o `whatsapp-service` já usa em produção com este número.
+// Duas versões diferentes contra a mesma conta é uma diferença à espera de
+// surpreender alguém.
+const defaultGraphVersion = "v23.0"
 
 type Config struct {
 	// PhoneNumberID é o número **remetente**, não o destinatário.
@@ -134,6 +137,24 @@ func (e graphError) Error() string {
 	return fmt.Sprintf("whatsapp: %s (código %d)", e.Message, e.Code)
 }
 
+// isConfigError diz se o erro é da nossa configuração e não do momento.
+//
+//	132001 o par nome+língua não existe na conta
+//	132000 o número de parâmetros não bate certo com o template
+//	132005 o template está reprovado ou em revisão
+//	132007 o conteúdo do parâmetro foi recusado
+//	132012 falta um parâmetro que o template declara
+//	133010 o número remetente não está registado
+//
+// Todos querem uma correcção, não uma repetição.
+func isConfigError(code int) bool {
+	switch code {
+	case 132000, 132001, 132005, 132007, 132012, 133010:
+		return true
+	}
+	return false
+}
+
 // ErrNoWhatsApp é o caso que interessa distinguir: o número existe, mas não
 // tem WhatsApp. Não é falha nossa nem da Meta, e a resposta a dar a quem está
 // a tentar entrar é outra — é o SMS.
@@ -209,10 +230,25 @@ func (s *Sender) Send(ctx context.Context, phone, code, _ string) (string, error
 		if parsed.Error.Code == 131026 || parsed.Error.Code == 131047 {
 			return "", ErrNoWhatsApp
 		}
-		s.cfg.Log.Error("whatsapp recusou o envio",
-			"code", parsed.Error.Code, "subcode", parsed.Error.Subcode,
+		// A chave não é `code`: essa é ocultada pelo `scrub` do registo, e bem —
+		// é o que impede um código de autenticação de escorregar para os
+		// registos. Aqui é o código de erro da Meta, e ocultá-lo deixava a
+		// linha a dizer `code=[oculto]` sobre a única coisa accionável.
+		args := []any{
+			"meta_code", parsed.Error.Code, "meta_subcode", parsed.Error.Subcode,
 			"type", parsed.Error.Type, "fbtrace", parsed.Error.FBTrace,
-			"message", parsed.Error.Message)
+			"message", parsed.Error.Message,
+		}
+		if isConfigError(parsed.Error.Code) {
+			// Isto não melhora com uma segunda tentativa e não é da rede: é a
+			// nossa configuração. Dizer qual a variável poupa a próxima hora.
+			s.cfg.Log.Error("whatsapp: template mal configurado — nenhuma tentativa vai passar",
+				append(args,
+					"template", s.cfg.Template, "lingua", s.cfg.Language,
+					"corrigir", "AIRO_WHATSAPP_TEMPLATE e AIRO_WHATSAPP_LANGUAGE")...)
+			return "", *parsed.Error
+		}
+		s.cfg.Log.Error("whatsapp recusou o envio", args...)
 		return "", *parsed.Error
 	}
 

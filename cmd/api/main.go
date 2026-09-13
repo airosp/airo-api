@@ -135,6 +135,7 @@ func main() {
 			Template:      cfg.WhatsApp.Template,
 			Language:      cfg.WhatsApp.Language,
 			BaseURL:       cfg.WhatsApp.BaseURL,
+			GraphVersion:  cfg.WhatsApp.GraphVersion,
 			Log:           log,
 		})
 		if err != nil {

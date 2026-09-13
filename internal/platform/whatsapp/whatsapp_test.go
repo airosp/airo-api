@@ -20,7 +20,7 @@ func newSender(t *testing.T, h http.HandlerFunc) *whatsapp.Sender {
 	s, err := whatsapp.New(whatsapp.Config{
 		PhoneNumberID: "183024074892062",
 		Token:         "token-de-teste",
-		Template:      "otp_auth",
+		Template:      "otp_login_pt",
 		BaseURL:       srv.URL,
 		Log:           quiet(),
 	})
@@ -48,7 +48,7 @@ func TestEnvioMontaOPedidoQueAMetaEspera(t *testing.T) {
 	if id != "wamid.TESTE" {
 		t.Fatalf("identificador = %q", id)
 	}
-	if path != "/v21.0/183024074892062/messages" {
+	if path != "/v23.0/183024074892062/messages" {
 		t.Fatalf("caminho = %q", path)
 	}
 	if auth != "Bearer token-de-teste" {
@@ -65,7 +65,7 @@ func TestEnvioMontaOPedidoQueAMetaEspera(t *testing.T) {
 	}
 
 	tpl := got["template"].(map[string]any)
-	if tpl["name"] != "otp_auth" {
+	if tpl["name"] != "otp_login_pt" {
 		t.Fatalf("template = %v", tpl["name"])
 	}
 	if tpl["language"].(map[string]any)["code"] != "pt_PT" {
@@ -138,7 +138,7 @@ func TestOCodigoNaoAparaceNoRegisto(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	s, err := whatsapp.New(whatsapp.Config{
-		PhoneNumberID: "1", Token: "t", Template: "otp_auth",
+		PhoneNumberID: "1", Token: "t", Template: "otp_login_pt",
 		BaseURL: srv.URL, Log: logTo(&buf),
 	})
 	if err != nil {
@@ -202,5 +202,61 @@ func TestNumeroSemWhatsAppDeclaraSeNaoEntregavel(t *testing.T) {
 	_, err := s.Send(context.Background(), "+258841234567", "123456", "whatsapp")
 	if errors.As(err, &u) {
 		t.Fatalf("erro transitório não devia ser não-entregável: %v", err)
+	}
+}
+
+// O código de erro da Meta tem de aparecer no registo.
+//
+// Chamava-se `code`, e o `scrub` ocultava-o — a linha dizia `code=[oculto]`
+// sobre a única coisa accionável que ali havia. A ocultação está certa; o nome
+// é que estava errado.
+func TestOCodigoDeErroDaMetaApareceNoRegisto(t *testing.T) {
+	var buf strings.Builder
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"message":"(#132001) Template name does not exist in the translation","code":132001}}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	s, err := whatsapp.New(whatsapp.Config{
+		PhoneNumberID: "1", Token: "t", Template: "otp_login_pt",
+		BaseURL: srv.URL, Log: logTo(&buf),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Send(context.Background(), "+258841234567", "483920", "whatsapp"); err == nil {
+		t.Fatal("132001 tem de falhar")
+	}
+
+	registo := buf.String()
+	if !strings.Contains(registo, "meta_code=132001") {
+		t.Fatalf("o código da Meta tem de estar legível: %s", registo)
+	}
+	// E diz qual a variável a corrigir, porque repetir nunca vai funcionar.
+	if !strings.Contains(registo, "AIRO_WHATSAPP_TEMPLATE") {
+		t.Fatalf("o registo tem de dizer o que corrigir: %s", registo)
+	}
+	if !strings.Contains(registo, "otp_login_pt") {
+		t.Fatalf("o registo tem de dizer que template falhou: %s", registo)
+	}
+	// O código de autenticação continua fora do registo, mesmo em erro.
+	if strings.Contains(registo, "483920") {
+		t.Fatalf("o código foi para o registo: %s", registo)
+	}
+}
+
+// A versão do Graph é a mesma que o serviço de WhatsApp já usa com esta conta.
+func TestVersaoDoGraphPorOmissao(t *testing.T) {
+	var path string
+	s := newSender(t, func(w http.ResponseWriter, r *http.Request) {
+		path = r.URL.Path
+		_, _ = w.Write([]byte(`{"messages":[{"id":"wamid.X"}]}`))
+	})
+	if _, err := s.Send(context.Background(), "+258841234567", "123456", "whatsapp"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(path, "/v23.0/") {
+		t.Fatalf("caminho = %q, esperava v23.0", path)
 	}
 }
