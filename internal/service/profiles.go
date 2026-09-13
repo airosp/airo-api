@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/airosp/airo-api/internal/engine/training"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 )
 
@@ -257,7 +258,10 @@ func (p *Profiles) TrainingProfile(ctx ctxLike, userID string, day time.Time) (T
 		return TodayInput{}, err
 	}
 
-	label := "Full Body"
+	// O plano gravado manda, quando existe. Ainda não existe: nada escreve
+	// `planned_session`. Até escrever, o rótulo deriva-se dos dias de treino
+	// — a mesma conta que o telemóvel faz, agora feita aqui.
+	label := training.PlanLabelOn(row.WorkoutDays, day)
 	if planned, ok := p.repo.PlanLabelOn(c, userID, day); ok {
 		label = planned
 	}
