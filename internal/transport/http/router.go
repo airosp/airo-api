@@ -30,6 +30,7 @@ type Deps struct {
 	Progress    *handlers.Progress
 	Account     *handlers.Account
 	Catalog     *handlers.Catalog
+	Calendar    *handlers.Calendar
 	Idempotency middleware.Store
 
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
@@ -56,7 +57,7 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/logout", d.AuthAPI.Logout)
 	}
 
-	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil) {
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -99,6 +100,16 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Profile.Photo), middleware.Auth(d.Auth)))
 			mux.Handle("DELETE /v1/profile/photo",
 				middleware.Chain(http.HandlerFunc(d.Profile.DeletePhoto), middleware.Auth(d.Auth)))
+		}
+		if d.Calendar != nil {
+			// `PUT` com o identificador do telemóvel: a marca nasce offline e é
+			// idempotente por construção, logo fica fora da cadeia.
+			mux.Handle("PUT /v1/calendar/marks/{id}",
+				middleware.Chain(http.HandlerFunc(d.Calendar.Save), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/calendar/marks",
+				middleware.Chain(http.HandlerFunc(d.Calendar.Read), middleware.Auth(d.Auth)))
+			mux.Handle("DELETE /v1/calendar/marks/{id}",
+				middleware.Chain(http.HandlerFunc(d.Calendar.Delete), middleware.Auth(d.Auth)))
 		}
 		if d.Catalog != nil {
 			// Leituras puras do catálogo: fora da idempotência, e sem tocar em

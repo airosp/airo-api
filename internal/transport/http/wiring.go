@@ -105,6 +105,7 @@ func Wire(p Platform) Deps {
 	if p.Images != nil {
 		apagaImagens = avatarUploader{c: p.Images}
 	}
+	deps.Calendar = &handlers.Calendar{Marks: repo.NewCalendarRepo(tx)}
 	deps.Catalog = &handlers.Catalog{Training: trainingCfg, Nutrition: configs.Nutrition}
 	deps.Account = &handlers.Account{
 		Service: service.NewAccountService(repo.NewAccountRepo(tx), apagaImagens),
@@ -112,7 +113,8 @@ func Wire(p Platform) Deps {
 
 	deps.Progress = &handlers.Progress{
 		Service: service.NewProgressService(repo.NewProgressRepo(tx), goals, configs.Journey).
-			WithAdaptations(repo.NewAdaptationRepo(tx), goals, repo.NewProfileRepo(tx)),
+			WithAdaptations(repo.NewAdaptationRepo(tx), goals, repo.NewProfileRepo(tx)).
+			WithAbsences(repo.NewCalendarRepo(tx)),
 		Profiles: profiles,
 		Clock:    p.Clock,
 	}

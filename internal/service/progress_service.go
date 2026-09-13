@@ -11,6 +11,14 @@ import (
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 )
 
+// AbsenceReader conta os dias marcados como ausência.
+//
+// Ao lado da pausa e pela mesma razão: uma ausência de um dia não se marca com
+// um intervalo, e quem avisa não pode ser penalizado por isso.
+type AbsenceReader interface {
+	AbsenceDays(ctx context.Context, userID string, from, to time.Time) (int, error)
+}
+
 // ProgressReader lê a história de que o progresso vive.
 type ProgressReader interface {
 	Measurements(ctx context.Context, userID, metric string, since time.Time) ([]repo.MeasurementRow, error)
@@ -28,6 +36,7 @@ type JourneyReader interface {
 }
 
 type ProgressService struct {
+	absences    AbsenceReader
 	progress    ProgressReader
 	journeys    JourneyReader
 	adaptations AdaptationStore
@@ -150,6 +159,23 @@ func (s *ProgressService) Snapshot(ctx context.Context, in SnapshotInput) (Snaps
 	pausados, err := s.journeys.PausedDays(ctx, j.ID, j.StartDate, in.Now)
 	if err != nil {
 		return Snapshot{}, err
+	}
+	// As ausências marcadas no calendário juntam-se às pausas.
+	//
+	// ⚠️ Somam-se, e podem contar o mesmo dia duas vezes: quem pausou a jornada
+	// **e** marcou ausência no mesmo dia tira-o duas vezes ao denominador. O
+	// limite abaixo é o que impede a adesão de passar dos 100% por isso — a
+	// alternativa, cruzar os dois intervalos em SQL, custa mais do que o
+	// problema vale enquanto marcar as duas coisas for raro.
+	if s.absences != nil {
+		ausentes, err := s.absences.AbsenceDays(ctx, in.UserID, j.StartDate, in.Now)
+		if err != nil {
+			return Snapshot{}, err
+		}
+		pausados += ausentes
+	}
+	if dias := int(in.Now.Sub(j.StartDate).Hours() / 24); pausados > dias {
+		pausados = dias
 	}
 	adesao := journey.ComputeAdherence(s.cfg, journey.AdherenceInput{
 		Sessions:       registos,
@@ -343,6 +369,12 @@ type AssessmentWriter interface {
 // PlanWriter aplica ao plano o que a adaptação propõe.
 type PlanWriter interface {
 	ApplyPlanChanges(ctx context.Context, userID string, frequency, minutes *int) error
+}
+
+// WithAbsences liga o calendário, para as ausências saírem da adesão.
+func (s *ProgressService) WithAbsences(a AbsenceReader) *ProgressService {
+	s.absences = a
+	return s
 }
 
 // WithAdaptations liga as peças que só a proposta de adaptações precisa.
