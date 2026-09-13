@@ -474,3 +474,143 @@ func TestNumeroSemWhatsAppGastaOrcamento(t *testing.T) {
 		t.Fatalf("a sexta devia bater no limite; deu %v", err)
 	}
 }
+
+// Sair tem de tirar a sessão de pé — no servidor, não só no telemóvel.
+//
+// Sem isto, "terminar sessão" era apagar o token deste aparelho e deixá-lo
+// válido do outro lado: quem tivesse uma cópia continuava a entrar.
+func TestLogoutRevogaASessao(t *testing.T) {
+	svc, sender, pool, _ := authSetup(t)
+	ctx := context.Background()
+
+	challenge := requestOTP(t, svc, testPhone)
+	login, err := svc.VerifyOTP(ctx, service.VerifyOTPInput{
+		ChallengeID: challenge.ChallengeID, Code: sender.code(testE164), DeviceID: "device-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Roda uma vez: é o caso que interessa. Revogar só a linha deixaria de pé o
+	// token que a rotação acabou de emitir.
+	rotated, err := svc.Refresh(ctx, login.RefreshToken, "device-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := svc.Logout(ctx, rotated.RefreshToken); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := svc.Refresh(ctx, rotated.RefreshToken, "device-1"); err == nil {
+		t.Fatal("o token devia ter deixado de servir")
+	}
+
+	var live int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM refresh_token WHERE user_id = $1 AND revoked_at IS NULL`,
+		login.UserID).Scan(&live); err != nil {
+		t.Fatal(err)
+	}
+	if live != 0 {
+		t.Fatalf("%d tokens vivos depois de sair", live)
+	}
+
+	var kinds []string
+	rows, err := pool.Query(ctx,
+		`SELECT kind FROM auth_event WHERE user_id = $1 ORDER BY occurred_at`, login.UserID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			t.Fatal(err)
+		}
+		kinds = append(kinds, k)
+	}
+	if !containsString(kinds, "logout") {
+		t.Fatalf("o trilho de auditoria tem de registar a saída; tem %v", kinds)
+	}
+}
+
+// Sair duas vezes é sair. E sair com um token que não existe também.
+//
+// A resposta é a mesma nos três casos: distinguir "terminada" de "não existia"
+// dá a quem tenta um oráculo para saber quais os tokens que existem.
+func TestLogoutERepetivelESilencioso(t *testing.T) {
+	svc, sender, _, _ := authSetup(t)
+	ctx := context.Background()
+
+	challenge := requestOTP(t, svc, testPhone)
+	login, err := svc.VerifyOTP(ctx, service.VerifyOTPInput{
+		ChallengeID: challenge.ChallengeID, Code: sender.code(testE164), DeviceID: "device-1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 1; i <= 3; i++ {
+		if err := svc.Logout(ctx, login.RefreshToken); err != nil {
+			t.Fatalf("saída %d: %v", i, err)
+		}
+	}
+	if err := svc.Logout(ctx, "nao-existe-de-certeza"); err != nil {
+		t.Fatalf("token desconhecido: %v", err)
+	}
+	if err := svc.Logout(ctx, ""); err != nil {
+		t.Fatalf("token vazio: %v", err)
+	}
+}
+
+// Sair num aparelho não deita a sessão do outro abaixo.
+//
+// A família é por aparelho. Se a saída derrubasse tudo, quem fechasse a sessão
+// no telemóvel perdia-a no tablet — e ninguém pediu isso.
+func TestLogoutNaoAfectaOutroAparelho(t *testing.T) {
+	svc, sender, pool, _ := authSetup(t)
+	ctx := context.Background()
+
+	entrar := func(device string) service.VerifyOTPResult {
+		t.Helper()
+		challenge := requestOTP(t, svc, testPhone)
+		out, err := svc.VerifyOTP(ctx, service.VerifyOTPInput{
+			ChallengeID: challenge.ChallengeID, Code: sender.code(testE164), DeviceID: device,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+
+	telemovel := entrar("device-1")
+	tablet := entrar("device-2")
+
+	if err := svc.Logout(ctx, telemovel.RefreshToken); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := svc.Refresh(ctx, tablet.RefreshToken, "device-2"); err != nil {
+		t.Fatalf("o outro aparelho devia continuar dentro: %v", err)
+	}
+
+	var live int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM refresh_token WHERE user_id = $1 AND revoked_at IS NULL`,
+		telemovel.UserID).Scan(&live); err != nil {
+		t.Fatal(err)
+	}
+	if live != 1 {
+		t.Fatalf("%d tokens vivos; devia sobrar só o do outro aparelho", live)
+	}
+}
+
+func containsString(list []string, want string) bool {
+	for _, v := range list {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}

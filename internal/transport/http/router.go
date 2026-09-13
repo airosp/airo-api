@@ -45,6 +45,9 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/otp/request", d.AuthAPI.RequestOTP)
 		mux.HandleFunc("POST /v1/auth/otp/verify", d.AuthAPI.VerifyOTP)
 		mux.HandleFunc("POST /v1/auth/token/refresh", d.AuthAPI.Refresh)
+		// Sair é público pela mesma razão que entrar: quem quer sair pode ter o
+		// token de acesso já expirado.
+		mux.HandleFunc("POST /v1/auth/logout", d.AuthAPI.Logout)
 	}
 
 	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil) {

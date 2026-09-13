@@ -62,6 +62,7 @@ func TestWiredAPIRegistersEveryRoute(t *testing.T) {
 		{"POST", "/v1/auth/otp/request"},
 		{"POST", "/v1/auth/otp/verify"},
 		{"POST", "/v1/auth/token/refresh"},
+		{"POST", "/v1/auth/logout"},
 		{"POST", "/v1/goals"},
 		{"POST", "/v1/goals/assess"},
 		{"GET", "/v1/training/today"},
@@ -86,7 +87,7 @@ func TestWiredAPIRegistersEveryRoute(t *testing.T) {
 	// E as privadas exigem mesmo autenticação.
 	for _, route := range routes[2:] {
 		if route.path == "/v1/auth/otp/request" || route.path == "/v1/auth/otp/verify" ||
-			route.path == "/v1/auth/token/refresh" {
+			route.path == "/v1/auth/token/refresh" || route.path == "/v1/auth/logout" {
 			continue
 		}
 		r := httptest.NewRequest(route.method, route.path, http.NoBody)

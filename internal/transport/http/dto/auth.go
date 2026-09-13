@@ -52,3 +52,12 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refreshToken"`
 	DeviceID     string `json:"deviceId,omitempty"`
 }
+
+// LogoutRequest termina a sessão deste aparelho.
+//
+// Leva o refresh e não o access: é o refresh que mantém a sessão viva, e é ele
+// que tem de morrer. Revogar o access não adiantava — dura quinze minutos e
+// não é revogável, por desenho.
+type LogoutRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}

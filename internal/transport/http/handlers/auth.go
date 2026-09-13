@@ -114,6 +114,28 @@ func (h Auth) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Logout termina a sessão deste aparelho.
+//
+// ⚠️ **Pública e sem token de acesso.** Quem quer sair pode ter o access já
+// expirado — obrigar a renovar para poder sair seria pedir para entrar antes de
+// se poder ir embora. O refresh no corpo é a prova suficiente: quem o tem é
+// quem tem a sessão.
+//
+// Responde 204 sempre. Distinguir "terminada" de "não existia" diria a quem
+// tenta quais os tokens que existem.
+func (h Auth) Logout(w http.ResponseWriter, r *http.Request) {
+	var req dto.LogoutRequest
+	if err := decode(r, &req); err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Corpo do pedido inválido.", "")
+		return
+	}
+	if err := h.Service.Logout(r.Context(), req.RefreshToken); err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível terminar a sessão.")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h Auth) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req dto.RefreshRequest
 	if err := decode(r, &req); err != nil {

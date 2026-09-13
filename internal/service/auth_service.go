@@ -308,6 +308,39 @@ type RefreshResult struct {
 // Cada refresh devolve um novo e invalida o anterior. Se um token já usado
 // voltar a aparecer, foi roubado: revoga-se a família inteira. Sem isto, quem
 // copia um refresh fica com acesso indefinido sem que se note.
+// Logout termina a sessão deste aparelho.
+//
+// Revoga a **família**, não a linha. A família nasce no verify e é por
+// aparelho; a rotação mantém-na. Revogar só a linha deixaria de pé um token
+// que a rotação tivesse emitido no milissegundo anterior — e "terminei sessão"
+// passaria a querer dizer "quase".
+//
+// ⚠️ **Responde sempre igual**, conhecido ou não, já revogado ou não. Dizer
+// "esse token não existe" dá a quem tenta um oráculo para saber quais existem.
+// E torna a operação repetível: sair duas vezes é sair.
+func (s *AuthService) Logout(ctx context.Context, token string) error {
+	if token == "" {
+		return nil
+	}
+	sum := sha256.Sum256([]byte(token))
+	rt, err := s.repo.RefreshByHash(ctx, sum[:])
+	if err != nil {
+		// Token desconhecido. Nada a revogar, e nada a dizer.
+		return nil
+	}
+	if rt.RevokedAt != nil {
+		return nil
+	}
+
+	if err := s.repo.RevokeFamily(ctx, rt.FamilyID, "logout"); err != nil {
+		return fmt.Errorf("revogar sessão: %w", err)
+	}
+	// Fora de qualquer transação que possa falhar: um registo de auditoria que
+	// desaparece com o erro seguinte é um registo que mente.
+	_ = s.repo.AppendAuthEvent(ctx, "logout", &rt.UserID, nil, &rt.DeviceID, nil)
+	return nil
+}
+
 func (s *AuthService) Refresh(ctx context.Context, token, deviceID string) (RefreshResult, error) {
 	var out RefreshResult
 	var reuse *repo.RefreshToken
