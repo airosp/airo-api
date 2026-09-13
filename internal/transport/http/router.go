@@ -25,6 +25,7 @@ type Deps struct {
 	Training    *handlers.Training
 	Profile     *handlers.Profile
 	Nutrition   *handlers.Nutrition
+	Progress    *handlers.Progress
 	Idempotency middleware.Store
 
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
@@ -51,7 +52,7 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/logout", d.AuthAPI.Logout)
 	}
 
-	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil) {
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -94,6 +95,18 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Profile.Photo), middleware.Auth(d.Auth)))
 			mux.Handle("DELETE /v1/profile/photo",
 				middleware.Chain(http.HandlerFunc(d.Profile.DeletePhoto), middleware.Auth(d.Auth)))
+		}
+		if d.Progress != nil {
+			mux.Handle("GET /v1/progress/snapshot",
+				middleware.Chain(http.HandlerFunc(d.Progress.Snapshot), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/progress/adaptations",
+				middleware.Chain(http.HandlerFunc(d.Progress.Adaptations), middleware.Auth(d.Auth)))
+			// ⚠️ Só a pessoa aplica. A Airo propõe — correr sozinha seria mudar
+			// o plano de alguém sem lhe perguntar.
+			mux.Handle("POST /v1/adaptations/{id}/apply",
+				middleware.Chain(http.HandlerFunc(d.Progress.Apply), middleware.Auth(d.Auth)))
+			mux.Handle("POST /v1/adaptations/{id}/dismiss",
+				middleware.Chain(http.HandlerFunc(d.Progress.Dismiss), middleware.Auth(d.Auth)))
 		}
 		if d.Nutrition != nil {
 			mux.Handle("POST /v1/nutrition/meal-photo",

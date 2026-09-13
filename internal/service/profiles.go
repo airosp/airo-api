@@ -366,3 +366,16 @@ func treinaEm(days []int, index int) bool {
 	}
 	return false
 }
+
+// TrainingDaysOf são os dias de treino da semana, com a segunda em 0.
+//
+// Existe à parte do perfil inteiro porque a adesão só precisa disto — e ler o
+// perfil todo para saber os dias fazia o progresso depender de campos que não
+// usa, como a fotografia.
+func (p *Profiles) TrainingDaysOf(ctx ctxLike, userID string) ([]int, error) {
+	row, err := p.repo.Profile(asContext(ctx), userID)
+	if err != nil && !errors.Is(err, repo.ErrNoWeight) {
+		return nil, err
+	}
+	return nonNilInts(row.WorkoutDays), nil
+}

@@ -222,3 +222,38 @@ func yearsSince(birth, now time.Time) int {
 	}
 	return years
 }
+
+// ApplyPlanChanges aplica ao perfil o que uma adaptação propõe.
+//
+// Reduzir a frequência **tira dias do fim da semana**, não dias ao acaso: quem
+// treina segunda, quarta e sexta e passa a dois dias fica com segunda e quarta,
+// que é o que essa pessoa reconhece como o seu plano com menos um dia.
+func (r *ProfileRepo) ApplyPlanChanges(ctx context.Context, userID string, frequency, minutes *int) error {
+	if frequency == nil && minutes == nil {
+		return nil
+	}
+	return r.tx.Do(ctx, func(ctx context.Context) error {
+		q := r.tx.Q(ctx)
+		if minutes != nil && *minutes > 0 {
+			if _, err := q.Exec(ctx,
+				`UPDATE profile SET workout_minutes = $2, updated_at = now() WHERE user_id = $1`,
+				userID, *minutes); err != nil {
+				return fmt.Errorf("aplicar duração: %w", err)
+			}
+		}
+		if frequency != nil && *frequency > 0 {
+			if _, err := q.Exec(ctx,
+				`UPDATE profile
+				    SET workout_days = (SELECT array_agg(d ORDER BY d)
+				                          FROM (SELECT unnest(workout_days) AS d
+				                                  FROM profile WHERE user_id = $1
+				                                 ORDER BY d LIMIT $2) x),
+				        updated_at = now()
+				  WHERE user_id = $1 AND array_length(workout_days, 1) > $2`,
+				userID, *frequency); err != nil {
+				return fmt.Errorf("aplicar frequência: %w", err)
+			}
+		}
+		return nil
+	})
+}

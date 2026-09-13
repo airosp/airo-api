@@ -389,3 +389,19 @@ func (r *GoalRepo) copyInto(ctx context.Context, table string, cols []string, ro
 	}
 	return nil
 }
+
+// LastAssessmentID é a avaliação mais recente de uma jornada.
+//
+// Existe porque `InsertAssessment` não devolve o id: a escrita e a leitura
+// ficam a um passo uma da outra, e é a proposta de adaptação que precisa de os
+// ligar — sem esse elo não há como explicar porque é que o plano mudou.
+func (r *GoalRepo) LastAssessmentID(ctx context.Context, journeyID string) (string, error) {
+	var id string
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`SELECT id FROM assessment WHERE journey_id = $1
+		  ORDER BY assessed_at DESC LIMIT 1`, journeyID).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return id, err
+}

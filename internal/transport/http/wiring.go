@@ -96,6 +96,13 @@ func Wire(p Platform) Deps {
 		Plans: nutritionSvc, Profiles: profiles,
 	}
 
+	deps.Progress = &handlers.Progress{
+		Service: service.NewProgressService(repo.NewProgressRepo(tx), goals, configs.Journey).
+			WithAdaptations(repo.NewAdaptationRepo(tx), goals, repo.NewProfileRepo(tx)),
+		Profiles: profiles,
+		Clock:    p.Clock,
+	}
+
 	if len(p.JWTSecret) >= 32 {
 		tokens := auth.NewTokenIssuer(p.JWTSecret, p.Clock.Now)
 		deps.Auth = tokens
