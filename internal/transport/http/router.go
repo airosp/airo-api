@@ -32,6 +32,7 @@ type Deps struct {
 	Catalog     *handlers.Catalog
 	Calendar    *handlers.Calendar
 	Classes     *handlers.Classes
+	Playlists   *handlers.Playlists
 	Idempotency middleware.Store
 
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
@@ -58,7 +59,7 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/logout", d.AuthAPI.Logout)
 	}
 
-	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Classes != nil) {
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Classes != nil || d.Playlists != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -108,6 +109,28 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Classes.List), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/classes/{id}",
 				middleware.Chain(http.HandlerFunc(d.Classes.Get), middleware.Auth(d.Auth)))
+		}
+		if d.Playlists != nil {
+			// Leituras do catálogo. Fora da idempotência.
+			mux.Handle("GET /v1/playlists",
+				middleware.Chain(http.HandlerFunc(d.Playlists.List), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/playlists/{id}",
+				middleware.Chain(http.HandlerFunc(d.Playlists.Get), middleware.Auth(d.Auth)))
+			/*
+			 * As escritas são idempotentes por construção — cada uma põe uma
+			 * posição num estado, e repetir põe-na no mesmo. Por isso ficam
+			 * fora da cadeia de idempotência: uma chave por toque num botão de
+			 * "saltar" seria memória gasta para garantir o que a própria
+			 * operação já garante.
+			 */
+			mux.Handle("POST /v1/playlists/{id}/items/{position}/watched",
+				middleware.Chain(http.HandlerFunc(d.Playlists.Watched), middleware.Auth(d.Auth)))
+			mux.Handle("POST /v1/playlists/{id}/items/{position}/done",
+				middleware.Chain(http.HandlerFunc(d.Playlists.Done), middleware.Auth(d.Auth)))
+			mux.Handle("POST /v1/playlists/{id}/items/{position}/skip",
+				middleware.Chain(http.HandlerFunc(d.Playlists.Skip), middleware.Auth(d.Auth)))
+			mux.Handle("DELETE /v1/playlists/{id}/progress",
+				middleware.Chain(http.HandlerFunc(d.Playlists.Restart), middleware.Auth(d.Auth)))
 		}
 		if d.Calendar != nil {
 			// `PUT` com o identificador do telemóvel: a marca nasce offline e é

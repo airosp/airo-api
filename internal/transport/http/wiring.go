@@ -110,6 +110,9 @@ func Wire(p Platform) Deps {
 		apagaImagens = avatarUploader{c: p.Images}
 	}
 	deps.Classes = &handlers.Classes{Store: repo.NewClassRepo(tx), Profiles: profiles}
+	// As playlists lêem o objetivo activo para pôr à frente a que serve quem
+	// pergunta — por isso partilham o repositório dos objetivos.
+	deps.Playlists = &handlers.Playlists{Store: repo.NewPlaylistRepo(tx), Goals: goals}
 	deps.Calendar = &handlers.Calendar{Marks: repo.NewCalendarRepo(tx)}
 	deps.Catalog = &handlers.Catalog{Training: trainingCfg, Nutrition: configs.Nutrition}
 	deps.Account = &handlers.Account{

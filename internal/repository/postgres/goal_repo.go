@@ -485,3 +485,34 @@ func (r *GoalRepo) IsPaused(ctx context.Context, journeyID string) (bool, *time.
 	}
 	return true, &desde, nil
 }
+
+/*
+ * GoalOf traduz o objetivo activo para o nome que o produto usa.
+ *
+ * `strength | fatLoss | muscle | habit` — os mesmos quatro do assistente. O
+ * esquema guarda tipo, direcção e prioridade porque é assim que o motor
+ * raciocina; o produto fala em quatro palavras, e é por elas que uma playlist
+ * é etiquetada.
+ *
+ * ⚠️ **A mesma regra existe no cliente**, em `mobile/lib/api/goal-map.ts`
+ * (`goalDoServidor`). São duas cópias da mesma tradução, e isso é uma dívida:
+ * mudar uma sem a outra faz a app dizer "ganhar massa" onde o servidor procura
+ * playlists de "perder gordura". O caminho de saída é o servidor passar a
+ * devolver este campo no objetivo e o cliente deixar de o derivar.
+ */
+func (r *GoalRepo) GoalOf(ctx context.Context, userID string) (string, error) {
+	g, _, err := r.CurrentGoal(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	switch {
+	case g.Priority == "performance":
+		return "strength", nil
+	case g.Type == "behavior" || g.Priority == "health":
+		return "habit", nil
+	case g.Direction == "gain_weight" || g.Priority == "muscle":
+		return "muscle", nil
+	default:
+		return "fatLoss", nil
+	}
+}

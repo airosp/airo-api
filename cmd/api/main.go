@@ -78,6 +78,12 @@ func main() {
 			} else {
 				log.Info("aulas carregadas", "aulas", n)
 			}
+			if n, err := seedPlaylists(ctx, pool); err != nil {
+				log.Error("carregar playlists", "error", err)
+				os.Exit(1)
+			} else {
+				log.Info("playlists carregadas", "playlists", n)
+			}
 		case "down":
 			if err := airopg.Down(ctx, pool, migs, log); err != nil {
 				log.Error("desfazer", "error", err)
@@ -135,6 +141,12 @@ func main() {
 			os.Exit(1)
 		} else {
 			log.Info("aulas carregadas", "aulas", n)
+		}
+		if n, err := seedPlaylists(ctx, pool); err != nil {
+			log.Error("carregar playlists", "error", err)
+			os.Exit(1)
+		} else {
+			log.Info("playlists carregadas", "playlists", n)
 		}
 	}
 
@@ -287,4 +299,12 @@ func seedCatalog(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 func seedClasses(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 	tx := repo.NewTxManager(pool)
 	return repo.NewClassRepo(tx).Seed(ctx)
+}
+
+// seedPlaylists carrega as sequências de aulas. Corre **depois** das aulas: uma
+// playlist aponta para elas por chave estrangeira, e ao contrário a primeira
+// instalação falhava com uma referência que ainda não existia.
+func seedPlaylists(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	tx := repo.NewTxManager(pool)
+	return repo.NewPlaylistRepo(tx).Seed(ctx)
 }
