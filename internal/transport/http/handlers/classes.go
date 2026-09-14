@@ -103,14 +103,16 @@ func paraAula(c repo.ClassRow) map[string]any {
 		"id": c.ID, "title": c.Title, "specialist": c.Specialist,
 		"focus": c.Focus, "level": c.Level,
 		"durationSeconds": c.DurationSeconds, "kcal": c.Kcal,
-		"videoUrl": c.VideoURL,
-		"summary":  c.Summary,
-		"muscles":  nonNilStrings(c.Muscles),
-		// Vazio quer dizer "só o corpo", e o ecrã tem de o dizer assim em vez
-		// de mostrar uma lista em branco.
+		"videoUrl":  c.VideoURL,
+		"summary":   c.Summary,
+		"muscles":   nonNilStrings(c.Muscles),
 		"equipment": nonNilStrings(c.Equipment),
 		// A etiqueta que o cartão mostra, já escrita: "Tronco · 38 min".
 		"label": etiquetaDeAula(c),
+		// A duração sozinha, por extenso. O cliente não a calcula: dividia
+		// segundos por sessenta à sua maneira e discordava desta etiqueta na
+		// mesma aula, no mesmo ecrã.
+		"durationLabel": duracaoPorExtenso(c.DurationSeconds),
 		// O foco sozinho, para quem já mostra a duração ao lado e não a quer
 		// dizer duas vezes em dez centímetros.
 		"focusLabel": focoPorExtenso(c.Focus),
@@ -119,12 +121,44 @@ func paraAula(c repo.ClassRow) map[string]any {
 	if c.ThumbnailURL != "" {
 		out["thumbnailUrl"] = c.ThumbnailURL
 	}
-	if len(c.Equipment) == 0 {
-		out["equipmentLabel"] = "Só o corpo"
-	} else {
-		out["equipmentLabel"] = strings.Join(c.Equipment, ", ")
-	}
+	out["equipmentLabel"] = equipamentoPorExtenso(c.Equipment)
 	return out
+}
+
+// Os nomes do equipamento, como a app lhes chama.
+//
+// São os mesmos rótulos de `constants/plan.ts` no cliente: quem escolheu
+// "Tapete" no plano tem de ler "Tapete" na aula, e não `mat`. Era o que estava
+// a acontecer — o `strings.Join` das chaves mandava o slug para o ecrã, e o
+// cartão da aula dizia "PRECISAS: mat".
+var equipamentosPorExtenso = map[string]string{
+	"bodyweight": "Só o corpo",
+	"dumbbells":  "Halteres",
+	"bands":      "Elásticos",
+	"kettlebell": "Kettlebell",
+	"barbell":    "Barra e discos",
+	"machines":   "Máquinas",
+	"cardio":     "Passadeira ou bicicleta",
+	"mat":        "Tapete",
+}
+
+func equipamentoPorExtenso(equipamento []string) string {
+	// Vazio quer dizer "só o corpo", e o ecrã tem de o dizer assim em vez de
+	// mostrar uma lista em branco.
+	if len(equipamento) == 0 {
+		return "Só o corpo"
+	}
+	nomes := make([]string, 0, len(equipamento))
+	for _, e := range equipamento {
+		if v, ok := equipamentosPorExtenso[e]; ok {
+			nomes = append(nomes, v)
+			continue
+		}
+		// Um equipamento que o servidor não conhece vai como está: melhor um
+		// slug no ecrã do que um campo vazio.
+		nomes = append(nomes, e)
+	}
+	return strings.Join(nomes, ", ")
 }
 
 var focosPorExtenso = map[string]string{
@@ -137,7 +171,28 @@ var niveisPorExtenso = map[string]string{
 }
 
 func etiquetaDeAula(c repo.ClassRow) string {
-	return focoPorExtenso(c.Focus) + " · " + plural(c.DurationSeconds/60) + " min"
+	return focoPorExtenso(c.Focus) + " · " + duracaoPorExtenso(c.DurationSeconds)
+}
+
+/*
+ * A duração por extenso.
+ *
+ * Duas correcções a uma divisão inteira, e ambas apareceram no ecrã:
+ *
+ *   - **Arredonda**, não trunca. Uma aula de 1 min 59 s dizia "1 min" aqui e
+ *     "2 min" no ecrã da aula, que arredondava — o mesmo número, dois valores,
+ *     a dez centímetros um do outro.
+ *   - **Abaixo do minuto diz segundos.** Truncar dava "Tronco · 0 min", que é
+ *     uma aula a anunciar que não dura nada.
+ */
+func duracaoPorExtenso(segundos int) string {
+	if segundos < 60 {
+		if segundos < 1 {
+			segundos = 1
+		}
+		return plural(segundos) + " s"
+	}
+	return plural((segundos+30)/60) + " min"
 }
 
 func focoPorExtenso(f string) string {

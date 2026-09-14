@@ -1,0 +1,302 @@
+[
+ {
+  "id": "tronco-so-o-corpo",
+  "title": "Tronco só com o corpo",
+  "specialist": "rita-campos",
+  "focus": "upper",
+  "level": "beginner",
+  "durationSeconds": 45,
+  "kcal": 6,
+  "videoUrl": "https://videos.pexels.com/video-files/2790135/2790135-hd_1280_720_25fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/2790135/free-video-2790135.jpg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Flexões e alongamento, sem material nenhum. Para aprender a empurrar com o corpo em linha antes de lhe pôr peso.",
+  "muscles": [
+   "Peito",
+   "Tríceps",
+   "Core"
+  ],
+  "equipment": [],
+  "credit": "Pexels · cottonbro studio"
+ },
+ {
+  "id": "tronco-com-halteres",
+  "title": "Tronco com halteres",
+  "specialist": "ana-silva",
+  "focus": "upper",
+  "level": "intermediate",
+  "durationSeconds": 76,
+  "kcal": 10,
+  "videoUrl": "https://videos.pexels.com/video-files/32239222/13749424_1280_720_24fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/32239222/pexels-photo-32239222.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Empurrar e puxar com halteres, série a série, com a Ana a marcar o ritmo.",
+  "muscles": [
+   "Peito",
+   "Costas",
+   "Ombros"
+  ],
+  "equipment": [
+   "dumbbells"
+  ],
+  "credit": "Pexels · Igor Vieira"
+ },
+ {
+  "id": "tronco-ao-ar-livre",
+  "title": "Tronco ao ar livre",
+  "specialist": "ana-silva",
+  "focus": "upper",
+  "level": "advanced",
+  "durationSeconds": 93,
+  "kcal": 12,
+  "videoUrl": "https://videos.pexels.com/video-files/31622707/13475454_1280_720_60fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/31622707/abs-athlete-athletic-body-movement-31622707.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Carga alta e pouco descanso, num ginásio de rua. Para quem já tem anos de treino atrás.",
+  "muscles": [
+   "Ombros",
+   "Costas",
+   "Core"
+  ],
+  "equipment": [
+   "dumbbells"
+  ],
+  "credit": "Pexels · Logan Voss"
+ },
+ {
+  "id": "pernas-sem-material",
+  "title": "Pernas sem material",
+  "specialist": "rita-campos",
+  "focus": "lower",
+  "level": "beginner",
+  "durationSeconds": 97,
+  "kcal": 13,
+  "videoUrl": "https://videos.pexels.com/video-files/7963766/7963766-hd_1280_720_60fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/7963766/pexels-photo-7963766.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Agachar, subir e descer, com a técnica à frente da velocidade. Não precisas de nada.",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos",
+   "Isquiotibiais"
+  ],
+  "equipment": [],
+  "credit": "Pexels · Jhay Luis"
+ },
+ {
+  "id": "pernas-no-tapete",
+  "title": "Pernas no tapete",
+  "specialist": "miguel-torres",
+  "focus": "lower",
+  "level": "intermediate",
+  "durationSeconds": 54,
+  "kcal": 7,
+  "videoUrl": "https://videos.pexels.com/video-files/4175897/4175897-hd_1280_720_30fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/4175897/pexels-photo-4175897.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Trabalho de pernas no chão, para quem treina em casa e não quer acordar os vizinhos.",
+  "muscles": [
+   "Glúteos",
+   "Isquiotibiais",
+   "Core"
+  ],
+  "equipment": [
+   "mat"
+  ],
+  "credit": "Pexels · Babs Ambaliu"
+ },
+ {
+  "id": "pernas-com-barra",
+  "title": "Pernas com barra",
+  "specialist": "ana-silva",
+  "focus": "lower",
+  "level": "advanced",
+  "durationSeconds": 59,
+  "kcal": 8,
+  "videoUrl": "https://videos.pexels.com/video-files/1502317/1502317-hd_1280_720_30fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/1502317/free-video-1502317.jpg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Agachamento com barra, do encaixe à subida. Exige barra, discos e alguém que já a levantou antes.",
+  "muscles": [
+   "Quadríceps",
+   "Glúteos",
+   "Lombar"
+  ],
+  "equipment": [
+   "barbell"
+  ],
+  "credit": "Pexels · Taco Fleur"
+ },
+ {
+  "id": "corrida-ao-amanhecer",
+  "title": "Corrida ao amanhecer",
+  "specialist": "nuno-batista",
+  "focus": "cardio",
+  "level": "beginner",
+  "durationSeconds": 54,
+  "kcal": 10,
+  "videoUrl": "https://videos.pexels.com/video-files/14458143/14458143-hd_1280_720_24fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/14458143/beach-gran-canaria-hiking-man-14458143.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Ritmo de conversa, na areia, ao nascer do sol. O primeiro objectivo é acabar a correr.",
+  "muscles": [
+   "Pernas",
+   "Core"
+  ],
+  "equipment": [],
+  "credit": "Pexels · Matthias Groeneveld"
+ },
+ {
+  "id": "ritmo-na-passadeira",
+  "title": "Ritmo na passadeira",
+  "specialist": "nuno-batista",
+  "focus": "cardio",
+  "level": "intermediate",
+  "durationSeconds": 119,
+  "kcal": 22,
+  "videoUrl": "https://videos.pexels.com/video-files/32115631/13692023_1280_720_25fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/32115631/4k-bodybuilding-build-color-grade-32115631.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Blocos de ritmo com o Nuno a dizer quando acelerar e quando aliviar.",
+  "muscles": [
+   "Pernas",
+   "Core"
+  ],
+  "equipment": [
+   "cardio"
+  ],
+  "credit": "Pexels · Gaurav Kumar"
+ },
+ {
+  "id": "hiit-no-parque",
+  "title": "HIIT no parque",
+  "specialist": "miguel-torres",
+  "focus": "cardio",
+  "level": "advanced",
+  "durationSeconds": 55,
+  "kcal": 10,
+  "videoUrl": "https://videos.pexels.com/video-files/8233038/8233038-sd_960_506_25fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/8233038/pexels-photo-8233038.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Intervalos curtos, sem material e sem tréguas. Vinte segundos a sério valem mais do que um minuto a fingir.",
+  "muscles": [
+   "Pernas",
+   "Core",
+   "Ombros"
+  ],
+  "equipment": [],
+  "credit": "Pexels · ROMAN ODINTSOV"
+ },
+ {
+  "id": "corpo-inteiro-em-casa",
+  "title": "Corpo inteiro em casa",
+  "specialist": "rita-campos",
+  "focus": "full",
+  "level": "beginner",
+  "durationSeconds": 89,
+  "kcal": 15,
+  "videoUrl": "https://videos.pexels.com/video-files/8233099/8233099-sd_960_506_25fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/8233099/pexels-photo-8233099.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Uma volta ao corpo todo, no espaço de um tapete. É a aula para voltar depois de uma pausa.",
+  "muscles": [
+   "Pernas",
+   "Core",
+   "Peito"
+  ],
+  "equipment": [],
+  "credit": "Pexels · ROMAN ODINTSOV"
+ },
+ {
+  "id": "corpo-inteiro-com-kettlebell",
+  "title": "Corpo inteiro com kettlebell",
+  "specialist": "miguel-torres",
+  "focus": "full",
+  "level": "intermediate",
+  "durationSeconds": 58,
+  "kcal": 10,
+  "videoUrl": "https://videos.pexels.com/video-files/1502660/1502660-hd_1280_720_30fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/1502660/free-video-1502660.jpg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Uma kettlebell chega para treinar o corpo inteiro: balanços, puxadas e muita anca.",
+  "muscles": [
+   "Anca",
+   "Costas",
+   "Core"
+  ],
+  "equipment": [
+   "kettlebell"
+  ],
+  "credit": "Pexels · Taco Fleur"
+ },
+ {
+  "id": "kettlebell-sem-pausas",
+  "title": "Kettlebell sem pausas",
+  "specialist": "miguel-torres",
+  "focus": "full",
+  "level": "advanced",
+  "durationSeconds": 68,
+  "kcal": 11,
+  "videoUrl": "https://videos.pexels.com/video-files/2025457/2025457-hd_1280_720_30fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/2025457/free-video-2025457.jpg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Circuito contínuo com kettlebell. A pausa é trocar de mão.",
+  "muscles": [
+   "Anca",
+   "Ombros",
+   "Core"
+  ],
+  "equipment": [
+   "kettlebell"
+  ],
+  "credit": "Pexels · Taco Fleur"
+ },
+ {
+  "id": "mobilidade-da-manha",
+  "title": "Mobilidade da manhã",
+  "specialist": "rita-campos",
+  "focus": "mobility",
+  "level": "beginner",
+  "durationSeconds": 143,
+  "kcal": 10,
+  "videoUrl": "https://videos.pexels.com/video-files/8231310/8231310-sd_960_506_25fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/8231310/pexels-photo-8231310.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Abrir a anca, a coluna e os ombros antes de o dia começar. Devagar, e a respirar.",
+  "muscles": [
+   "Coluna",
+   "Anca",
+   "Ombros"
+  ],
+  "equipment": [
+   "mat"
+  ],
+  "credit": "Pexels · ROMAN ODINTSOV"
+ },
+ {
+  "id": "mobilidade-de-estudio",
+  "title": "Mobilidade de estúdio",
+  "specialist": "rita-campos",
+  "focus": "mobility",
+  "level": "intermediate",
+  "durationSeconds": 65,
+  "kcal": 4,
+  "videoUrl": "https://videos.pexels.com/video-files/31794212/13544903_1280_720_24fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/31794212/pexels-photo-31794212.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "Sequência de mobilidade com transições, para quem já não precisa de parar entre posições.",
+  "muscles": [
+   "Anca",
+   "Coluna"
+  ],
+  "equipment": [
+   "mat"
+  ],
+  "credit": "Pexels · K"
+ },
+ {
+  "id": "alongar-depois-do-treino",
+  "title": "Alongar depois do treino",
+  "specialist": "diogo-ramos",
+  "focus": "mobility",
+  "level": "beginner",
+  "durationSeconds": 64,
+  "kcal": 4,
+  "videoUrl": "https://videos.pexels.com/video-files/6809429/6809429-sd_960_506_25fps.mp4",
+  "thumbnailUrl": "https://images.pexels.com/videos/6809429/acrobatic-active-asana-athlete-6809429.jpeg?auto=compress&cs=tinysrgb&w=1200&h=675&fit=crop",
+  "summary": "O que fazer nos minutos a seguir ao treino, escolhido pelo Diogo para a lombar não pagar a conta.",
+  "muscles": [
+   "Isquiotibiais",
+   "Costas",
+   "Anca"
+  ],
+  "equipment": [],
+  "credit": "Pexels · cottonbro studio"
+ }
+]

@@ -6,12 +6,16 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/airosp/airo-api/internal/engine/training"
 )
 
-// ClassRepo lê as aulas gravadas.
+// ClassRepo lê as aulas gravadas, e carrega-as.
 //
-// Só lê. As aulas entram por seed — quem as produz é quem as põe cá dentro, e
-// um ecrã de administração é uma decisão maior do que esta.
+// As aulas entram por seed — quem as produz é quem as põe cá dentro, e um ecrã
+// de administração é uma decisão maior do que esta. O catálogo vive no JSON
+// embutido no motor, como o dos exercícios: duas listas, uma no código e outra
+// na base de dados, seriam duas verdades sobre o que existe.
 type ClassRepo struct{ tx *TxManager }
 
 func NewClassRepo(tx *TxManager) *ClassRepo { return &ClassRepo{tx: tx} }
@@ -62,7 +66,9 @@ func (r *ClassRepo) Published(ctx context.Context, f ClassFilter) ([]ClassRow, e
 		         OR cardinality($4::text[]) = 0
 		         OR cardinality(equipment) = 0
 		         OR equipment <@ $4::text[])
-		  ORDER BY created_at DESC`,
+		  -- O id desempata: as aulas entram todas no mesmo seed e, com
+		  -- carimbos iguais ao segundo, a lista trocava de ordem entre pedidos.
+		  ORDER BY created_at DESC, id`,
 		f.Focus, f.Level, f.Specialist, f.Equipment)
 	if err != nil {
 		return nil, fmt.Errorf("ler aulas: %w", err)
@@ -146,4 +152,56 @@ func (r *ClassRepo) ForDay(ctx context.Context, focus, level string, equipment [
 		return ClassRow{}, ErrNotFound
 	}
 	return c, err
+}
+
+// Seed carrega as aulas do JSON embutido.
+//
+// Idempotente pelo `id`: correr outra vez actualiza o conteúdo, não duplica.
+//
+// ⚠️ **Não mexe em `published`.** Publicar é uma decisão de quem produz, não do
+// deploy: uma aula tirada do ar à mão voltaria sozinha no arranque seguinte. As
+// novas entram publicadas; as que já cá estavam ficam como estavam.
+func (r *ClassRepo) Seed(ctx context.Context) (int, error) {
+	aulas, err := training.Classes()
+	if err != nil {
+		return 0, err
+	}
+	q := r.tx.Q(ctx)
+
+	for _, c := range aulas {
+		// `[]string(nil)` chega ao Postgres como NULL, e as colunas são NOT
+		// NULL com omissão `{}` — a omissão não se aplica a um NULL explícito.
+		musculos, equipamento := c.Muscles, c.Equipment
+		if musculos == nil {
+			musculos = []string{}
+		}
+		if equipamento == nil {
+			equipamento = []string{}
+		}
+
+		var thumb any
+		if c.ThumbnailURL != "" {
+			thumb = c.ThumbnailURL
+		}
+
+		_, err := q.Exec(ctx,
+			`INSERT INTO workout_class (id, title, specialist, focus, level,
+			                            duration_seconds, kcal, video_url, thumbnail_url,
+			                            summary, muscles, equipment, published)
+			 VALUES ($1,$2,$3,$4::session_focus,$5::experience,$6,$7,$8,$9,$10,$11,$12,true)
+			 ON CONFLICT (id) DO UPDATE SET
+			   title = EXCLUDED.title, specialist = EXCLUDED.specialist,
+			   focus = EXCLUDED.focus, level = EXCLUDED.level,
+			   duration_seconds = EXCLUDED.duration_seconds, kcal = EXCLUDED.kcal,
+			   video_url = EXCLUDED.video_url, thumbnail_url = EXCLUDED.thumbnail_url,
+			   summary = EXCLUDED.summary, muscles = EXCLUDED.muscles,
+			   equipment = EXCLUDED.equipment`,
+			c.ID, c.Title, c.Specialist, string(c.Focus), string(c.Level),
+			c.DurationSeconds, c.Kcal, c.VideoURL, thumb,
+			c.Summary, musculos, equipamento)
+		if err != nil {
+			return 0, fmt.Errorf("carregar aula %q: %w", c.ID, err)
+		}
+	}
+	return len(aulas), nil
 }

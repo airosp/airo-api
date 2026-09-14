@@ -72,6 +72,12 @@ func main() {
 			} else {
 				log.Info("catálogo carregado", "exercicios", n)
 			}
+			if n, err := seedClasses(ctx, pool); err != nil {
+				log.Error("carregar aulas", "error", err)
+				os.Exit(1)
+			} else {
+				log.Info("aulas carregadas", "aulas", n)
+			}
 		case "down":
 			if err := airopg.Down(ctx, pool, migs, log); err != nil {
 				log.Error("desfazer", "error", err)
@@ -123,6 +129,12 @@ func main() {
 			os.Exit(1)
 		} else {
 			log.Info("catálogo carregado", "exercicios", n)
+		}
+		if n, err := seedClasses(ctx, pool); err != nil {
+			log.Error("carregar aulas", "error", err)
+			os.Exit(1)
+		} else {
+			log.Info("aulas carregadas", "aulas", n)
 		}
 	}
 
@@ -268,4 +280,11 @@ func main() {
 func seedCatalog(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 	tx := repo.NewTxManager(pool)
 	return repo.NewCatalogRepo(tx).SeedExercises(ctx)
+}
+
+// seedClasses carrega as aulas gravadas do JSON embutido. Idempotente pelo id:
+// correr outra vez actualiza o conteúdo e deixa a publicação como está.
+func seedClasses(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	tx := repo.NewTxManager(pool)
+	return repo.NewClassRepo(tx).Seed(ctx)
 }
