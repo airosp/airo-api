@@ -3,9 +3,13 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/airosp/airo-api/internal/domain"
 	"github.com/airosp/airo-api/internal/engine/training"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
@@ -30,6 +34,8 @@ type TrainingProfileReader interface {
 // para provar que o intervalo é validado.
 type SessionHistory interface {
 	History(ctx context.Context, userID string, from, to time.Time) ([]repo.HistoryRow, error)
+	// PerformedIn traz o que se fez em cada exercício — a carga incluída.
+	PerformedIn(ctx context.Context, userID string, from, to time.Time) ([]repo.PerformedRow, error)
 }
 
 type Training struct {
@@ -155,6 +161,30 @@ func (h Training) History(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/*
+	 * O detalhe, numa consulta só.
+	 *
+	 * Se falhar, o histórico sai como sempre saiu: sem detalhe é menos do que
+	 * se queria, mas **sem histórico** é um ecrã vazio a quem treinou.
+	 */
+	detalhe := map[string][]dto.PerformedExerciseView{}
+	if feito, err := h.Sessions.PerformedIn(r.Context(), userID, from, to); err == nil {
+		for _, p := range feito {
+			v := dto.PerformedExerciseView{
+				ExerciseID: p.ExerciseSlug, Name: p.ExerciseName,
+				Sets: p.Sets, Target: porExtenso(p.Target),
+			}
+			for _, a := range p.Actuals {
+				v.Done = append(v.Done, porExtenso(a))
+			}
+			// Sem série nenhuma com detalhe, o exercício não acrescenta nada ao
+			// que o resumo da sessão já diz.
+			if len(v.Done) > 0 {
+				detalhe[p.SessionID] = append(detalhe[p.SessionID], v)
+			}
+		}
+	}
+
 	out := dto.SessionHistoryResponse{Sessions: make([]dto.SessionHistoryItem, 0, len(rows))}
 	for _, s := range rows {
 		item := dto.SessionHistoryItem{
@@ -177,6 +207,9 @@ func (h Training) History(w http.ResponseWriter, r *http.Request) {
 				CooldownSeconds: valorOuZero(s.CooldownSeconds),
 			}
 		}
+		// O detalhe casa pelo identificador do servidor, e não pela chave do
+		// telemóvel que acabou de substituir o `item.ID`.
+		item.Performed = detalhe[s.ID]
 		out.Sessions = append(out.Sessions, item)
 	}
 	apierr.WriteJSON(w, http.StatusOK, out)
@@ -253,6 +286,10 @@ func (h Training) Record(w http.ResponseWriter, r *http.Request) {
 		in.WarmupSeconds, in.MainSeconds, in.CooldownSeconds =
 			req.Blocks.WarmupSeconds, req.Blocks.MainSeconds, req.Blocks.CooldownSeconds
 	}
+
+	// O que se fez entra por cima do que se pediu. O alvo continua a ser o do
+	// motor — adaptar amanhã não pode reescrever o que foi feito ontem.
+	aplicarFeito(in.Prescriptions, req.Performed)
 
 	/*
 	 * Uma aula gravada é outra coisa, e grava-se de outra maneira.
@@ -417,4 +454,103 @@ func (h Training) Events(w http.ResponseWriter, r *http.Request) {
 		Ended: out.Ended, Status: out.Status,
 		CountsForStreak: out.CountsForStreak, Streak: out.Streak,
 	})
+}
+
+/*
+ * aplicarFeito põe o que aconteceu em cada série, por cima do que foi pedido.
+ *
+ * Casa por slug de exercício e por índice de série. O que o cliente não mandar
+ * fica sem `actual` — e é isso que se quer: uma série sem detalhe é uma série
+ * de que não se sabe o detalhe, não uma série igual ao alvo. Escrever o alvo
+ * como se fosse o feito era inventar que toda a gente cumpre o plano à letra.
+ */
+func aplicarFeito(prescricoes []repo.PrescriptionRow, feito []dto.PerformedExercise) {
+	if len(feito) == 0 || len(prescricoes) == 0 {
+		return
+	}
+	porSlug := make(map[string]*repo.PrescriptionRow, len(prescricoes))
+	for i := range prescricoes {
+		porSlug[prescricoes[i].ExerciseSlug] = &prescricoes[i]
+	}
+
+	for _, e := range feito {
+		p, ok := porSlug[e.ExerciseID]
+		if !ok {
+			// Um exercício que não estava no plano não tem onde encaixar. Cai
+			// em silêncio: o cliente pode estar uma versão à frente.
+			continue
+		}
+		for _, s := range e.Sets {
+			if s.Index < 0 || s.Index >= len(p.Detail) {
+				continue
+			}
+			m, ok := metricaDoFeito(s)
+			if !ok {
+				continue
+			}
+			p.Detail[s.Index].Actual = &m
+			p.Detail[s.Index].Completed = s.Completed
+		}
+	}
+}
+
+// metricaDoFeito escolhe a forma pela combinação que veio, da mais específica
+// para a mais simples. Sem nenhuma, não há métrica — e não se inventa uma.
+func metricaDoFeito(s dto.PerformedSet) (domain.Metric, bool) {
+	switch {
+	case s.Reps != nil && s.WeightKg != nil:
+		return domain.LoadReps(*s.Reps, *s.WeightKg), true
+	case s.DistanceMeters != nil:
+		return domain.Meters(*s.DistanceMeters), true
+	case s.Reps != nil:
+		return domain.Reps(*s.Reps), true
+	case s.DurationSeconds != nil:
+		return domain.Seconds(*s.DurationSeconds), true
+	default:
+		return domain.Metric{}, false
+	}
+}
+
+/*
+ * porExtenso escreve uma métrica como ela se lê: "10 × 40 kg", "45 s", "400 m".
+ *
+ * É o servidor a escrever, e não o ecrã, pela mesma razão das etiquetas das
+ * aulas: o cliente não tem de saber que `load_reps` leva um "×" no meio e que a
+ * distância leva "m" no fim. Quem tem os dados escreve a frase.
+ */
+func porExtenso(m domain.Metric) string {
+	switch m.Type {
+	case domain.MetricLoadReps:
+		if m.Reps == nil || m.WeightKg == nil {
+			return ""
+		}
+		return fmt.Sprintf("%d × %s kg", *m.Reps, semZerosAtras(*m.WeightKg))
+	case domain.MetricReps:
+		if m.Reps == nil {
+			return ""
+		}
+		return fmt.Sprintf("%d reps", *m.Reps)
+	case domain.MetricTime:
+		if m.DurationSeconds == nil {
+			return ""
+		}
+		return fmt.Sprintf("%d s", *m.DurationSeconds)
+	case domain.MetricDistance:
+		if m.DistanceMeters == nil {
+			return ""
+		}
+		return fmt.Sprintf("%d m", *m.DistanceMeters)
+	default:
+		return ""
+	}
+}
+
+/*
+ * semZerosAtras escreve 40 e não 40,0 — e escreve 42,5 com vírgula.
+ *
+ * A vírgula não é um detalhe: a app fala português do princípio ao fim e
+ * mostra "78,0 kg" no peso. Um "42.5" no meio disso é a costura a aparecer.
+ */
+func semZerosAtras(v float64) string {
+	return strings.ReplaceAll(strconv.FormatFloat(v, 'f', -1, 64), ".", ",")
 }

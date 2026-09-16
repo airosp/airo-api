@@ -501,3 +501,59 @@ func (r *SessionRepo) PlannedSeconds(ctx context.Context, sessionID, userID stri
 func (r *SessionRepo) WithTx(ctx context.Context, fn func(context.Context) error) error {
 	return r.tx.Do(ctx, fn)
 }
+
+// PerformedRow é o que se fez num exercício de uma sessão.
+type PerformedRow struct {
+	SessionID    string
+	ExerciseSlug string
+	ExerciseName string
+	Position     int
+	Sets         int
+	Target       domain.Metric
+	// Actuals traz uma entrada por série com detalhe. Séries sem detalhe não
+	// aparecem: não se sabe o que aconteceu nelas, e inventar era pior.
+	Actuals []domain.Metric
+}
+
+/*
+ * PerformedIn devolve o detalhe das sessões de um intervalo.
+ *
+ * ⚠️ **Nada lia isto.** As prescrições e as séries eram escritas desde o
+ * princípio e nunca consultadas — o histórico sabia que tinham sido feitas oito
+ * séries e não sabia dizer de quê, nem com quantos quilos. Escrever sem ler é
+ * pagar o custo e não receber o valor.
+ *
+ * Uma consulta por intervalo e não uma por sessão: noventa dias de histórico
+ * são noventa idas à base se se perguntar sessão a sessão.
+ */
+func (r *SessionRepo) PerformedIn(ctx context.Context, userID string, from, to time.Time) ([]PerformedRow, error) {
+	rows, err := r.tx.Q(ctx).Query(ctx,
+		`SELECT ws.id::text, e.slug, e.name, p.position, p.sets, p.target,
+		        -- Só as séries com detalhe, pela ordem em que foram feitas.
+		        COALESCE(
+		          (SELECT array_agg(s.actual ORDER BY s.index)
+		             FROM exercise_set s
+		            WHERE s.prescription_id = p.id AND s.actual IS NOT NULL),
+		          '{}'
+		        ) AS actuais
+		   FROM exercise_prescription p
+		   JOIN workout_session ws ON ws.id = p.session_id
+		   JOIN exercise e ON e.id = p.exercise_id
+		  WHERE ws.user_id = $1 AND ws.local_day BETWEEN $2 AND $3
+		  ORDER BY ws.occurred_at DESC, p.position`, userID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("ler o que foi feito: %w", err)
+	}
+	defer rows.Close()
+
+	out := []PerformedRow{}
+	for rows.Next() {
+		var p PerformedRow
+		if err := rows.Scan(&p.SessionID, &p.ExerciseSlug, &p.ExerciseName,
+			&p.Position, &p.Sets, &p.Target, &p.Actuals); err != nil {
+			return nil, fmt.Errorf("ler exercício: %w", err)
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}

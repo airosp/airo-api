@@ -114,6 +114,11 @@ func Wire(p Platform) Deps {
 	// pergunta — por isso partilham o repositório dos objetivos.
 	deps.Playlists = &handlers.Playlists{Store: repo.NewPlaylistRepo(tx), Goals: goals}
 	deps.Calendar = &handlers.Calendar{Marks: repo.NewCalendarRepo(tx)}
+	// A série do corpo sai do mesmo repositório que o progresso: é a mesma
+	// tabela, lida de duas maneiras — aqui ponto a ponto, lá como tendência.
+	deps.Measurements = &handlers.Measurements{Store: repo.NewProgressRepo(tx)}
+	deps.Hydration = &handlers.Hydration{Store: repo.NewHydrationRepo(tx)}
+	deps.Pantry = &handlers.Pantry{Store: repo.NewPantryRepo(tx)}
 	deps.Catalog = &handlers.Catalog{Training: trainingCfg, Nutrition: configs.Nutrition}
 	deps.Account = &handlers.Account{
 		Service: service.NewAccountService(repo.NewAccountRepo(tx), apagaImagens),

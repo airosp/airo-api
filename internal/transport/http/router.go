@@ -21,19 +21,22 @@ type Deps struct {
 	// Auth é opcional durante o desenvolvimento: sem ele, as rotas protegidas
 	// não são registadas. Nunca ficam abertas — uma rota de escrita sem
 	// autenticação é pior do que uma rota que não existe.
-	Auth        middleware.TokenVerifier
-	AuthAPI     *handlers.Auth
-	Goals       *handlers.Goals
-	Training    *handlers.Training
-	Profile     *handlers.Profile
-	Nutrition   *handlers.Nutrition
-	Progress    *handlers.Progress
-	Account     *handlers.Account
-	Catalog     *handlers.Catalog
-	Calendar    *handlers.Calendar
-	Classes     *handlers.Classes
-	Playlists   *handlers.Playlists
-	Idempotency middleware.Store
+	Auth         middleware.TokenVerifier
+	AuthAPI      *handlers.Auth
+	Goals        *handlers.Goals
+	Training     *handlers.Training
+	Profile      *handlers.Profile
+	Nutrition    *handlers.Nutrition
+	Progress     *handlers.Progress
+	Account      *handlers.Account
+	Catalog      *handlers.Catalog
+	Calendar     *handlers.Calendar
+	Measurements *handlers.Measurements
+	Hydration    *handlers.Hydration
+	Pantry       *handlers.Pantry
+	Classes      *handlers.Classes
+	Playlists    *handlers.Playlists
+	Idempotency  middleware.Store
 
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
 	// app nativa não precisa de nenhuma.
@@ -59,7 +62,7 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/logout", d.AuthAPI.Logout)
 	}
 
-	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Classes != nil || d.Playlists != nil) {
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Measurements != nil || d.Hydration != nil || d.Pantry != nil || d.Classes != nil || d.Playlists != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -109,6 +112,41 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Classes.List), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/classes/{id}",
 				middleware.Chain(http.HandlerFunc(d.Classes.Get), middleware.Auth(d.Auth)))
+		}
+		if d.Measurements != nil {
+			// A série do corpo. A escrita é idempotente por construção — o
+			// mesmo ponto no mesmo dia é o mesmo ponto — e por isso fica fora
+			// da cadeia de idempotência, como as das playlists.
+			mux.Handle("GET /v1/measurements",
+				middleware.Chain(http.HandlerFunc(d.Measurements.List), middleware.Auth(d.Auth)))
+			mux.Handle("POST /v1/measurements",
+				middleware.Chain(http.HandlerFunc(d.Measurements.Add), middleware.Auth(d.Auth)))
+		}
+		if d.Hydration != nil {
+			// O total do dia. A escrita é um `PUT` do total, idempotente por
+			// construção, e por isso fora da cadeia de idempotência.
+			mux.Handle("GET /v1/hydration",
+				middleware.Chain(http.HandlerFunc(d.Hydration.List), middleware.Auth(d.Auth)))
+			mux.Handle("PUT /v1/hydration/{day}",
+				middleware.Chain(http.HandlerFunc(d.Hydration.Save), middleware.Auth(d.Auth)))
+		}
+		if d.Pantry != nil {
+			// O que é da pessoa à mesa. As escritas são `PUT` com o
+			// identificador do telemóvel — idempotentes, e por isso fora da
+			// cadeia de idempotência.
+			mux.Handle("GET /v1/nutrition/custom-foods",
+				middleware.Chain(http.HandlerFunc(d.Pantry.ListFoods), middleware.Auth(d.Auth)))
+			mux.Handle("PUT /v1/nutrition/custom-foods/{id}",
+				middleware.Chain(http.HandlerFunc(d.Pantry.SaveFood), middleware.Auth(d.Auth)))
+			mux.Handle("DELETE /v1/nutrition/custom-foods/{id}",
+				middleware.Chain(http.HandlerFunc(d.Pantry.DeleteFood), middleware.Auth(d.Auth)))
+
+			mux.Handle("GET /v1/nutrition/favourites",
+				middleware.Chain(http.HandlerFunc(d.Pantry.ListFavourites), middleware.Auth(d.Auth)))
+			mux.Handle("PUT /v1/nutrition/favourites/{id}",
+				middleware.Chain(http.HandlerFunc(d.Pantry.SaveFavourite), middleware.Auth(d.Auth)))
+			mux.Handle("DELETE /v1/nutrition/favourites/{id}",
+				middleware.Chain(http.HandlerFunc(d.Pantry.DeleteFavourite), middleware.Auth(d.Auth)))
 		}
 		if d.Playlists != nil {
 			// Leituras do catálogo. Fora da idempotência.

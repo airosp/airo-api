@@ -171,11 +171,27 @@ func (r *ProfileRepo) Save(ctx context.Context, userID string, in ProfileInput, 
 	return nil
 }
 
-// RecordWeight acrescenta um ponto à série do peso.
+/*
+ * RecordWeight acrescenta um ponto à série do peso.
+ *
+ * ⚠️ **Não repete um ponto que já lá está.** Gravar o perfil regista o peso, e
+ * o perfil grava-se muitas vezes — ao editar o plano, ao acertar os minutos, a
+ * cada descida que o telemóvel confirma. Sem esta guarda, a lista de evolução
+ * mostrava o mesmo número três e quatro vezes no mesmo dia a quem o tinha
+ * escrito uma. Mesmo dia, mesmo valor é a mesma pesagem.
+ *
+ * É a mesma regra do `POST /v1/measurements`, e tem de ser: são dois caminhos
+ * para a mesma série, e uma regra só num deles não é uma regra.
+ */
 func (r *ProfileRepo) RecordWeight(ctx context.Context, userID string, kg float64, at time.Time) error {
 	_, err := r.tx.Q(ctx).Exec(ctx,
 		`INSERT INTO measurement (user_id, metric, value, unit, recorded_at, source)
-		 VALUES ($1, 'body_weight', $2, 'kg', $3, 'manual')`,
+		 SELECT $1, 'body_weight', $2, 'kg', $3::timestamptz, 'manual'
+		  WHERE NOT EXISTS (
+		    SELECT 1 FROM measurement
+		     WHERE user_id = $1 AND metric = 'body_weight' AND value = $2
+		       AND recorded_at::date = ($3::timestamptz)::date
+		  )`,
 		userID, kg, at)
 	if err != nil {
 		return fmt.Errorf("gravar peso: %w", err)
