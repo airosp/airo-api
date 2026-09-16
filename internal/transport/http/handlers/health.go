@@ -31,6 +31,15 @@ type Health struct {
 	Cache Pinger
 }
 
+/*
+ * Quanto se espera por **cada** dependência.
+ *
+ * Três segundos e não dois: é quanto uma base serverless leva a acordar, e
+ * declarar o serviço em baixo enquanto ela se levanta é criar a avaria que se
+ * queria detectar.
+ */
+const prazoPorDependencia = 3 * time.Second
+
 // Live diz que o processo está de pé. Não toca em dependências — um balanceador
 // que reinicia a API porque a base de dados piscou torna uma falha em duas.
 func (h Health) Live(w http.ResponseWriter, _ *http.Request) {
@@ -44,15 +53,34 @@ func (h Health) Ready(w http.ResponseWriter, r *http.Request) {
 			map[string]string{"status": "sem base de dados"})
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-	defer cancel()
-	if err := h.DB.Ping(ctx); err != nil {
+	/*
+	 * ⚠️ **Um prazo por dependência, e não um para as três.**
+	 *
+	 * Isto tinha um `context` de dois segundos partilhado pelos três testes. A
+	 * base é serverless e suspende-se quando ninguém a usa; o `Ping` que a
+	 * acorda leva um a três segundos e gastava o orçamento todo. Os testes
+	 * seguintes corriam já sem tempo e falhavam — e o que se lia era "esquema
+	 * ilegível" numa base cujo esquema estava impecável.
+	 *
+	 * O que isso custava não era um texto errado: o EasyPanel decide pelo
+	 * `/readyz` se manda tráfego, e uma suspensão de madrugada tirava a API de
+	 * rotação por causa de uma base que só estava a acordar.
+	 */
+	prazo := func() (context.Context, context.CancelFunc) {
+		return context.WithTimeout(r.Context(), prazoPorDependencia)
+	}
+
+	ctxDB, cancelDB := prazo()
+	defer cancelDB()
+	if err := h.DB.Ping(ctxDB); err != nil {
 		writeJSON(w, http.StatusServiceUnavailable,
 			map[string]string{"status": "base de dados inacessível"})
 		return
 	}
 	if h.Cache != nil {
-		if err := h.Cache.Ping(ctx); err != nil {
+		ctxCache, cancelCache := prazo()
+		defer cancelCache()
+		if err := h.Cache.Ping(ctxCache); err != nil {
 			writeJSON(w, http.StatusServiceUnavailable,
 				map[string]string{"status": "cache inacessível", "hint": "sem Redis ninguém entra"})
 			return
@@ -61,7 +89,9 @@ func (h Health) Ready(w http.ResponseWriter, r *http.Request) {
 	// Servir com o esquema atrasado é o pior dos dois mundos: responde 200 e
 	// falha em colunas que ainda não existem. Não-pronto, e a dizer porquê.
 	if h.Schema != nil {
-		pending, err := h.Schema.PendingCount(ctx)
+		ctxEsquema, cancelEsquema := prazo()
+		defer cancelEsquema()
+		pending, err := h.Schema.PendingCount(ctxEsquema)
 		if err != nil {
 			writeJSON(w, http.StatusServiceUnavailable,
 				map[string]string{"status": "esquema ilegível"})
