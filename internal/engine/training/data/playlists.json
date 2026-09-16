@@ -3,69 +3,151 @@
     "id": "perder-gordura-em-casa",
     "title": "Perder gordura, em casa",
     "summary": "Cardio e corpo inteiro, sem material, a acabar com alongamento. Para fazer de seguida, do princípio ao fim.",
-    "goals": ["fatLoss"],
-    "zones": ["Corpo inteiro", "Cintura"],
+    "goals": [
+      "fatLoss"
+    ],
+    "zones": [
+      "Corpo inteiro",
+      "Cintura"
+    ],
     "level": "beginner",
     "items": [
-      "corrida-ao-amanhecer",
-      "corpo-inteiro-em-casa",
-      "ritmo-na-passadeira",
-      "alongar-depois-do-treino"
+      {
+        "class": "corrida-ao-amanhecer",
+        "subtitle": "Aquecimento · Cardio"
+      },
+      {
+        "class": "corpo-inteiro-em-casa",
+        "subtitle": "Treino principal · Força"
+      },
+      {
+        "class": "ritmo-na-passadeira",
+        "subtitle": "Cardio · Resistência"
+      },
+      {
+        "class": "alongar-depois-do-treino",
+        "subtitle": "Recuperação · Mobilidade"
+      }
     ]
   },
   {
     "id": "cintura-e-core",
     "title": "Cintura e core",
     "summary": "Trabalho de centro com ritmo. A cintura não se faz só com abdominais — faz-se com o corpo todo a puxar por ela.",
-    "goals": ["fatLoss", "habit"],
-    "zones": ["Cintura", "Core"],
+    "goals": [
+      "fatLoss",
+      "habit"
+    ],
+    "zones": [
+      "Cintura",
+      "Core"
+    ],
     "level": "intermediate",
     "items": [
-      "hiit-no-parque",
-      "pernas-no-tapete",
-      "corpo-inteiro-em-casa",
-      "alongar-depois-do-treino"
+      {
+        "class": "hiit-no-parque",
+        "subtitle": "Aquecimento · Intervalos"
+      },
+      {
+        "class": "pernas-no-tapete",
+        "subtitle": "Treino principal · Core"
+      },
+      {
+        "class": "corpo-inteiro-em-casa",
+        "subtitle": "Trabalho · Corpo inteiro"
+      },
+      {
+        "class": "alongar-depois-do-treino",
+        "subtitle": "Recuperação · Mobilidade"
+      }
     ]
   },
   {
     "id": "ganhar-massa-com-halteres",
     "title": "Ganhar massa, com halteres",
     "summary": "Tronco, pernas e corpo inteiro com carga. Três blocos de trabalho e um de recuperação.",
-    "goals": ["muscle"],
-    "zones": ["Tronco", "Pernas"],
+    "goals": [
+      "muscle"
+    ],
+    "zones": [
+      "Tronco",
+      "Pernas"
+    ],
     "level": "intermediate",
     "items": [
-      "tronco-com-halteres",
-      "pernas-no-tapete",
-      "corpo-inteiro-com-kettlebell",
-      "alongar-depois-do-treino"
+      {
+        "class": "tronco-com-halteres",
+        "subtitle": "Treino principal · Tronco"
+      },
+      {
+        "class": "pernas-no-tapete",
+        "subtitle": "Trabalho · Pernas"
+      },
+      {
+        "class": "corpo-inteiro-com-kettlebell",
+        "subtitle": "Trabalho · Corpo inteiro"
+      },
+      {
+        "class": "alongar-depois-do-treino",
+        "subtitle": "Recuperação · Mobilidade"
+      }
     ]
   },
   {
     "id": "forca-sem-desculpas",
     "title": "Força sem desculpas",
     "summary": "Carga alta e pouco descanso. Para quem já tem anos de treino atrás.",
-    "goals": ["strength"],
-    "zones": ["Tronco", "Pernas"],
+    "goals": [
+      "strength"
+    ],
+    "zones": [
+      "Tronco",
+      "Pernas"
+    ],
     "level": "advanced",
     "items": [
-      "tronco-ao-ar-livre",
-      "pernas-com-barra",
-      "kettlebell-sem-pausas",
-      "alongar-depois-do-treino"
+      {
+        "class": "tronco-ao-ar-livre",
+        "subtitle": "Treino principal · Tronco"
+      },
+      {
+        "class": "pernas-com-barra",
+        "subtitle": "Trabalho · Pernas"
+      },
+      {
+        "class": "kettlebell-sem-pausas",
+        "subtitle": "Final · Potência"
+      },
+      {
+        "class": "alongar-depois-do-treino",
+        "subtitle": "Recuperação · Mobilidade"
+      }
     ]
   },
   {
     "id": "comecar-devagar",
     "title": "Começar devagar",
     "summary": "Mobilidade, um bloco curto de trabalho e alongamento. O suficiente para o corpo perceber que isto vai ser todos os dias.",
-    "goals": ["habit"],
-    "zones": ["Corpo inteiro"],
+    "goals": [
+      "habit"
+    ],
+    "zones": [
+      "Corpo inteiro"
+    ],
     "level": "beginner",
     "items": [
-      "mobilidade-da-manha",
-      "tronco-so-o-corpo",
-      "alongar-depois-do-treino"
+      {
+        "class": "mobilidade-da-manha",
+        "subtitle": "Aquecimento · Mobilidade"
+      },
+      {
+        "class": "tronco-so-o-corpo",
+        "subtitle": "Treino principal · Corpo"
+      },
+      {
+        "class": "alongar-depois-do-treino",
+        "subtitle": "Recuperação · Alongamento"
+      }
     ]
   }
 ]

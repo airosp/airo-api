@@ -30,6 +30,9 @@ type ClassRow struct {
 	Kcal            int
 	VideoURL        string
 	ThumbnailURL    string
+	// Zero quer dizer "não medido" — ver a migração 0015.
+	Width  int
+	Height int
 	Summary         string
 	Muscles         []string
 	Equipment       []string
@@ -49,7 +52,8 @@ type ClassFilter struct {
 func (r *ClassRepo) Published(ctx context.Context, f ClassFilter) ([]ClassRow, error) {
 	rows, err := r.tx.Q(ctx).Query(ctx,
 		`SELECT id, title, specialist, focus, level, duration_seconds, kcal,
-		        video_url, COALESCE(thumbnail_url,''), summary, muscles, equipment
+		        video_url, COALESCE(thumbnail_url,''), summary, muscles, equipment,
+		        COALESCE(video_width,0), COALESCE(video_height,0)
 		   FROM workout_class
 		  WHERE published
 		    AND ($1 = '' OR focus::text = $1)
@@ -80,7 +84,7 @@ func (r *ClassRepo) Published(ctx context.Context, f ClassFilter) ([]ClassRow, e
 		var c ClassRow
 		if err := rows.Scan(&c.ID, &c.Title, &c.Specialist, &c.Focus, &c.Level,
 			&c.DurationSeconds, &c.Kcal, &c.VideoURL, &c.ThumbnailURL,
-			&c.Summary, &c.Muscles, &c.Equipment); err != nil {
+			&c.Summary, &c.Muscles, &c.Equipment, &c.Width, &c.Height); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
@@ -93,11 +97,12 @@ func (r *ClassRepo) Get(ctx context.Context, id string) (ClassRow, error) {
 	var c ClassRow
 	err := r.tx.Q(ctx).QueryRow(ctx,
 		`SELECT id, title, specialist, focus, level, duration_seconds, kcal,
-		        video_url, COALESCE(thumbnail_url,''), summary, muscles, equipment
+		        video_url, COALESCE(thumbnail_url,''), summary, muscles, equipment,
+		        COALESCE(video_width,0), COALESCE(video_height,0)
 		   FROM workout_class WHERE id = $1 AND published`, id,
 	).Scan(&c.ID, &c.Title, &c.Specialist, &c.Focus, &c.Level,
 		&c.DurationSeconds, &c.Kcal, &c.VideoURL, &c.ThumbnailURL,
-		&c.Summary, &c.Muscles, &c.Equipment)
+		&c.Summary, &c.Muscles, &c.Equipment, &c.Width, &c.Height)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Uma aula por publicar responde o mesmo que uma que não existe: quem
 		// adivinhar um identificador não fica a saber que ela está a caminho.
@@ -126,6 +131,7 @@ func (r *ClassRepo) ForDay(ctx context.Context, focus, level string, equipment [
 		`WITH servem AS (
 		   SELECT id, title, specialist, focus, level, duration_seconds, kcal,
 		          video_url, COALESCE(thumbnail_url,'') AS thumb, summary, muscles, equipment,
+		          COALESCE(video_width,0) AS w, COALESCE(video_height,0) AS h,
 		          row_number() OVER (ORDER BY id) - 1 AS n,
 		          count(*) OVER () AS total
 		     FROM workout_class
@@ -139,13 +145,13 @@ func (r *ClassRepo) ForDay(ctx context.Context, focus, level string, equipment [
 		           OR equipment <@ $3::text[])
 		 )
 		 SELECT id, title, specialist, focus, level, duration_seconds, kcal,
-		        video_url, thumb, summary, muscles, equipment
+		        video_url, thumb, summary, muscles, equipment, w, h
 		   FROM servem
 		  WHERE n = $4 % total`,
 		focus, tecto, equipment, seed,
 	).Scan(&c.ID, &c.Title, &c.Specialist, &c.Focus, &c.Level,
 		&c.DurationSeconds, &c.Kcal, &c.VideoURL, &c.ThumbnailURL,
-		&c.Summary, &c.Muscles, &c.Equipment)
+		&c.Summary, &c.Muscles, &c.Equipment, &c.Width, &c.Height)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Sem aula que sirva, o dia é o plano. É a salvaguarda que impede a
 		// Airo de marcar um dia de aula que não tem como encher.
@@ -187,21 +193,37 @@ func (r *ClassRepo) Seed(ctx context.Context) (int, error) {
 		_, err := q.Exec(ctx,
 			`INSERT INTO workout_class (id, title, specialist, focus, level,
 			                            duration_seconds, kcal, video_url, thumbnail_url,
-			                            summary, muscles, equipment, published)
-			 VALUES ($1,$2,$3,$4::session_focus,$5::experience,$6,$7,$8,$9,$10,$11,$12,true)
+			                            summary, muscles, equipment, video_width, video_height, published)
+			 VALUES ($1,$2,$3,$4::session_focus,$5::experience,$6,$7,$8,$9,$10,$11,$12,$13,$14,true)
 			 ON CONFLICT (id) DO UPDATE SET
 			   title = EXCLUDED.title, specialist = EXCLUDED.specialist,
 			   focus = EXCLUDED.focus, level = EXCLUDED.level,
 			   duration_seconds = EXCLUDED.duration_seconds, kcal = EXCLUDED.kcal,
 			   video_url = EXCLUDED.video_url, thumbnail_url = EXCLUDED.thumbnail_url,
 			   summary = EXCLUDED.summary, muscles = EXCLUDED.muscles,
-			   equipment = EXCLUDED.equipment`,
+			   equipment = EXCLUDED.equipment,
+			   video_width = EXCLUDED.video_width, video_height = EXCLUDED.video_height`,
 			c.ID, c.Title, c.Specialist, string(c.Focus), string(c.Level),
 			c.DurationSeconds, c.Kcal, c.VideoURL, thumb,
-			c.Summary, musculos, equipamento)
+			c.Summary, musculos, equipamento,
+			// Zero vai como NULL: a coluna guarda medidas, não palpites.
+			nuloSeZero(c.Width), nuloSeZero(c.Height))
 		if err != nil {
 			return 0, fmt.Errorf("carregar aula %q: %w", c.ID, err)
 		}
 	}
 	return len(aulas), nil
+}
+
+
+// nuloSeZero manda `NULL` em vez de `0`.
+//
+// A coluna das dimensões guarda medidas. Um zero seria um vídeo sem altura, o
+// que não existe — e o `CHECK` recusa-o, com razão. "Não medido" diz-se com
+// ausência, e é isso que o cliente lê para voltar a descobrir ao carregar.
+func nuloSeZero(n int) any {
+	if n <= 0 {
+		return nil
+	}
+	return n
 }

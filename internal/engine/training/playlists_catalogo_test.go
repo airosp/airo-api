@@ -31,10 +31,15 @@ func TestPlaylistsCarregam(t *testing.T) {
 			t.Errorf("%s: sem aulas", p.ID)
 		}
 		total := 0
-		for i, id := range p.Items {
-			d, ok := duracao[id]
+		for i, item := range p.Items {
+			d, ok := duracao[item.Class]
 			if !ok {
-				t.Errorf("%s posição %d: aula %q não existe", p.ID, i+1, id)
+				t.Errorf("%s posição %d: aula %q não existe", p.ID, i+1, item.Class)
+			}
+			// Sem legenda, a lista não diria para que serve cada aula — e é
+			// isso que distingue uma sequência de uma pilha de vídeos.
+			if item.Subtitle == "" {
+				t.Errorf("%s posição %d (%s): sem legenda", p.ID, i+1, item.Class)
 			}
 			total += d
 		}

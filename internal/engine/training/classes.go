@@ -35,6 +35,16 @@ type Class struct {
 	VideoURL     string `json:"videoUrl"`
 	ThumbnailURL string `json:"thumbnailUrl"`
 
+	// As dimensões do vídeo, medidas no ficheiro.
+	//
+	// Existem para o cliente reservar o espaço certo **antes** de carregar.
+	// Sem elas adivinhava pela miniatura e corrigia depois — e numa playlist,
+	// onde se troca de vídeo sem sair do ecrã, isso é a página a mexer-se a
+	// cada troca. Zero quer dizer "não medido", e aí o cliente volta a
+	// descobrir ao carregar.
+	Width  int `json:"width"`
+	Height int `json:"height"`
+
 	Summary   string   `json:"summary"`
 	Muscles   []string `json:"muscles"`
 	Equipment []string `json:"equipment"`
@@ -96,6 +106,10 @@ func loadClasses() {
 				classesErr = fmt.Errorf("aula %q: duração tem de ser positiva", c.ID)
 			case c.VideoURL == "":
 				classesErr = fmt.Errorf("aula %q: sem endereço de vídeo", c.ID)
+			// Uma das duas sem a outra não dá proporção nenhuma, e passaria
+			// despercebida até alguém reparar no ecrã a saltar.
+			case (c.Width == 0) != (c.Height == 0):
+				classesErr = fmt.Errorf("aula %q: largura e altura têm de vir as duas ou nenhuma", c.ID)
 			}
 			if classesErr != nil {
 				return

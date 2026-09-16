@@ -33,6 +33,8 @@ type PlaylistRow struct {
 // para a desenhar sem um segundo pedido.
 type PlaylistItemRow struct {
 	Position int
+	// Subtitle é o papel da aula nesta lista: "Aquecimento · Cardio".
+	Subtitle string
 	Class    ClassRow
 }
 
@@ -86,10 +88,11 @@ func (r *PlaylistRepo) Get(ctx context.Context, id string) (PlaylistRow, error) 
 // para desenhar um ecrã que mostra as N ao mesmo tempo.
 func (r *PlaylistRepo) Items(ctx context.Context, playlistID string) ([]PlaylistItemRow, error) {
 	rows, err := r.tx.Q(ctx).Query(ctx,
-		`SELECT i.position,
+		`SELECT i.position, i.subtitle,
 		        c.id, c.title, c.specialist, c.focus::text, c.level::text,
 		        c.duration_seconds, c.kcal, c.video_url, COALESCE(c.thumbnail_url,''),
-		        c.summary, c.muscles, c.equipment
+		        c.summary, c.muscles, c.equipment,
+		        COALESCE(c.video_width,0), COALESCE(c.video_height,0)
 		   FROM playlist_item i
 		   JOIN workout_class c ON c.id = i.class_id
 		  WHERE i.playlist_id = $1
@@ -103,9 +106,9 @@ func (r *PlaylistRepo) Items(ctx context.Context, playlistID string) ([]Playlist
 	for rows.Next() {
 		var it PlaylistItemRow
 		c := &it.Class
-		if err := rows.Scan(&it.Position, &c.ID, &c.Title, &c.Specialist, &c.Focus, &c.Level,
+		if err := rows.Scan(&it.Position, &it.Subtitle, &c.ID, &c.Title, &c.Specialist, &c.Focus, &c.Level,
 			&c.DurationSeconds, &c.Kcal, &c.VideoURL, &c.ThumbnailURL,
-			&c.Summary, &c.Muscles, &c.Equipment); err != nil {
+			&c.Summary, &c.Muscles, &c.Equipment, &c.Width, &c.Height); err != nil {
 			return nil, err
 		}
 		out = append(out, it)
@@ -166,13 +169,14 @@ func (r *PlaylistRepo) ItemClass(ctx context.Context, playlistID string, positio
 	err := r.tx.Q(ctx).QueryRow(ctx,
 		`SELECT c.id, c.title, c.specialist, c.focus::text, c.level::text,
 		        c.duration_seconds, c.kcal, c.video_url, COALESCE(c.thumbnail_url,''),
-		        c.summary, c.muscles, c.equipment
+		        c.summary, c.muscles, c.equipment,
+		        COALESCE(c.video_width,0), COALESCE(c.video_height,0)
 		   FROM playlist_item i
 		   JOIN workout_class c ON c.id = i.class_id
 		  WHERE i.playlist_id = $1 AND i.position = $2`, playlistID, position).
 		Scan(&c.ID, &c.Title, &c.Specialist, &c.Focus, &c.Level,
 			&c.DurationSeconds, &c.Kcal, &c.VideoURL, &c.ThumbnailURL,
-			&c.Summary, &c.Muscles, &c.Equipment)
+			&c.Summary, &c.Muscles, &c.Equipment, &c.Width, &c.Height)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ClassRow{}, ErrNotFound
 	}
@@ -224,12 +228,13 @@ func (r *PlaylistRepo) Seed(ctx context.Context) (int, error) {
 			p.ID, len(p.Items)); err != nil {
 			return 0, fmt.Errorf("playlist %q: limpar posições: %w", p.ID, err)
 		}
-		for i, aula := range p.Items {
+		for i, item := range p.Items {
 			if _, err := q.Exec(ctx,
-				`INSERT INTO playlist_item (playlist_id, position, class_id)
-				 VALUES ($1,$2,$3)
-				 ON CONFLICT (playlist_id, position) DO UPDATE SET class_id = EXCLUDED.class_id`,
-				p.ID, i+1, aula); err != nil {
+				`INSERT INTO playlist_item (playlist_id, position, class_id, subtitle)
+				 VALUES ($1,$2,$3,$4)
+				 ON CONFLICT (playlist_id, position) DO UPDATE SET
+				   class_id = EXCLUDED.class_id, subtitle = EXCLUDED.subtitle`,
+				p.ID, i+1, item.Class, item.Subtitle); err != nil {
 				return 0, fmt.Errorf("playlist %q posição %d: %w", p.ID, i+1, err)
 			}
 		}

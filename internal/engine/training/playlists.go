@@ -34,10 +34,24 @@ type Playlist struct {
 	Zones []string `json:"zones"`
 
 	Level Experience `json:"level"`
-	// Items são identificadores de aulas, **pela ordem em que se fazem**.
-	Items []string `json:"items"`
+	// Items são as aulas **pela ordem em que se fazem**.
+	Items []PlaylistItem `json:"items"`
 
 	CoverURL string `json:"coverUrl"`
+}
+
+// PlaylistItem é uma aula no seu lugar da sequência.
+type PlaylistItem struct {
+	// Class é o identificador da aula no catálogo.
+	Class string `json:"class"`
+	/*
+	 * Subtitle é o papel da aula **nesta** lista: "Aquecimento · Cardio".
+	 *
+	 * Não se deduz do foco do vídeo. A mesma aula de cardio é aquecimento numa
+	 * lista e trabalho principal noutra — quem decide é quem curou a sequência,
+	 * e é por isso que o texto vem escrito daqui.
+	 */
+	Subtitle string `json:"subtitle"`
 }
 
 var (
@@ -88,10 +102,15 @@ func loadPlaylists() {
 			if playlistsErr != nil {
 				return
 			}
-			for i, aula := range p.Items {
-				if !existe[aula] {
+			for i, item := range p.Items {
+				if !existe[item.Class] {
 					playlistsErr = fmt.Errorf(
-						"playlist %q, posição %d: a aula %q não existe no catálogo", p.ID, i+1, aula)
+						"playlist %q, posição %d: a aula %q não existe no catálogo", p.ID, i+1, item.Class)
+					return
+				}
+				if item.Subtitle == "" {
+					playlistsErr = fmt.Errorf(
+						"playlist %q, posição %d: sem legenda — a lista não diria para que serve a aula", p.ID, i+1)
 					return
 				}
 			}

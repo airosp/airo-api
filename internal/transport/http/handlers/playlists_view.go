@@ -21,7 +21,7 @@ func paraPlaylist(
 	objetivoDaPessoa string,
 	comItens bool,
 ) map[string]any {
-	feitos, saltados, segundos := 0, 0, 0
+	feitos, saltados, segundos, treinados := 0, 0, 0, 0
 	// A próxima é a primeira sem marca nenhuma. Uma saltada não é a próxima:
 	// a pessoa já disse que hoje não.
 	proxima := 0
@@ -33,6 +33,10 @@ func paraPlaylist(
 		switch estado.Status {
 		case "done":
 			feitos++
+			// O tempo que a lista já rendeu conta pela duração da aula, não
+			// pelos segundos vistos: marcar à mão não regista segundos, e
+			// somá-los daria zero a quem fez o exercício sem ver o vídeo.
+			treinados += it.Class.DurationSeconds
 		case "skipped":
 			saltados++
 		default:
@@ -43,6 +47,8 @@ func paraPlaylist(
 		if comItens {
 			linha := paraAula(it.Class)
 			linha["position"] = it.Position
+			// O papel da aula nesta lista, escrito por quem a curou.
+			linha["subtitle"] = it.Subtitle
 			linha["status"] = estadoOuPorFazer(estado.Status)
 			linha["statusLabel"] = estadoPorExtenso(estado.Status)
 			linha["watchedSeconds"] = estado.WatchedSeconds
@@ -87,12 +93,23 @@ func paraPlaylist(
 			"percent":   fraccao,
 			"label":     progressoPorExtenso(feitos, total),
 			"completed": terminada,
+			// Uma linha para quem está a meio. Vem daqui e não do cliente pela
+			// mesma razão que o resto: é uma frase sobre o estado, e o estado
+			// é decidido deste lado.
+			"encouragement": incentivo(feitos, saltados, total, terminada),
+			"trainedSeconds": treinados,
+			// Vazio quando ainda não se treinou nada. `duracaoPorExtenso` tem
+			// um piso de um segundo — pensado para uma aula, que nunca dura
+			// zero — e aqui daria "1 s" a quem não fez nada.
+			"trainedLabel": tempoTreinado(treinados),
 			// Uma lista terminada com saltadas diz o que ficou por fazer, em
 			// vez de se dar por completa em silêncio.
 			"note": notaDeFim(terminada, saltados),
 		},
 		"nextPosition": proxima,
 		"forYou":       serveObjetivo(p.Goals, objetivoDaPessoa),
+		// Para que serve esta lista, numa expressão — "Queima calorias".
+		"goalLabel": objetivoPorExtenso(p.Goals),
 	}
 	if p.CoverURL != "" {
 		out["coverUrl"] = p.CoverURL
@@ -164,4 +181,58 @@ func serveObjetivo(objetivos []string, meu string) bool {
 		}
 	}
 	return false
+}
+
+
+/*
+ * Uma linha para quem está a meio.
+ *
+ * Curta, e sem elogiar o que não aconteceu: quem ainda não começou não ouve
+ * "excelente", e quem saltou tudo não ouve que foi bem. Um elogio que não
+ * distingue esforço de ausência deixa de valer nas duas vezes seguintes.
+ */
+func incentivo(feitos, saltados, total int, terminada bool) string {
+	switch {
+	case total == 0:
+		return ""
+	case terminada && saltados == 0:
+		return "Lista completa. 💪"
+	case terminada:
+		return "Chegaste ao fim."
+	case feitos == 0 && saltados == 0:
+		return "Começa quando quiseres."
+	case feitos == 0:
+		return "Ainda vais a tempo."
+	case feitos*2 >= total:
+		return "Mais de metade. Continua assim. 💪"
+	default:
+		return "Bom começo. Continua."
+	}
+}
+
+// Para que serve a lista, na linguagem de quem a escolhe.
+var objetivosPorExtenso = map[string]string{
+	"fatLoss":  "Queima calorias",
+	"muscle":   "Ganha massa",
+	"strength": "Ganha força",
+	"habit":    "Cria hábito",
+}
+
+func objetivoPorExtenso(objetivos []string) string {
+	// O primeiro manda: uma lista serve sobretudo um objetivo, e enumerá-los
+	// todos num cartão é trocar uma etiqueta por uma frase.
+	for _, g := range objetivos {
+		if v, ok := objetivosPorExtenso[g]; ok {
+			return v
+		}
+	}
+	return ""
+}
+
+
+func tempoTreinado(segundos int) string {
+	if segundos <= 0 {
+		return ""
+	}
+	return duracaoPorExtenso(segundos)
 }

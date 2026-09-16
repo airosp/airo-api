@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -113,6 +114,10 @@ func paraAula(c repo.ClassRow) map[string]any {
 		// segundos por sessenta à sua maneira e discordava desta etiqueta na
 		// mesma aula, no mesmo ecrã.
 		"durationLabel": duracaoPorExtenso(c.DurationSeconds),
+		// O mesmo tempo em relógio — "0:54" — para o canto de um cartão, onde
+		// "54 s" fica largo de mais. Dois formatos, uma fonte: o cliente não
+		// arredonda nenhum deles à sua maneira.
+		"durationClock": duracaoEmRelogio(c.DurationSeconds),
 		// O foco sozinho, para quem já mostra a duração ao lado e não a quer
 		// dizer duas vezes em dez centímetros.
 		"focusLabel": focoPorExtenso(c.Focus),
@@ -120,6 +125,13 @@ func paraAula(c repo.ClassRow) map[string]any {
 	}
 	if c.ThumbnailURL != "" {
 		out["thumbnailUrl"] = c.ThumbnailURL
+	}
+	// As medidas do vídeo, quando existem. Servem para o cliente reservar o
+	// espaço certo antes de carregar — omitidas, ele descobre ao carregar, que
+	// é o que fazia antes e faz a página mexer-se.
+	if c.Width > 0 && c.Height > 0 {
+		out["videoWidth"] = c.Width
+		out["videoHeight"] = c.Height
 	}
 	out["equipmentLabel"] = equipamentoPorExtenso(c.Equipment)
 	return out
@@ -219,4 +231,13 @@ func plural(n int) string {
 		n /= 10
 	}
 	return string(b)
+}
+
+
+// duracaoEmRelogio escreve "m:ss" — "0:54", "1:28", "12:03".
+func duracaoEmRelogio(segundos int) string {
+	if segundos < 0 {
+		segundos = 0
+	}
+	return fmt.Sprintf("%d:%02d", segundos/60, segundos%60)
 }
