@@ -109,6 +109,117 @@ type SessionPackage struct {
 	// como feita. Vai no pacote para a interface poder explicar a decisão — mas
 	// quem a toma é o servidor, ao receber os eventos.
 	CompletionThresholdSeconds int `json:"completionThresholdSeconds"`
+
+	/*
+	 * O treino como lista de exercícios, e não só como linha do tempo.
+	 *
+	 * ⚠️ O pacote levava os **passos** — o que o Modo Foco percorre — e mais
+	 * nada. Os outros três ecrãs que mostram o treino (o separador de início, o
+	 * do plano e o do resumo) precisam da lista, e por isso chamavam
+	 * `buildSession` **outra vez**, no telemóvel, com a mesma entrada. A
+	 * sessão já estava construída aqui e era deitada fora no handler:
+	 * `pkg, _, _, err`.
+	 *
+	 * Enquanto assim foi, duas versões da app podiam propor treinos diferentes
+	 * para o mesmo dia à mesma conta — e nada no sistema dava por isso.
+	 */
+	Plan SessionPlan `json:"plan"`
+}
+
+/*
+ * SessionPlan é o que os ecrãs desenham quando não estão a percorrer a sessão.
+ *
+ * Tudo aqui é **decidido**: o orçamento de minutos, se o dia é de descanso, o
+ * rótulo do foco, a frase do método do treinador. Eram quatro chamadas ao motor
+ * espalhadas por quatro ecrãs, cada uma a repetir a mesma conta.
+ */
+type SessionPlan struct {
+	Focus      string   `json:"focus"`
+	FocusLabel string   `json:"focusLabel"`
+	Muscles    []string `json:"muscles"`
+	/** O tempo que este dia do plano pede. Era `planDayMinutes` no telemóvel. */
+	BudgetMinutes int `json:"budgetMinutes"`
+	/** Um dia de descanso não tem treino para propor, e o ecrã diz outra coisa. */
+	IsRecovery bool `json:"isRecovery"`
+	/** Só as séries do trabalho principal: o aquecimento não é trabalho. */
+	MainSets int `json:"mainSets"`
+	/** O que o método do treinador escolhido muda. Vazio quando não há. */
+	MethodPhrase string                `json:"methodPhrase,omitempty"`
+	Exercises    []SessionExerciseView `json:"exercises"`
+}
+
+type SessionExerciseView struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Role        string `json:"role"`
+	Sets        int    `json:"sets"`
+	Target      int    `json:"target"`
+	RestSeconds int    `json:"restSeconds"`
+	Measure     string `json:"measure"`
+	Pattern     string `json:"pattern"`
+	/** O padrão em português. Era uma tabela repetida no telemóvel. */
+	PatternLabel string   `json:"patternLabel"`
+	Equipment    []string `json:"equipment"`
+	Muscles      []string `json:"muscles"`
+	Impact       string   `json:"impact,omitempty"`
+	Cue          string   `json:"cue,omitempty"`
+	DemoQuery    string   `json:"demoQuery,omitempty"`
+	DemoURL      string   `json:"demoUrl,omitempty"`
+}
+
+/*
+ * Os rótulos, aqui e não no telemóvel.
+ *
+ * São a mesma tabela que vivia em `modules/workout-engine/domain/config.ts`.
+ * Uma tabela de tradução em dois sítios é uma tabela que diverge: basta alguém
+ * acrescentar um padrão de movimento de um lado.
+ */
+var focusLabels = map[training.Focus]string{
+	training.FocusUpper: "Tronco", training.FocusLower: "Pernas",
+	training.FocusCardio: "Cardio", training.FocusFull: "Corpo inteiro",
+	training.FocusMobility: "Mobilidade",
+}
+
+var patternLabels = map[training.MovementPattern]string{
+	"push": "Empurrar", "pull": "Puxar", "squat": "Agachar", "hinge": "Anca",
+	"lunge": "Afundo", "core": "Core", "cardio": "Cardio", "mobility": "Mobilidade",
+}
+
+func buildSessionPlan(c training.Config, s training.Session, planLabel, specialistID string, budgetMinutes int) SessionPlan {
+	exercicios := make([]SessionExerciseView, 0, len(s.Exercises))
+	principais := 0
+	for _, e := range s.Exercises {
+		if e.Role == training.Main {
+			principais += e.Sets
+		}
+		exercicios = append(exercicios, SessionExerciseView{
+			ID: e.Exercise.ID, Name: e.Exercise.Name, Role: string(e.Role),
+			Sets: e.Sets, Target: e.Target, RestSeconds: e.RestSeconds,
+			Measure:      string(e.Exercise.Measure),
+			Pattern:      string(e.Exercise.Pattern),
+			PatternLabel: patternLabels[e.Exercise.Pattern],
+			Equipment:    naoNilTexto(e.Exercise.Equipment),
+			Muscles:      naoNilTexto(e.Exercise.Muscles),
+			Impact:       string(e.Exercise.Impact),
+			Cue:          e.Exercise.Cue,
+			DemoQuery:    e.Exercise.DemoQuery,
+			DemoURL:      e.Exercise.DemoURL,
+		})
+	}
+	return SessionPlan{
+		Focus: string(s.Focus), FocusLabel: focusLabels[s.Focus],
+		Muscles: naoNilTexto(s.Muscles), BudgetMinutes: budgetMinutes,
+		IsRecovery: c.IsRecoveryDay(planLabel), MainSets: principais,
+		MethodPhrase: training.FraseDoMetodo(specialistID),
+		Exercises:    exercicios,
+	}
+}
+
+func naoNilTexto(v []string) []string {
+	if v == nil {
+		return []string{}
+	}
+	return v
 }
 
 // Rótulos por papel. Aquecer não é uma série: chamar-lhe "SÉRIE 1 DE 1" logo a
@@ -138,6 +249,15 @@ const clockPlaceholder = "{clock}"
 // BuildSessionPackage transforma a sessão e a sua linha do tempo no pacote que
 // o Modo Foco percorre.
 func BuildSessionPackage(c training.Config, s training.Session, steps []training.Step) SessionPackage {
+	// Sem o plano: para quem já chamava esta função e não sabe do rótulo nem do
+	// treinador. `BuildSessionPackageCom` é a que os handlers usam.
+	return BuildSessionPackageCom(c, s, steps, "", "", 0)
+}
+
+func BuildSessionPackageCom(
+	c training.Config, s training.Session, steps []training.Step,
+	planLabel, specialistID string, budgetMinutes int,
+) SessionPackage {
 	total := training.TotalSets(steps)
 	sessionSeconds := training.RemainingSeconds(c, steps, 0)
 
@@ -157,6 +277,7 @@ func BuildSessionPackage(c training.Config, s training.Session, steps []training
 	for i, step := range steps {
 		pkg.Steps = append(pkg.Steps, buildStep(c, s, steps, i, step, total))
 	}
+	pkg.Plan = buildSessionPlan(c, s, planLabel, specialistID, budgetMinutes)
 	return pkg
 }
 

@@ -60,7 +60,10 @@ func (s *TrainingService) Today(in TodayInput) (view.SessionPackage, training.Se
 		return view.SessionPackage{}, training.Session{}, nil, err
 	}
 	steps := training.BuildTimeline(s.cfg, session)
-	return view.BuildSessionPackage(s.cfg, session, steps), session, steps, nil
+	// O rótulo do dia, o treinador e o orçamento de minutos vão com o pacote:
+	// eram três contas que os ecrãs refaziam no telemóvel com a mesma entrada.
+	pkg := view.BuildSessionPackageCom(s.cfg, session, steps, in.PlanLabel, in.Specialist, minutes)
+	return pkg, session, steps, nil
 }
 
 // RecordSessionInput é o que o cliente envia.

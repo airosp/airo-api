@@ -244,3 +244,86 @@ func TestTrainingNeedsAuth(t *testing.T) {
 		}
 	}
 }
+
+/*
+ * O treino vem como lista, e não só como linha do tempo.
+ *
+ * ⚠️ O pacote levava os **passos** — o que o Modo Foco percorre — e mais nada.
+ * Os outros três ecrãs que mostram o treino precisam da lista de exercícios, e
+ * por isso chamavam `buildSession` outra vez no telemóvel, com a mesma entrada.
+ * A sessão já estava construída aqui e era deitada fora no handler.
+ *
+ * Enquanto assim foi, duas versões da app podiam propor treinos diferentes para
+ * o mesmo dia à mesma conta — e nada no sistema dava por isso.
+ */
+func TestOTreinoVemComOPlanoDecidido(t *testing.T) {
+	h, _, _ := serveTraining(t)
+	w := get(t, h, "/v1/training/today?localDay=2026-09-12")
+	if w.Code != http.StatusOK {
+		t.Fatalf("%d: %s", w.Code, w.Body.String())
+	}
+
+	var envelope struct {
+		Session struct {
+			TotalSets int `json:"totalSets"`
+			Plan      struct {
+				Focus         string   `json:"focus"`
+				FocusLabel    string   `json:"focusLabel"`
+				Muscles       []string `json:"muscles"`
+				BudgetMinutes int      `json:"budgetMinutes"`
+				IsRecovery    bool     `json:"isRecovery"`
+				MainSets      int      `json:"mainSets"`
+				Exercises     []struct {
+					ID           string `json:"id"`
+					Name         string `json:"name"`
+					Role         string `json:"role"`
+					Sets         int    `json:"sets"`
+					Target       int    `json:"target"`
+					RestSeconds  int    `json:"restSeconds"`
+					PatternLabel string `json:"patternLabel"`
+				} `json:"exercises"`
+			} `json:"plan"`
+		} `json:"session"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	p := envelope.Session.Plan
+
+	if len(p.Exercises) == 0 {
+		t.Fatal("o plano veio sem exercícios — o ecrã não tem o que desenhar")
+	}
+	if p.BudgetMinutes <= 0 {
+		t.Errorf("sem orçamento de minutos: %d", p.BudgetMinutes)
+	}
+	if p.FocusLabel == "" || p.Focus == "" {
+		t.Errorf("foco sem rótulo: %q / %q", p.Focus, p.FocusLabel)
+	}
+
+	// As séries principais são a soma das séries do trabalho principal. É o
+	// número que o ecrã do resumo mostrava, contado no telemóvel.
+	soma := 0
+	for _, e := range p.Exercises {
+		if e.ID == "" || e.Name == "" || e.Role == "" {
+			t.Errorf("exercício incompleto: %+v", e)
+		}
+		if e.Sets <= 0 || e.Target <= 0 {
+			t.Errorf("%s sem séries ou alvo: %d × %d", e.ID, e.Sets, e.Target)
+		}
+		if e.PatternLabel == "" {
+			t.Errorf("%s sem padrão em português", e.ID)
+		}
+		if e.Role == "main" {
+			soma += e.Sets
+		}
+	}
+	if p.MainSets != soma {
+		t.Errorf("mainSets diz %d, a soma das séries principais é %d", p.MainSets, soma)
+	}
+
+	// Um dia de plano não é um dia de descanso — e se fosse, o ecrã diria outra
+	// coisa em vez de propor exercícios.
+	if p.IsRecovery && len(p.Exercises) > 0 {
+		t.Error("dia de descanso com exercícios para fazer")
+	}
+}
