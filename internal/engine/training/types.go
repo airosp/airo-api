@@ -25,6 +25,104 @@ const (
 	FocusMobility Focus = "mobility"
 )
 
+/*
+ * Impact diz quanta pancada o exercício põe nas articulações.
+ *
+ * Não é o mesmo que ser difícil: um agachamento com barra é pesado e não tem
+ * impacto nenhum; um polichinelo é leve e aterra a cada segundo. É esta a
+ * distinção que deixa treinar quem tem joelhos maus — ou vizinhos por baixo.
+ */
+type Impact string
+
+const (
+	ImpactoBaixo    Impact = "low"
+	ImpactoModerado Impact = "moderate"
+	ImpactoAlto     Impact = "high"
+)
+
+// ordemDoImpacto dá-lhes ordem, para "no máximo moderado" querer dizer alguma
+// coisa.
+var ordemDoImpacto = map[Impact]int{ImpactoBaixo: 0, ImpactoModerado: 1, ImpactoAlto: 2}
+
+/*
+ * PadroesDe são todos os padrões do exercício.
+ *
+ * Vazio na biblioteca quer dizer "só o principal": guardar `["push"]` em
+ * cinquenta entradas que já dizem `pattern: push` era ruído a pedir para
+ * divergir.
+ */
+func PadroesDe(e Exercise) []MovementPattern {
+	if len(e.Patterns) > 0 {
+		return e.Patterns
+	}
+	return []MovementPattern{e.Pattern}
+}
+
+// ImpactoDe é o impacto declarado, ou baixo — que é o caso da maioria.
+func ImpactoDe(e Exercise) Impact {
+	if e.Impact == "" {
+		return ImpactoBaixo
+	}
+	return e.Impact
+}
+
+// CabeNoImpacto diz se o exercício respeita um tecto. Tecto vazio = sem tecto.
+func CabeNoImpacto(e Exercise, tecto Impact) bool {
+	if tecto == "" {
+		return true
+	}
+	return ordemDoImpacto[ImpactoDe(e)] <= ordemDoImpacto[tecto]
+}
+
+/*
+ * ObjectivosDe diz a que objectivos o exercício serve.
+ *
+ * É uma regra e não um campo: escrever os objectivos sessenta vezes à mão era
+ * copiar a mesma decisão sessenta vezes, e mudá-la passava a ser sessenta
+ * edições. O vocabulário é o mesmo que a pessoa escolhe no plano — `strength`,
+ * `fatLoss`, `muscle`, `habit` — para a comparação ser directa.
+ */
+func ObjectivosDe(e Exercise) []string {
+	tem := map[MovementPattern]bool{}
+	for _, p := range PadroesDe(e) {
+		tem[p] = true
+	}
+
+	objectivos := []string{}
+	junta := func(o string) {
+		for _, j := range objectivos {
+			if j == o {
+				return
+			}
+		}
+		objectivos = append(objectivos, o)
+	}
+
+	// Carga externa constrói força; peso do corpo com padrão de força constrói
+	// músculo a quem está a começar, e menos a quem já treina há anos.
+	temForca := tem[Push] || tem[Pull] || tem[Squat] || tem[Hinge] || tem[Lunge]
+	if temForca {
+		if len(e.Equipment) > 0 || e.Level == Advanced {
+			junta("strength")
+		}
+		junta("muscle")
+	}
+	if tem[Cardio] {
+		junta("fatLoss")
+	}
+	// O core é estabilidade: não engorda um bíceps nem queima uma refeição, e
+	// é o que sustenta tudo o resto.
+	if tem[Core] && !temForca {
+		junta("habit")
+	}
+	if tem[Mobility] {
+		junta("habit")
+	}
+	// Tudo serve para criar o hábito, e o hábito é o objectivo de quem começa.
+	junta("habit")
+	return objectivos
+}
+
 type Measure string
 
 const (
@@ -61,7 +159,15 @@ type Exercise struct {
 	// **um** dos listados.
 	Equipment []string        `json:"equipment"`
 	Pattern   MovementPattern `json:"pattern"`
-	Measure   Measure         `json:"measure"`
+	// Patterns são todos os padrões que o exercício atravessa, quando é mais
+	// do que um. Um burpee é agachamento, empurrar e cardio ao mesmo tempo, e
+	// guardar só um obrigava a escolher qual — com a escolha errada para
+	// metade das perguntas. Vazio = só o `Pattern`; ver `PadroesDe`.
+	Patterns []MovementPattern `json:"patterns,omitempty"`
+	// Impact é a força com que o corpo volta ao chão. Vazio = baixo, que é a
+	// maioria; ver `ImpactoDe`.
+	Impact  Impact  `json:"impact,omitempty"`
+	Measure Measure `json:"measure"`
 	// Cue é um lembrete de execução, não instrução técnica.
 	Cue       string     `json:"cue"`
 	DemoQuery string     `json:"demoQuery"`

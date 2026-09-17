@@ -1,9 +1,17 @@
 // worker corre o que tem de acontecer sem ninguém pedir.
 //
-// Hoje faz uma coisa só: limpar o que já não serve. Desafios expirados guardam
-// o hash de um código e o número de quem o pediu; tokens revogados guardam a
-// ligação entre um aparelho e uma pessoa. Guardá-los depois de deixarem de
-// valer é manter dados pessoais sem razão — e a razão é o que a lei pede.
+// Faz duas coisas.
+//
+// **Limpa o que já não serve.** Desafios expirados guardam o hash de um código
+// e o número de quem o pediu; tokens revogados guardam a ligação entre um
+// aparelho e uma pessoa. Guardá-los depois de deixarem de valer é manter dados
+// pessoais sem razão — e a razão é o que a lei pede.
+//
+// **Vira os ciclos das jornadas.** ⚠️ Um ciclo nascia com a jornada e nunca
+// acabava: quem passasse duas semanas sem abrir a app voltava a um plano parado
+// no tempo. A jornada tem de avançar porque o tempo passou, e não porque
+// alguém tocou no ecrã — que é precisamente o que falha a quem mais precisa
+// de voltar.
 //
 // Separado da API de propósito: um `ticker` dentro do servidor corre em cada
 // réplica, e com três réplicas a limpeza corre três vezes. Aqui corre uma.
@@ -58,18 +66,28 @@ func main() {
 	}
 	defer pool.Close()
 
-	accounts := repo.NewAccountRepo(repo.NewTxManager(pool))
+	tx := repo.NewTxManager(pool)
+	accounts := repo.NewAccountRepo(tx)
+	ciclos := repo.NewCiclosRepo(tx)
 
 	passagem := func() {
-		out, err := accounts.Cleanup(ctx, desafiosApos, tokensApos, eventosApos)
-		if err != nil {
+		// As duas tarefas são independentes: uma falhar não pode impedir a
+		// outra de correr. Um worker que desiste à primeira deixa de fazer o
+		// trabalho todo por causa de metade.
+		if out, err := accounts.Cleanup(ctx, desafiosApos, tokensApos, eventosApos); err != nil {
 			log.Error("limpeza falhou", "erro", err)
-			return
+		} else {
+			// Regista sempre, mesmo a zero: um worker silencioso é
+			// indistinguível de um worker parado.
+			log.Info("limpeza",
+				"desafios", out.Challenges, "tokens", out.Tokens, "eventos", out.Events)
 		}
-		// Regista sempre, mesmo a zero: um worker silencioso é
-		// indistinguível de um worker parado.
-		log.Info("limpeza",
-			"desafios", out.Challenges, "tokens", out.Tokens, "eventos", out.Events)
+
+		if out, err := ciclos.Rolar(ctx, time.Now().UTC()); err != nil {
+			log.Error("virar ciclos falhou", "erro", err)
+		} else {
+			log.Info("ciclos", "fechados", out.Fechados, "abertos", out.Abertos)
+		}
 	}
 
 	passagem()

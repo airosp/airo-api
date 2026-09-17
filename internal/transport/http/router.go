@@ -33,7 +33,14 @@ type Deps struct {
 	Calendar     *handlers.Calendar
 	Measurements *handlers.Measurements
 	Hydration    *handlers.Hydration
+	SessionEdits *handlers.SessionEdits
+	Shopping     *handlers.Shopping
+	FoodPhotos   *handlers.FoodPhotos
+	WhatsApp     *handlers.WhatsAppWebhook
 	Pantry       *handlers.Pantry
+	Media        *handlers.Media
+	Specialists  *handlers.Specialists
+	Sessions     *handlers.Sessions
 	Classes      *handlers.Classes
 	Playlists    *handlers.Playlists
 	Idempotency  middleware.Store
@@ -50,6 +57,9 @@ func NewRouter(d Deps) http.Handler {
 	health := handlers.Health{Version: d.Version, DB: d.DB, Schema: d.Schema, Cache: d.Cache}
 	mux.HandleFunc("GET /healthz", health.Live)
 	mux.HandleFunc("GET /readyz", health.Ready)
+	// Os contadores, para o recolector. Números por rota e mais nada — ver o
+	// comentário em `middleware/metricas.go`.
+	mux.HandleFunc("GET /metrics", middleware.Metrics)
 
 	// As rotas de entrada são públicas por definição: quem ainda não tem sessão
 	// não pode provar que a tem. A defesa aqui são os limites, não o token.
@@ -62,7 +72,14 @@ func NewRouter(d Deps) http.Handler {
 		mux.HandleFunc("POST /v1/auth/logout", d.AuthAPI.Logout)
 	}
 
-	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Measurements != nil || d.Hydration != nil || d.Pantry != nil || d.Classes != nil || d.Playlists != nil) {
+	if d.WhatsApp != nil {
+		// Público de propósito: quem o autentica é a assinatura do corpo, não
+		// uma sessão. Quem chama é a Meta, que não tem conta nenhuma aqui.
+		mux.HandleFunc("GET /v1/webhooks/whatsapp", d.WhatsApp.Verify)
+		mux.HandleFunc("POST /v1/webhooks/whatsapp", d.WhatsApp.Receive)
+	}
+
+	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Measurements != nil || d.Hydration != nil || d.SessionEdits != nil || d.Shopping != nil || d.FoodPhotos != nil || d.Pantry != nil || d.Media != nil || d.Specialists != nil || d.Sessions != nil || d.Classes != nil || d.Playlists != nil) {
 		store := d.Idempotency
 		if store == nil {
 			store = middleware.NewMemoryStore(24 * time.Hour)
@@ -79,6 +96,9 @@ func NewRouter(d Deps) http.Handler {
 		if d.Goals != nil {
 			mux.Handle("POST /v1/goals", private(d.Goals.Create))
 			mux.Handle("POST /v1/goals/assess", private(d.Goals.Assess))
+			// Alterar o que está em vigor, sem recomeçar a jornada.
+			mux.Handle("PATCH /v1/goals/active",
+				middleware.Chain(http.HandlerFunc(d.Goals.Update), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/goals/active",
 				middleware.Chain(http.HandlerFunc(d.Goals.Active), middleware.Auth(d.Auth)))
 		}
@@ -94,6 +114,27 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Training.Events), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/training/sessions",
 				middleware.Chain(http.HandlerFunc(d.Training.History), middleware.Auth(d.Auth)))
+			// A carga proposta para hoje, a partir do que ficou registado.
+			mux.Handle("GET /v1/training/load-suggestions",
+				middleware.Chain(http.HandlerFunc(d.Training.LoadSuggestions), middleware.Auth(d.Auth)))
+		}
+		if d.Shopping != nil {
+			// O que foi riscado e o que foi acrescentado à mão. A lista em si
+			// sai do plano — ver o comentário do handler.
+			mux.Handle("GET /v1/nutrition/shopping-list/{week}",
+				middleware.Chain(http.HandlerFunc(d.Shopping.Get), middleware.Auth(d.Auth)))
+			mux.Handle("PUT /v1/nutrition/shopping-list/{week}",
+				middleware.Chain(http.HandlerFunc(d.Shopping.Save), middleware.Auth(d.Auth)))
+		}
+		if d.SessionEdits != nil {
+			// O treino do dia como a pessoa o deixou — tirou, trocou, afinou.
+			mux.Handle("GET /v1/training/day-edits",
+				middleware.Chain(http.HandlerFunc(d.SessionEdits.List), middleware.Auth(d.Auth)))
+			mux.Handle("PUT /v1/training/day-edits/{day}",
+				middleware.Chain(http.HandlerFunc(d.SessionEdits.Save), middleware.Auth(d.Auth)))
+			// O que já deixou de ser uma troca do dia e passou a ser hábito.
+			mux.Handle("GET /v1/training/habits",
+				middleware.Chain(http.HandlerFunc(d.SessionEdits.Habits), middleware.Auth(d.Auth)))
 		}
 		if d.Profile != nil {
 			mux.Handle("GET /v1/profile", private(d.Profile.Get))
@@ -147,6 +188,37 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Pantry.SaveFavourite), middleware.Auth(d.Auth)))
 			mux.Handle("DELETE /v1/nutrition/favourites/{id}",
 				middleware.Chain(http.HandlerFunc(d.Pantry.DeleteFavourite), middleware.Auth(d.Auth)))
+		}
+		if d.Sessions != nil {
+			// Onde a conta está aberta, e como fechar. Terminar é idempotente
+			// por construção — um aparelho já expulso continua expulso.
+			mux.Handle("GET /v1/auth/sessions",
+				middleware.Chain(http.HandlerFunc(d.Sessions.List), middleware.Auth(d.Auth)))
+			mux.Handle("DELETE /v1/auth/sessions/{id}",
+				middleware.Chain(http.HandlerFunc(d.Sessions.Revoke), middleware.Auth(d.Auth)))
+		}
+		if d.Specialists != nil {
+			mux.Handle("GET /v1/specialists",
+				middleware.Chain(http.HandlerFunc(d.Specialists.List), middleware.Auth(d.Auth)))
+			// A equipa inteira de uma vez: é o estado do ecrã, e mandá-lo torna
+			// o reenvio inofensivo. Por isso fora da idempotência.
+			mux.Handle("PUT /v1/specialists/team",
+				middleware.Chain(http.HandlerFunc(d.Specialists.Save), middleware.Auth(d.Auth)))
+		}
+		if d.FoodPhotos != nil {
+			// As fotografias dos alimentos, resolvidas uma vez para todos.
+			// Fora do bloco do acervo de propósito: sem chave configurada isto
+			// continua a servir o que já está guardado, que é o caso de quase
+			// todos os pedidos.
+			mux.Handle("POST /v1/media/food-photos",
+				middleware.Chain(http.HandlerFunc(d.FoodPhotos.List), middleware.Auth(d.Auth)))
+		}
+		if d.Media != nil {
+			// O acervo. Leitura pura, e por isso fora da idempotência.
+			mux.Handle("GET /v1/media/videos",
+				middleware.Chain(http.HandlerFunc(d.Media.Videos), middleware.Auth(d.Auth)))
+			mux.Handle("GET /v1/media/photos",
+				middleware.Chain(http.HandlerFunc(d.Media.Photos), middleware.Auth(d.Auth)))
 		}
 		if d.Playlists != nil {
 			// Leituras do catálogo. Fora da idempotência.
@@ -250,6 +322,9 @@ func NewRouter(d Deps) http.Handler {
 		middleware.RequestID,
 		middleware.Recover(d.Log),
 		middleware.Log(d.Log),
+		// Conta tudo, incluindo o que a autenticação recusa: um 401 é tão
+		// interessante como um 200 — mais, até, quando são muitos de repente.
+		middleware.Metricas(mux),
 	}
 	if len(d.CORSOrigins) > 0 {
 		// Antes do registo: um pedido prévio recusado não é um pedido da

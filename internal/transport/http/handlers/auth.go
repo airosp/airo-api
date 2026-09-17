@@ -151,6 +151,12 @@ func (h Auth) Refresh(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, apierr.TokenReuseDetected,
 			"A sessão foi terminada por segurança. Entra outra vez.", "")
 		return
+	case errors.Is(err, service.ErrReauthRequired):
+		// Passaram sessenta dias desde que a pessoa provou o número. Não é uma
+		// avaria nem uma suspeita: é o prazo a acabar, e diz-se isso.
+		apierr.Write(w, apierr.ReauthRequired,
+			"Por segurança, confirma o teu número outra vez.", "")
+		return
 	case errors.Is(err, repo.ErrTokenNotFound):
 		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
 		return

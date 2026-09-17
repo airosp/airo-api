@@ -1,0 +1,189 @@
+[
+ {
+  "id": "ana-silva",
+  "name": "Ana Silva",
+  "role": "trainer",
+  "headline": "Força e hipertrofia",
+  "bio": "Ajusta cargas e progressões semana a semana para ganhares força sem parar por lesão.",
+  "tags": [
+   "Força",
+   "Hipertrofia",
+   "Halteres"
+  ],
+  "rating": 4.9,
+  "clients": 320,
+  "responseTime": "Responde em 2h",
+  "initials": "AS",
+  "gradient": [
+   "#c7f36b",
+   "#7fc23f"
+  ],
+  "recommendedFor": [
+   "strength",
+   "muscle"
+  ]
+ },
+ {
+  "id": "miguel-torres",
+  "name": "Miguel Torres",
+  "role": "trainer",
+  "headline": "HIIT e condicionamento",
+  "bio": "Sessões curtas e intensas, pensadas para quem tem pouco tempo e treina em casa.",
+  "tags": [
+   "HIIT",
+   "Cardio",
+   "Em casa"
+  ],
+  "rating": 4.8,
+  "clients": 214,
+  "responseTime": "Responde em 4h",
+  "initials": "MT",
+  "gradient": [
+   "#f58b63",
+   "#d95c33"
+  ],
+  "recommendedFor": [
+   "fatLoss"
+  ]
+ },
+ {
+  "id": "rita-campos",
+  "name": "Rita Campos",
+  "role": "trainer",
+  "headline": "Mobilidade e treino funcional",
+  "bio": "Começa pelo movimento bem feito. Ideal para recomeçar sem dores nem pressa.",
+  "tags": [
+   "Mobilidade",
+   "Funcional",
+   "Iniciantes"
+  ],
+  "rating": 4.9,
+  "clients": 168,
+  "responseTime": "Responde em 1h",
+  "initials": "RC",
+  "gradient": [
+   "#8aa7ff",
+   "#5a76e0"
+  ],
+  "recommendedFor": [
+   "habit"
+  ]
+ },
+ {
+  "id": "nuno-batista",
+  "name": "Nuno Batista",
+  "role": "trainer",
+  "headline": "Corrida e resistência",
+  "bio": "Planos de corrida com ritmos claros, do primeiro quilómetro à primeira meia maratona.",
+  "tags": [
+   "Corrida",
+   "Resistência",
+   "Ao ar livre"
+  ],
+  "rating": 4.7,
+  "clients": 121,
+  "responseTime": "Responde em 6h",
+  "initials": "NB",
+  "gradient": [
+   "#7ee0f5",
+   "#35a9cf"
+  ],
+  "recommendedFor": [
+   "fatLoss",
+   "habit"
+  ]
+ },
+ {
+  "id": "carla-mendes",
+  "name": "Carla Mendes",
+  "role": "nutritionist",
+  "headline": "Nutrição desportiva",
+  "bio": "Calorias e macros alinhados com os teus treinos, sem cortes que não consegues manter.",
+  "tags": [
+   "Macros",
+   "Performance",
+   "Recuperação"
+  ],
+  "rating": 4.9,
+  "clients": 275,
+  "responseTime": "Responde em 3h",
+  "initials": "CM",
+  "gradient": [
+   "#8f83ed",
+   "#6353d4"
+  ],
+  "recommendedFor": [
+   "muscle",
+   "strength"
+  ]
+ },
+ {
+  "id": "joao-ferreira",
+  "name": "João Ferreira",
+  "role": "nutritionist",
+  "headline": "Reeducação alimentar",
+  "bio": "Refeições simples, do dia a dia, adaptadas a quem cozinha para a família toda.",
+  "tags": [
+   "Hábitos",
+   "Vegetariano",
+   "Família"
+  ],
+  "rating": 4.7,
+  "clients": 190,
+  "responseTime": "Responde em 12h",
+  "initials": "JF",
+  "gradient": [
+   "#d89cff",
+   "#ac60e6"
+  ],
+  "recommendedFor": [
+   "fatLoss",
+   "habit"
+  ]
+ },
+ {
+  "id": "diogo-ramos",
+  "name": "Diogo Ramos",
+  "role": "physio",
+  "headline": "Prevenção de lesões",
+  "bio": "Revê os teus treinos quando há histórico de dores na lombar, ombro ou joelho.",
+  "tags": [
+   "Lombar",
+   "Ombro",
+   "Joelho"
+  ],
+  "rating": 4.8,
+  "clients": 143,
+  "responseTime": "Responde em 8h",
+  "initials": "DR",
+  "gradient": [
+   "#69d7c6",
+   "#2f9e8c"
+  ],
+  "recommendedFor": []
+ },
+ {
+  "id": "sofia-nunes",
+  "name": "Sofia Nunes",
+  "role": "coach",
+  "headline": "Consistência e mentalidade",
+  "bio": "Trabalha a rotina, o sono e a motivação para o plano durar depois da primeira semana.",
+  "tags": [
+   "Rotina",
+   "Sono",
+   "Motivação"
+  ],
+  "rating": 4.9,
+  "clients": 402,
+  "responseTime": "Responde em 5h",
+  "initials": "SN",
+  "gradient": [
+   "#ffd166",
+   "#e0a222"
+  ],
+  "recommendedFor": [
+   "habit",
+   "fatLoss"
+  ]
+ }
+]

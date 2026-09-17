@@ -108,6 +108,13 @@ func paraVista(s service.Snapshot) view.SnapshotData {
 		Adherence:   s.Adherence,
 		Risks:       s.Risks,
 	}
+	if s.Baseline != nil {
+		out.Baseline = *s.Baseline
+	}
+	if s.Target != nil {
+		out.Target = *s.Target
+	}
+	out.Unidade = s.Unidade
 	if s.Forecast != nil {
 		out.TemPrevisao = true
 		out.ForecastOn = s.Forecast.ExpectedOn

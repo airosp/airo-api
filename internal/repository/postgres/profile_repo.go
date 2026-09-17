@@ -30,6 +30,12 @@ type ProfileRow struct {
 	WorkoutTime    string
 	Experience     string
 	Equipment      []string
+	// MaxImpact é o tecto de pancada nas articulações. Nulo = sem tecto, que é
+	// o caso da maioria — e é diferente de "high", que é a pessoa a responder
+	// à pergunta escolhendo o mais alto.
+	MaxImpact *string
+	// NutritionDetail é quanto da nutrição se mostra: "simple" ou "detailed".
+	NutritionDetail string
 
 	DietStyle      string
 	MealsPerDay    int
@@ -56,6 +62,19 @@ type ProfileInput struct {
 	WorkoutMinutes int
 	WorkoutTime    string
 	Equipment      []string
+	/*
+	 * MaxImpact é o tecto de impacto a gravar, e `MaxImpactDado` diz se o
+	 * cliente sequer falou nele.
+	 *
+	 * Os dois campos porque há três respostas e não duas: "não mexas" (um
+	 * cliente antigo que não conhece o campo), "tira o tecto" (`nil` com
+	 * `Dado`) e "põe este". Sem a distinção, quem gravasse o perfil a partir
+	 * de uma app por actualizar perdia o tecto sem ter pedido nada.
+	 */
+	MaxImpact     *string
+	MaxImpactDado bool
+	// NutritionDetail vazio quer dizer "não mexer", pela mesma razão.
+	NutritionDetail string
 
 	DietStyle      string
 	MealsPerDay    int
@@ -85,12 +104,12 @@ func (r *ProfileRepo) Profile(ctx context.Context, userID string) (ProfileRow, e
 	err := r.tx.Q(ctx).QueryRow(ctx,
 		`SELECT display_name, birth_date, age_years, sex::text, height_cm,
 		        experience::text, workout_days, workout_minutes, workout_time::text,
-		        equipment, diet_style::text, meals_per_day, food_budget::text,
+		        equipment, max_impact::text, nutrition_detail::text, diet_style::text, meals_per_day, food_budget::text,
 		        food_exclusions, photo_url, profile_complete
 		   FROM profile WHERE user_id = $1`, userID,
 	).Scan(&p.DisplayName, &birth, &p.Age, &p.Sex, &p.HeightCm,
 		&p.Experience, &p.WorkoutDays, &p.WorkoutMinutes, &p.WorkoutTime,
-		&p.Equipment, &p.DietStyle, &p.MealsPerDay, &p.FoodBudget,
+		&p.Equipment, &p.MaxImpact, &p.NutritionDetail, &p.DietStyle, &p.MealsPerDay, &p.FoodBudget,
 		&p.FoodExclusions, &p.PhotoURL, &p.Complete)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, ErrNoProfile
@@ -132,9 +151,11 @@ func (r *ProfileRepo) Save(ctx context.Context, userID string, in ProfileInput, 
 		`INSERT INTO profile (
 		     user_id, display_name, birth_date, age_years, sex, height_cm,
 		     experience, workout_days, workout_minutes, workout_time, equipment,
-		     diet_style, meals_per_day, food_budget, food_exclusions,
-		     profile_complete, updated_at)
+		     max_impact, nutrition_detail, diet_style, meals_per_day, food_budget,
+		     food_exclusions, profile_complete, updated_at)
 		 VALUES ($1,$2,$3,$4,$5::sex,$6,$7::experience,$8,$9,$10::workout_time,$11,
+		         $17::impact_level,
+		         COALESCE(NULLIF($19,'')::nutrition_detail,'detailed'),
 		         $12::diet_style,$13,$14::budget,$15,true,$16)
 		 ON CONFLICT (user_id) DO UPDATE SET
 		     display_name = EXCLUDED.display_name,
@@ -147,6 +168,13 @@ func (r *ProfileRepo) Save(ctx context.Context, userID string, in ProfileInput, 
 		     workout_minutes = EXCLUDED.workout_minutes,
 		     workout_time = EXCLUDED.workout_time,
 		     equipment = EXCLUDED.equipment,
+		     -- Só quando o cliente falou nele: ver MaxImpactDado.
+		     max_impact = CASE WHEN $18::boolean THEN EXCLUDED.max_impact
+		                       ELSE profile.max_impact END,
+		     -- Vazio quer dizer "não mexer": um cliente que não conhece o
+		     -- campo não pode devolver toda a gente ao modo detalhado.
+		     nutrition_detail = CASE WHEN $19 <> '' THEN EXCLUDED.nutrition_detail
+		                             ELSE profile.nutrition_detail END,
 		     diet_style = EXCLUDED.diet_style,
 		     meals_per_day = EXCLUDED.meals_per_day,
 		     food_budget = EXCLUDED.food_budget,
@@ -158,7 +186,8 @@ func (r *ProfileRepo) Save(ctx context.Context, userID string, in ProfileInput, 
 		     updated_at = EXCLUDED.updated_at`,
 		userID, in.DisplayName, in.BirthDate, in.AgeYears, in.Sex, in.HeightCm,
 		in.Experience, in.WorkoutDays, in.WorkoutMinutes, in.WorkoutTime, in.Equipment,
-		in.DietStyle, in.MealsPerDay, in.FoodBudget, in.FoodExclusions, now)
+		in.DietStyle, in.MealsPerDay, in.FoodBudget, in.FoodExclusions, now,
+		in.MaxImpact, in.MaxImpactDado, in.NutritionDetail)
 	if err != nil {
 		return fmt.Errorf("gravar perfil: %w", err)
 	}

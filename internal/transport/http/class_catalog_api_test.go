@@ -40,6 +40,11 @@ func serveCatalogoDeAulas(t *testing.T) http.Handler {
 	_, pool, userID := serve(t)
 
 	tx := repo.NewTxManager(pool)
+	// Os especialistas primeiro: desde a migração 19, uma aula aponta para um
+	// deles por chave estrangeira.
+	if _, err := repo.NewSpecialistRepo(tx).Seed(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	aulas := repo.NewClassRepo(tx)
 	if _, err := aulas.Seed(context.Background()); err != nil {
 		t.Fatal(err)

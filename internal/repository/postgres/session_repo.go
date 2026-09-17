@@ -557,3 +557,60 @@ func (r *SessionRepo) PerformedIn(ctx context.Context, userID string, from, to t
 	}
 	return out, rows.Err()
 }
+
+// UltimaCarga é o que se levantou da última vez num exercício.
+type UltimaCarga struct {
+	ExerciseSlug string
+	WeightKg     float64
+	Reps         int
+	// Completas diz se todas as séries daquele dia ficaram feitas. É o que
+	// distingue "correu bem, sobe" de "não acabou, segura".
+	Completas bool
+	LocalDay  time.Time
+}
+
+/*
+ * LastLoads devolve a última carga de cada exercício.
+ *
+ * ⚠️ **A última, não a maior.** Uma semana má não se apaga: quem baixou o peso
+ * porque estava doente não quer que a app lhe proponha o recorde de há um mês
+ * como se nada fosse.
+ *
+ * `DISTINCT ON` faz isto numa consulta: ordena por exercício e por data
+ * descendente, e fica com a primeira linha de cada grupo.
+ */
+func (r *SessionRepo) LastLoads(ctx context.Context, userID string) ([]UltimaCarga, error) {
+	rows, err := r.tx.Q(ctx).Query(ctx,
+		`SELECT DISTINCT ON (e.slug)
+		        e.slug,
+		        (s.actual->>'weightKg')::numeric,
+		        COALESCE((s.actual->>'reps')::int, 0),
+		        -- Todas as séries daquele exercício, naquele dia, ficaram feitas?
+		        NOT EXISTS (
+		          SELECT 1 FROM exercise_set x
+		           WHERE x.prescription_id = p.id AND NOT x.completed
+		        ) AS completas,
+		        ws.local_day
+		   FROM exercise_set s
+		   JOIN exercise_prescription p ON p.id = s.prescription_id
+		   JOIN workout_session ws ON ws.id = p.session_id
+		   JOIN exercise e ON e.id = p.exercise_id
+		  WHERE ws.user_id = $1
+		    AND s.actual IS NOT NULL
+		    AND s.actual->>'weightKg' IS NOT NULL
+		  ORDER BY e.slug, ws.local_day DESC, s.index DESC`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("ler cargas anteriores: %w", err)
+	}
+	defer rows.Close()
+
+	out := []UltimaCarga{}
+	for rows.Next() {
+		var u UltimaCarga
+		if err := rows.Scan(&u.ExerciseSlug, &u.WeightKg, &u.Reps, &u.Completas, &u.LocalDay); err != nil {
+			return nil, err
+		}
+		out = append(out, u)
+	}
+	return out, rows.Err()
+}

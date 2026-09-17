@@ -25,6 +25,42 @@ type BuildInput struct {
 	// sobre o cálculo, e o acerto ao orçamento deixa de lhes mexer: senão a
 	// pessoa escrevia 4×10 e recebia 3×10 sem ninguém lhe dizer porquê.
 	Prescriptions map[string]Prescription
+
+	// MaxImpact é o tecto de pancada nas articulações. Vazio = sem tecto.
+	//
+	// Quem tem joelhos maus, quem mora num primeiro andar com vizinhos por
+	// baixo, quem está a recomeçar depois de uma lesão: a app propunha-lhes
+	// polichinelos e burpees na mesma, e a resposta era deixar de abrir a app.
+	MaxImpact Impact
+
+	/*
+	 * Specialist é quem a pessoa pôs na equipa como treinador.
+	 *
+	 * ⚠️ Escolher a Ana ou o Miguel era escolher um nome por baixo do título
+	 * das aulas: o plano saía igual. Uma escolha sem consequência é uma
+	 * pergunta a fingir. Ver `metodo.go` para o que cada um muda.
+	 */
+	Specialist string
+}
+
+/*
+ * tectoMaisApertado devolve o menor dos dois tectos.
+ *
+ * O método **aperta**, nunca afrouxa: quem escolheu não saltar não passa a
+ * saltar por ter posto um treinador na equipa, e um fisioterapeuta na equipa
+ * não desfaz o tecto que a pessoa pôs.
+ */
+func tectoMaisApertado(a, b Impact) Impact {
+	if a == "" {
+		return b
+	}
+	if b == "" {
+		return a
+	}
+	if ordemDoImpacto[a] <= ordemDoImpacto[b] {
+		return a
+	}
+	return b
 }
 
 func setSeconds(c Config, e SessionExercise) int {
@@ -76,12 +112,25 @@ func BuildSession(c Config, in BuildInput) (Session, error) {
 		in.DayISO, in.PlanLabel, in.Experience, joinComma(in.Equipment)))
 	rank := levelRank[in.Experience]
 
+	// O método do treinador da equipa, se tiver um.
+	metodo, _ := MetodoDe(in.Specialist)
+
 	blocked := toSet(in.Excluded)
 	var pool []Exercise
 	for _, e := range lib {
-		if !blocked[e.ID] && isAvailable(e, in.Equipment) && levelRank[e.Level] <= rank {
-			pool = append(pool, e)
+		if blocked[e.ID] || !isAvailable(e, in.Equipment) || levelRank[e.Level] > rank {
+			continue
 		}
+		// O tecto de impacto trata-se como o equipamento: o exercício não
+		// existe para esta pessoa. Tirá-lo depois de escolhido deixava buracos
+		// no treino; tirá-lo aqui faz o motor escolher outro no lugar.
+		//
+		// O do método aperta o da pessoa, nunca o afrouxa: quem escolheu não
+		// saltar não passa a saltar por ter posto um treinador na equipa.
+		if !CabeNoImpacto(e, tectoMaisApertado(in.MaxImpact, metodo.TectoDeImpacto)) {
+			continue
+		}
+		pool = append(pool, e)
 	}
 
 	poolByID := make(map[string]Exercise, len(pool))
@@ -269,12 +318,55 @@ func BuildSession(c Config, in BuildInput) (Session, error) {
 		}
 		return best
 	}
-	base := c.SetsByExperience[in.Experience]
+	/*
+	 * O método do treinador desloca o alvo de séries **antes** do acerto ao
+	 * orçamento, e não depois.
+	 *
+	 * Depois não funcionava: o acerto tirava as séries acrescentadas no
+	 * instante seguinte, e a escolha do treinador não se via em lado nenhum.
+	 * Assim a troca é honesta e explicável — a Ana dá menos exercícios com mais
+	 * séries cada, no mesmo tempo. O orçamento continua a ser o orçamento.
+	 */
+	base := c.SetsByExperience[in.Experience] + metodo.SetsExtra
+	if base < 2 {
+		base = 2
+	}
+	if limite := c.SetsByExperience[in.Experience] + c.ExtraSetsCap; base > limite {
+		base = limite
+	}
 	floor := base - 1
+	/*
+	 * Com um método que pede mais séries, o chão sobe com o alvo.
+	 *
+	 * ⚠️ Sem isto o acerto ao orçamento devolvia as séries ao que eram, e a
+	 * escolha do treinador não se via em lado nenhum — o treino saía igual.
+	 * Com o chão em cima, o acerto tem de tirar **exercícios**, que é a troca
+	 * verdadeira: no mesmo tempo, menos coisas trabalhadas mais vezes.
+	 */
+	if metodo.SetsExtra > 0 {
+		floor = base
+	}
 	if floor < 2 {
 		floor = 2
 	}
 	ceiling := base + c.ExtraSetsCap
+
+	/*
+	 * As séries começam no alvo do método, e não no da experiência.
+	 *
+	 * ⚠️ Sem isto o método não chegava a entrar: as entradas nasciam com as
+	 * séries da experiência, o orçamento já estava cheio, e o acerto nunca
+	 * subia nada — o treino da Ana saía idêntico ao de quem não escolheu
+	 * ninguém. O que a pessoa fixou à mão continua a mandar.
+	 */
+	if metodo.SetsExtra != 0 {
+		for i := range main {
+			if main[i].Role != Main || prescriptionOf(in.Prescriptions, main[i].Exercise.ID) != nil {
+				continue
+			}
+			main[i].Sets = base
+		}
+	}
 
 	// Converge para o orçamento: cresce enquanto sobra tempo, encolhe enquanto
 	// falta, e pára quando nenhum dos lados tem folga.

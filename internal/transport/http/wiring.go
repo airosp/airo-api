@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/airosp/airo-api/internal/auth"
@@ -12,6 +13,7 @@ import (
 	"github.com/airosp/airo-api/internal/engine/training"
 	"github.com/airosp/airo-api/internal/platform/clock"
 	"github.com/airosp/airo-api/internal/platform/cloudinary"
+	"github.com/airosp/airo-api/internal/platform/pexels"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
 	"github.com/airosp/airo-api/internal/transport/http/handlers"
@@ -43,10 +45,21 @@ type Platform struct {
 	// em voz alta, em vez de as rotas desaparecerem em silêncio.
 	Sender service.Sender
 
+	/*
+	 * WhatsAppWebhookSecret é o app secret com que a Meta assina os eventos de
+	 * entrega. Vazio não regista a rota: uma rota de webhook que aceite corpos
+	 * não assinados é pior do que rota nenhuma.
+	 */
+	WhatsAppWebhookSecret string
+
 	// Images guarda as fotografias de perfil. Nil desliga a funcionalidade.
 	Images *cloudinary.Client
 	// MealImages guarda as fotografias de refeições, noutra pasta.
 	MealImages *cloudinary.Client
+
+	// Stock é o acervo de vídeos e fotografias. Nil, ou sem chave, deixa a app
+	// com os gradientes por categoria — que é o que ela já faz sem rede.
+	Stock *pexels.Client
 }
 
 func Wire(p Platform) Deps {
@@ -81,8 +94,11 @@ func Wire(p Platform) Deps {
 		uploader = avatarUploader{c: p.Images}
 	}
 	prefs := repo.NewPreferenceRepo(tx)
-	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader, prefs)
-	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles, Reader: goals}
+	// A equipa entra aqui: o treinador escolhido muda o treino que o motor
+	// monta — ver `training/metodo.go`.
+	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader, prefs).
+		ComEquipa(repo.NewSpecialistRepo(tx))
+	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles, Reader: goals, Editor: goals}
 	deps.Training = &handlers.Training{
 		Service: trainingSvc, Profiles: profiles, Sessions: sessions,
 		Classes:  repo.NewClassRepo(tx),
@@ -118,7 +134,33 @@ func Wire(p Platform) Deps {
 	// tabela, lida de duas maneiras — aqui ponto a ponto, lá como tendência.
 	deps.Measurements = &handlers.Measurements{Store: repo.NewProgressRepo(tx)}
 	deps.Hydration = &handlers.Hydration{Store: repo.NewHydrationRepo(tx)}
+	deps.SessionEdits = &handlers.SessionEdits{Store: repo.NewSessionEditRepo(tx)}
+	deps.Shopping = &handlers.Shopping{Store: repo.NewShoppingRepo(tx)}
+	// O acervo entra quando há chave; sem ela, isto serve só o que já está
+	// guardado — que continua a ser a resposta certa para quase todos os
+	// pedidos, porque a imagem já foi encontrada por outra pessoa.
+	fotos := &handlers.FoodPhotos{Store: repo.NewMediaRepo(tx)}
+	if p.Stock != nil {
+		fotos.Source = p.Stock
+	}
+	deps.FoodPhotos = fotos
 	deps.Pantry = &handlers.Pantry{Store: repo.NewPantryRepo(tx)}
+	deps.Specialists = &handlers.Specialists{Store: repo.NewSpecialistRepo(tx)}
+	deps.Sessions = &handlers.Sessions{Devices: repo.NewAuthRepo(tx), Clock: p.Clock}
+	/*
+	 * O acervo regista-se **sempre**, com ou sem chave.
+	 *
+	 * ⚠️ Antes só existia quando havia chave configurada, e isso quer dizer que
+	 * a forma da API mudava com a configuração: a mesma app recebia 404 numa
+	 * instalação e 200 noutra, e o cliente não tem como saber qual é qual.
+	 * Sem chave o handler já devolve uma lista vazia — que é uma resposta, e é
+	 * a que a app sabe desenhar.
+	 */
+	media := &handlers.Media{}
+	if p.Stock != nil {
+		media.Source = p.Stock
+	}
+	deps.Media = media
 	deps.Catalog = &handlers.Catalog{Training: trainingCfg, Nutrition: configs.Nutrition}
 	deps.Account = &handlers.Account{
 		Service: service.NewAccountService(repo.NewAccountRepo(tx), apagaImagens),
@@ -143,11 +185,23 @@ func Wire(p Platform) Deps {
 			deps.AuthAPI = &handlers.Auth{
 				Service: service.NewAuthService(
 					repo.NewAuthRepo(tx), auth.NewRedisLimiter(p.Redis), p.Sender,
-					service.DefaultAuthConfig(p.OTPPepper), p.Clock),
+					configuracaoDeAutenticacao(p.OTPPepper), p.Clock),
 				Tokens: tokens,
 			}
 		} else {
 			p.Log.Warn("autenticação por telefone desligada: falta Redis, pepper ou canal de envio")
+		}
+
+		// O webhook de entrega. Sem segredo não se regista rota nenhuma: uma
+		// rota de webhook aberta é pior do que rota nenhuma.
+		if p.WhatsAppWebhookSecret != "" {
+			deps.WhatsApp = &handlers.WhatsAppWebhook{
+				Store:       repo.NewAuthRepo(tx),
+				Secret:      p.WhatsAppWebhookSecret,
+				VerifyToken: os.Getenv("AIRO_WHATSAPP_VERIFY_TOKEN"),
+			}
+		} else {
+			p.Log.Warn("sem AIRO_WHATSAPP_WEBHOOK_SECRET: as confirmações de entrega não são recebidas")
 		}
 	} else {
 		p.Log.Warn("sem AIRO_JWT_SECRET: as rotas privadas não são registadas")
@@ -185,3 +239,23 @@ func (s logSender) Send(_ context.Context, phone, code, channel string) (string,
 type redisPinger struct{ c redis.UniversalClient }
 
 func (r redisPinger) Ping(ctx context.Context) error { return r.c.Ping(ctx).Err() }
+
+/*
+ * configuracaoDeAutenticacao é a configuração por omissão, com o prazo da
+ * sessão ajustável.
+ *
+ * `AIRO_SESSION_MAX_AGE` existe para se poder encurtar sem recompilar — em
+ * ensaio, para ver o ecrã que aparece a quem tem de confirmar o número outra
+ * vez; e em produção, se um dia sessenta dias se revelarem de mais. Ausente ou
+ * ilegível fica o que estava: um prazo mal escrito não pode ser um prazo
+ * infinito.
+ */
+func configuracaoDeAutenticacao(pepper []byte) service.AuthConfig {
+	cfg := service.DefaultAuthConfig(pepper)
+	if v := os.Getenv("AIRO_SESSION_MAX_AGE"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			cfg.SessionMaxAge = d
+		}
+	}
+	return cfg
+}

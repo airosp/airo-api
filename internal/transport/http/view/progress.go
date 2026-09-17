@@ -1,6 +1,7 @@
 package view
 
 import (
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +37,29 @@ type ProgressSnapshot struct {
 	Paused *PausedView `json:"paused,omitempty"`
 	// JourneyID é o que os botões de pausa e retoma precisam.
 	JourneyID string `json:"journeyId,omitempty"`
+
+	/*
+	 * Scale é o intervalo em que o gráfico do peso se desenha.
+	 *
+	 * ⚠️ O telemóvel escalava ao mínimo e ao máximo da série, e isso mente das
+	 * duas maneiras: dois quilos perdidos em três meses ficam com o aspecto de
+	 * um precipício, e duzentos gramas de ruído num dia mau também. Pior — o
+	 * mesmo peso lia-se diferente em dois aparelhos com históricos diferentes.
+	 *
+	 * Quem sabe a escala certa é quem sabe o alvo e a linha de partida, e isso
+	 * é o servidor. Ausente quando não há objectivo com peso — aí o telemóvel
+	 * volta a fazer o que fazia, que é o melhor que dá sem alvo.
+	 */
+	Scale *ScaleView `json:"scale,omitempty"`
+}
+
+// ScaleView é o intervalo do eixo, já decidido.
+type ScaleView struct {
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+	// Target é onde se desenha a linha do alvo, dentro do intervalo.
+	Target *float64 `json:"target,omitempty"`
+	Unit   string   `json:"unit"`
 }
 
 type PausedView struct {
@@ -124,6 +148,16 @@ type SnapshotData struct {
 	ForecastConfidence string
 	TemPrevisao        bool
 
+	/*
+	 * A linha de partida e o alvo, para se decidir a escala do gráfico.
+	 *
+	 * Zero quer dizer "não há" — um objectivo de hábito não tem peso alvo, e
+	 * nesse caso não se manda escala nenhuma.
+	 */
+	Baseline float64
+	Target   float64
+	Unidade  string
+
 	// Horizonte aberto.
 	CycleIndex      int
 	CycleReview     *time.Time
@@ -143,6 +177,8 @@ func BuildProgressSnapshot(s SnapshotData) ProgressSnapshot {
 			Label: "Em pausa desde " + diaPorExtenso(*s.PausedSince) + ".",
 		}
 	}
+
+	out.Scale = escalaDo(s)
 
 	if s.Trend != nil {
 		out.Trend = &TrendView{
@@ -334,4 +370,66 @@ type AdaptationRowLike struct {
 	Kind      string
 	Payload   map[string]any
 	CreatedAt time.Time
+}
+
+/*
+ * escalaDo decide o intervalo do eixo do peso.
+ *
+ * As regras, por ordem:
+ *
+ *  1. O intervalo tem de conter **a partida, o alvo e onde a pessoa está**.
+ *     Um gráfico que corta o alvo esconde a pergunta a que ele responde.
+ *  2. Uma margem de 15% do percurso de cada lado, para a linha não andar
+ *     colada às bordas — e no mínimo meio quilo, senão quem tem alvo perto da
+ *     partida fica com o gráfico esmagado.
+ *  3. Arredonda-se ao meio quilo. Um eixo que diz 73,4 a 78,9 parece um erro;
+ *     73,5 a 79 parece uma escala.
+ *
+ * Sem alvo não há escala a mandar: um objectivo de hábito não tem peso a
+ * atingir, e inventar um intervalo seria decidir por quem não decidiu.
+ */
+func escalaDo(s SnapshotData) *ScaleView {
+	if s.Target <= 0 || s.Baseline <= 0 {
+		return nil
+	}
+
+	baixo, alto := s.Baseline, s.Target
+	if baixo > alto {
+		baixo, alto = alto, baixo
+	}
+	// Onde a pessoa está agora também tem de caber: quem passou do alvo não
+	// pode ver a própria linha fora do gráfico.
+	if s.Trend != nil {
+		if s.Trend.RollingAverage < baixo {
+			baixo = s.Trend.RollingAverage
+		}
+		if s.Trend.RollingAverage > alto {
+			alto = s.Trend.RollingAverage
+		}
+	}
+
+	margem := (alto - baixo) * 0.15
+	if margem < 0.5 {
+		margem = 0.5
+	}
+	baixo -= margem
+	alto += margem
+
+	arredonda := func(v float64, cima bool) float64 {
+		if cima {
+			return math.Ceil(v*2) / 2
+		}
+		return math.Floor(v*2) / 2
+	}
+	alvo := s.Target
+	unidade := s.Unidade
+	if unidade == "" {
+		unidade = "kg"
+	}
+	return &ScaleView{
+		Min:    arredonda(baixo, false),
+		Max:    arredonda(alto, true),
+		Target: &alvo,
+		Unit:   unidade,
+	}
 }

@@ -20,6 +20,22 @@ type ProfileRequest struct {
 	WorkoutMinutes int      `json:"workoutMinutes"`
 	WorkoutTime    string   `json:"workoutTime"`
 	Equipment      []string `json:"equipment"`
+	/*
+	 * MaxImpact é o tecto de pancada nas articulações: "low", "moderate",
+	 * "high" — ou ausente, que é sem tecto.
+	 *
+	 * Ponteiro pela mesma razão que as preferências de exercício: chegou
+	 * depois, e um cliente antigo que não o envie não está a dizer "quero
+	 * tudo". Ausente não mexe; `""` limpa.
+	 */
+	MaxImpact *string `json:"maxImpact,omitempty"`
+	/*
+	 * NutritionDetail é quanto da nutrição se mostra: "simple" ou "detailed".
+	 *
+	 * Vazio não mexe — um cliente que ainda não conhece o campo não devolve
+	 * toda a gente ao modo detalhado.
+	 */
+	NutritionDetail string `json:"nutritionDetail,omitempty"`
 
 	DietStyle      string   `json:"dietStyle"`
 	MealsPerDay    int      `json:"mealsPerDay"`

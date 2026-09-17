@@ -26,7 +26,13 @@ func aulasCarregadas(t *testing.T) (*repo.ClassRepo, *pgxpool.Pool, context.Cont
 	if err := airopg.Up(ctx, pool, migs, quiet); err != nil {
 		t.Fatal(err)
 	}
-	r := repo.NewClassRepo(repo.NewTxManager(pool))
+	tx := repo.NewTxManager(pool)
+	// Uma aula aponta para um especialista por chave estrangeira desde a
+	// migração 19: sem o catálogo carregado, nenhuma entra.
+	if _, err := repo.NewSpecialistRepo(tx).Seed(ctx); err != nil {
+		t.Fatalf("carregar especialistas: %v", err)
+	}
+	r := repo.NewClassRepo(tx)
 	if _, err := r.Seed(ctx); err != nil {
 		t.Fatalf("carregar aulas: %v", err)
 	}

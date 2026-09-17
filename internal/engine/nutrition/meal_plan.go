@@ -495,3 +495,56 @@ func assinatura(items []MealItem) string {
 	}
 	return strings.Join(ids, "+")
 }
+
+/*
+ * OpcoesDeRefeicao devolve alternativas para um lugar da refeição.
+ *
+ * ⚠️ O que existia era **uma** refeição por lugar e um botão "trocar" que dava
+ * a seguinte. Quem não gostasse da primeira tocava até acertar, sem saber
+ * quantas havia nem o que vinha a seguir — e sem forma de voltar à que tinha
+ * visto duas trocas atrás. A especificação pede o contrário: mostrar as opções
+ * e deixar escolher.
+ *
+ * A primeira é sempre a que está no plano: as alternativas são alternativas
+ * **a alguma coisa**, e tirar a actual da lista fazia o ecrã propor uma troca
+ * onde a pessoa só queria ver o que havia.
+ *
+ * Devolve menos do que se pede quando não há mais nada que sirva. Uma dieta
+ * restrita com um alvo apertado tem mesmo poucas respostas, e inventar
+ * repetições para encher três cartões era mentir com a interface.
+ */
+func OpcoesDeRefeicao(c Config, in RebuildMealInput, quantas int) ([]PlannedMeal, error) {
+	if quantas <= 0 {
+		return nil, nil
+	}
+	out := []PlannedMeal{in.Meal}
+	vistas := map[string]bool{assinatura(in.Meal.Items): true}
+
+	// O mesmo passo de 1 do `RebuildMeal`, e pela mesma razão: ver o comentário
+	// lá. Vinte tentativas porque cada variante pode cair numa já vista.
+	base := seedFromDay(in.Meal.ID)
+	for step := 0; step < 20 && len(out) < quantas; step++ {
+		for _, comReceita := range []bool{true, false} {
+			items, err := buildMeal(buildMealInput{
+				Slot: in.Meal.Slot, Kcal: float64(in.Meal.Kcal), Macros: in.Meal.Macros,
+				Diet: in.Diet, Role: in.Meal.Role,
+				Seed: base + in.Variant + step, AllowRecipe: comReceita,
+			})
+			if err != nil {
+				return nil, err
+			}
+			chave := assinatura(items)
+			if vistas[chave] {
+				continue
+			}
+			vistas[chave] = true
+			alternativa := in.Meal
+			alternativa.Items = items
+			out = append(out, alternativa)
+			if len(out) >= quantas {
+				break
+			}
+		}
+	}
+	return out, nil
+}

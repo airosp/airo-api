@@ -21,7 +21,9 @@ import (
 	"github.com/airosp/airo-api/internal/platform/cloudinary"
 	"github.com/airosp/airo-api/internal/platform/config"
 	"github.com/airosp/airo-api/internal/platform/logger"
+	"github.com/airosp/airo-api/internal/platform/pexels"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
+	"github.com/airosp/airo-api/internal/platform/sms"
 	"github.com/airosp/airo-api/internal/platform/whatsapp"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
@@ -71,6 +73,14 @@ func main() {
 				os.Exit(1)
 			} else {
 				log.Info("catálogo carregado", "exercicios", n)
+			}
+			// Antes das aulas: uma aula aponta para um especialista por chave
+			// estrangeira, e ao contrário a primeira não teria onde encaixar.
+			if n, err := seedSpecialists(ctx, pool); err != nil {
+				log.Error("carregar especialistas", "error", err)
+				os.Exit(1)
+			} else {
+				log.Info("especialistas carregados", "especialistas", n)
 			}
 			if n, err := seedClasses(ctx, pool); err != nil {
 				log.Error("carregar aulas", "error", err)
@@ -136,6 +146,12 @@ func main() {
 		} else {
 			log.Info("catálogo carregado", "exercicios", n)
 		}
+		if n, err := seedSpecialists(ctx, pool); err != nil {
+			log.Error("carregar especialistas", "error", err)
+			os.Exit(1)
+		} else {
+			log.Info("especialistas carregados", "especialistas", n)
+		}
 		if n, err := seedClasses(ctx, pool); err != nil {
 			log.Error("carregar aulas", "error", err)
 			os.Exit(1)
@@ -181,6 +197,33 @@ func main() {
 	} else {
 		log.Warn("sem WhatsApp configurado: o código vai para o registo")
 		sender = airohttp.NewLogSender(log)
+	}
+
+	/*
+	 * O segundo canal, para quem não tem WhatsApp.
+	 *
+	 * ⚠️ Sem ele, trinta segundos sem entrega não têm plano B. Só entra quando
+	 * o primeiro diz que o número não recebe — ver `RemetenteEncadeado` para a
+	 * razão de não entrar a cada falha.
+	 */
+	if cfg.SMS.AccountSID != "" && cfg.SMS.AuthToken != "" && cfg.SMS.From != "" {
+		mensagens := sms.New(sms.Config{
+			Provider:   cfg.SMS.Provider,
+			AccountSID: cfg.SMS.AccountSID,
+			AuthToken:  cfg.SMS.AuthToken,
+			From:       cfg.SMS.From,
+			BaseURL:    cfg.SMS.BaseURL,
+			Log:        log,
+		})
+		sender = service.RemetenteEncadeado{
+			Principal:   sender,
+			Alternativo: service.RemetenteSMS{Enviar: mensagens.Send},
+			Log:         log,
+		}
+		log.Info("canal alternativo: mensagem", "fornecedor", cfg.SMS.Provider, "de", cfg.SMS.From)
+	} else {
+		log.Warn("sem canal de mensagens: quem não tem WhatsApp fica à porta",
+			"em_falta", "AIRO_SMS_ACCOUNT_SID, AIRO_SMS_AUTH_TOKEN e AIRO_SMS_FROM")
 	}
 
 	var rdb redis.UniversalClient
@@ -237,10 +280,25 @@ func main() {
 		log.Warn("sem Cloudinary: as fotografias de perfil ficam indisponíveis")
 	}
 
+	/*
+	 * O acervo de imagens.
+	 *
+	 * Sem chave a app fica com os gradientes por categoria — e diz-se, porque
+	 * uma funcionalidade que desaparece em silêncio parece uma avaria.
+	 */
+	var acervo *pexels.Client
+	if cfg.PexelsKey != "" {
+		acervo = pexels.New(cfg.PexelsKey)
+	} else {
+		log.Warn("sem AIRO_PEXELS_API_KEY: os vídeos e fotografias do acervo ficam indisponíveis")
+	}
+
 	deps := airohttp.Wire(airohttp.Platform{
 		Log: log, Version: version, Pool: pool, Redis: rdb, Clock: clock.System{},
 		JWTSecret: cfg.JWTSecret, OTPPepper: cfg.OTPPepper,
 		Sender: sender, Images: images, MealImages: mealImages,
+		Stock:                 acervo,
+		WhatsAppWebhookSecret: cfg.WhatsApp.WebhookSecret,
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	deps.CORSOrigins = cfg.CORSOrigins
@@ -299,6 +357,13 @@ func seedCatalog(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 func seedClasses(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 	tx := repo.NewTxManager(pool)
 	return repo.NewClassRepo(tx).Seed(ctx)
+}
+
+// seedSpecialists carrega o catálogo de especialistas. Corre **antes** das
+// aulas: cada aula aponta para um por chave estrangeira.
+func seedSpecialists(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	tx := repo.NewTxManager(pool)
+	return repo.NewSpecialistRepo(tx).Seed(ctx)
 }
 
 // seedPlaylists carrega as sequências de aulas. Corre **depois** das aulas: uma

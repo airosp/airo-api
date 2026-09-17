@@ -153,3 +153,116 @@ func serveComHistorico(t *testing.T) (http.Handler, *pgxpool.Pool, string) {
 		Idempotency: middleware.NewMemoryStore(time.Hour),
 	}), pool, userID
 }
+
+/*
+ * A carga de hoje é proposta a partir da de ontem.
+ *
+ * Sem histórico não havia de onde propor — e era essa a metade que faltava à
+ * progressão: a app sabia quanto se levantou e não dizia quanto levantar.
+ */
+func TestACargaDeHojeSaiDaDeOntem(t *testing.T) {
+	h, pool, userID := serveComHistorico(t)
+	ctx := context.Background()
+
+	simples := `{"occurredAt":"2026-09-12T18:00:00Z","localDay":"2026-09-12",
+	             "plannedSeconds":2700,"durationSeconds":2600,"setsDone":8}`
+	if w := postComChave(t, h, "/v1/training/sessions", simples, "prog-1"); w.Code != http.StatusCreated && w.Code != http.StatusOK {
+		t.Fatalf("primeiro treino: %d", w.Code)
+	}
+
+	var slug string
+	var series int
+	if err := pool.QueryRow(ctx,
+		`SELECT e.slug, p.sets
+		   FROM exercise_prescription p
+		   JOIN workout_session ws ON ws.id = p.session_id
+		   JOIN exercise e ON e.id = p.exercise_id
+		  WHERE ws.user_id = $1 ORDER BY p.position LIMIT 1`, userID).Scan(&slug, &series); err != nil {
+		t.Fatal(err)
+	}
+
+	// Um treino com todas as séries feitas, a 40 kg.
+	feitas := make([]string, 0, series)
+	for i := 0; i < series; i++ {
+		feitas = append(feitas, `{"index":`+itoa(i)+`,"reps":10,"weightKg":40,"completed":true}`)
+	}
+	corpo := `{"occurredAt":"2026-09-12T19:30:00Z","localDay":"2026-09-12",
+	           "plannedSeconds":2700,"durationSeconds":2600,"setsDone":8,
+	           "performed":[{"exerciseId":"` + slug + `","sets":[` + join(feitas) + `]}]}`
+	if w := postComChave(t, h, "/v1/training/sessions", corpo, "prog-2"); w.Code != http.StatusCreated && w.Code != http.StatusOK {
+		t.Fatalf("treino com carga: %d — %s", w.Code, w.Body.String())
+	}
+
+	w := get(t, h, "/v1/training/load-suggestions")
+	if w.Code != http.StatusOK {
+		t.Fatalf("propostas: %d — %s", w.Code, w.Body.String())
+	}
+	var body struct {
+		Suggestions []struct {
+			ExerciseID string  `json:"exerciseId"`
+			LastKg     float64 `json:"lastKg"`
+			SuggestKg  float64 `json:"suggestKg"`
+			Reason     string  `json:"reason"`
+		} `json:"suggestions"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &body)
+
+	var achou bool
+	for _, p := range body.Suggestions {
+		if p.ExerciseID != slug {
+			continue
+		}
+		achou = true
+		if p.LastKg != 40 {
+			t.Errorf("última carga %v, esperava 40", p.LastKg)
+		}
+		if p.SuggestKg != 42.5 {
+			t.Errorf("propôs %v, esperava 42.5 — um degrau acima", p.SuggestKg)
+		}
+		if p.Reason == "" {
+			t.Error("proposta sem motivo: o ecrã mostra um número sem explicação")
+		}
+	}
+	if !achou {
+		t.Fatalf("nenhuma proposta para %q: %+v", slug, body.Suggestions)
+	}
+}
+
+// Sem carga registada não há proposta nenhuma — não se inventa um número.
+func TestSemHistoricoNaoHaProposta(t *testing.T) {
+	h, _, _ := serveComHistorico(t)
+	w := get(t, h, "/v1/training/load-suggestions")
+	if w.Code != http.StatusOK {
+		t.Fatalf("%d", w.Code)
+	}
+	var body struct {
+		Suggestions []any `json:"suggestions"`
+	}
+	json.Unmarshal(w.Body.Bytes(), &body)
+	if len(body.Suggestions) != 0 {
+		t.Errorf("propôs %d cargas sem nunca ter visto ninguém levantar nada", len(body.Suggestions))
+	}
+}
+
+func itoa(n int) string {
+	if n == 0 {
+		return "0"
+	}
+	var b []byte
+	for n > 0 {
+		b = append([]byte{byte('0' + n%10)}, b...)
+		n /= 10
+	}
+	return string(b)
+}
+
+func join(v []string) string {
+	out := ""
+	for i, s := range v {
+		if i > 0 {
+			out += ","
+		}
+		out += s
+	}
+	return out
+}

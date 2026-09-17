@@ -35,6 +35,7 @@ type Goals struct {
 	Service  *service.GoalService
 	Profiles ProfileReader
 	Reader   GoalReader
+	Editor   GoalEditor
 }
 
 // GoalReader lê o objetivo em vigor.
@@ -44,6 +45,11 @@ type Goals struct {
 type GoalReader interface {
 	CurrentGoal(ctx context.Context, userID string) (repo.GoalRow, repo.JourneyRow, error)
 	TargetsOf(ctx context.Context, journeyID string) ([]repo.TargetRow, error)
+}
+
+// GoalEditor altera o objectivo em vigor sem recomeçar a jornada.
+type GoalEditor interface {
+	UpdateActiveGoal(ctx context.Context, userID string, a repo.AlteracaoDeObjetivo) (bool, error)
 }
 
 // Active devolve o objetivo em vigor.
@@ -252,4 +258,85 @@ func decode(r *http.Request, dst any) error {
 	dec := json.NewDecoder(io.LimitReader(r.Body, 1<<20))
 	dec.DisallowUnknownFields()
 	return dec.Decode(dst)
+}
+
+/*
+ * Update altera o objectivo em vigor.
+ *
+ * ⚠️ **Altera; não recomeça.** Mudar o peso alvo de 74 para 72 apagava três
+ * meses de jornada, porque a única saída era criar um objectivo novo — e o
+ * `POST` recusa um segundo activo. Quem queria acertar um número tinha de
+ * deitar o histórico fora.
+ *
+ * O tipo e a direcção ficam de fora: trocar de perder peso para ganhar massa
+ * não é corrigir um número, é começar outra coisa.
+ */
+func (h Goals) Update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Editor == nil {
+		apierr.Write(w, apierr.Internal, "Os objetivos estão indisponíveis.", "")
+		return
+	}
+
+	var req struct {
+		Priority   *string  `json:"priority,omitempty"`
+		TargetKg   *float64 `json:"targetWeightKg,omitempty"`
+		TargetDate *string  `json:"targetDate,omitempty"`
+	}
+	if err := decode(r, &req); err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Corpo do pedido inválido.", "")
+		return
+	}
+
+	var alteracao repo.AlteracaoDeObjetivo
+
+	if req.Priority != nil {
+		if !prioridadesValidas[*req.Priority] {
+			apierr.Write(w, apierr.ValidationFailed, "Prioridade desconhecida.", "priority")
+			return
+		}
+		alteracao.Priority = req.Priority
+	}
+	if req.TargetKg != nil {
+		if *req.TargetKg < 25 || *req.TargetKg > 400 {
+			apierr.Write(w, apierr.ValidationFailed, "Peso alvo fora do possível.", "targetWeightKg")
+			return
+		}
+		alteracao.TargetKg = req.TargetKg
+	}
+	if req.TargetDate != nil && *req.TargetDate != "" {
+		d, err := time.Parse("2006-01-02", *req.TargetDate)
+		if err != nil {
+			apierr.Write(w, apierr.ValidationFailed, "Data inválida.", "targetDate")
+			return
+		}
+		alteracao.TargetDate = &d
+	}
+
+	havia, err := h.Editor.UpdateActiveGoal(r.Context(), userID, alteracao)
+	switch {
+	case errors.Is(err, repo.ErrHorizonteAberto):
+		apierr.Write(w, apierr.ValidationFailed,
+			"Esta jornada não tem data marcada. Marcar uma é começar outra.", "targetDate")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível alterar o objetivo.")
+		return
+	}
+	if !havia {
+		apierr.Write(w, apierr.NotFound, "Ainda não tens um objetivo em vigor.", "")
+		return
+	}
+
+	// Devolve-se o objectivo como ficou, na mesma forma do `GET`: o ecrã
+	// redesenha com o que o servidor diz, e não com o que pediu.
+	h.Active(w, r)
+}
+
+var prioridadesValidas = map[string]bool{
+	"weight": true, "muscle": true, "performance": true, "health": true, "appearance": true,
 }

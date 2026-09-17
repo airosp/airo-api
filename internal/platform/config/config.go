@@ -37,6 +37,7 @@ type Config struct {
 	JWTSecret []byte
 
 	WhatsApp WhatsAppConfig
+	SMS      SMSConfig
 
 	Cloudinary CloudinaryConfig
 
@@ -44,6 +45,18 @@ type Config struct {
 	// em AIRO_CORS_ORIGINS. A app nativa não precisa de nenhuma; a versão web
 	// precisa da sua.
 	CORSOrigins []string
+
+	/*
+	 * PexelsKey é a chave do acervo de imagens.
+	 *
+	 * ⚠️ Vive aqui e **não** no cliente. Estava na app com prefixo
+	 * `EXPO_PUBLIC_`, ou seja embutida em cada build e extraível de um `.apk`:
+	 * quem a tirasse gastava a quota da Airo e assinava os pedidos como ela.
+	 *
+	 * Opcional: sem ela a app desenha o gradiente por categoria, que é menos do
+	 * que uma fotografia e mais do que um serviço em baixo.
+	 */
+	PexelsKey string
 }
 
 type WhatsAppConfig struct {
@@ -61,6 +74,21 @@ type WhatsAppConfig struct {
 	// LanguageFallbacks são línguas a tentar quando a configurada não existe.
 	LanguageFallbacks []string
 	WebhookSecret     string
+}
+
+/*
+ * SMSConfig é o segundo canal, para quem não tem WhatsApp.
+ *
+ * ⚠️ Sem ele, trinta segundos sem entrega não têm plano B — e em Moçambique
+ * muita gente não tem WhatsApp activo. Vazio deixa o canal desligado, e
+ * diz-se em voz alta no arranque.
+ */
+type SMSConfig struct {
+	Provider   string
+	AccountSID string
+	AuthToken  string
+	From       string
+	BaseURL    string
 }
 
 // CloudinaryConfig guarda as fotografias de perfil.
@@ -108,6 +136,13 @@ func Load() (Config, error) {
 			GraphVersion:      get("AIRO_WHATSAPP_GRAPH_VERSION", ""),
 			WebhookSecret:     get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
 		},
+		SMS: SMSConfig{
+			Provider:   get("AIRO_SMS_PROVIDER", "twilio"),
+			AccountSID: get("AIRO_SMS_ACCOUNT_SID", ""),
+			AuthToken:  get("AIRO_SMS_AUTH_TOKEN", ""),
+			From:       get("AIRO_SMS_FROM", ""),
+			BaseURL:    get("AIRO_SMS_BASE_URL", ""),
+		},
 		Cloudinary: CloudinaryConfig{
 			CloudName:  get("AIRO_CLOUDINARY_CLOUD_NAME", ""),
 			APIKey:     get("AIRO_CLOUDINARY_API_KEY", ""),
@@ -117,6 +152,7 @@ func Load() (Config, error) {
 			BaseURL:    get("AIRO_CLOUDINARY_BASE_URL", ""),
 		},
 		CORSOrigins: splitList(get("AIRO_CORS_ORIGINS", "")),
+		PexelsKey:   get("AIRO_PEXELS_API_KEY", ""),
 	}
 
 	// Em desenvolvimento, as origens do Expo entram sozinhas: obrigar a

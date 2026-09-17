@@ -77,6 +77,17 @@ type Snapshot struct {
 	MetricKey    string
 	WeeksElapsed int
 
+	/*
+	 * A linha de partida e o alvo, para o servidor poder decidir a escala do
+	 * gráfico em vez de a deixar ao telemóvel.
+	 *
+	 * Nulos quando o objectivo não tem peso a atingir — um objectivo de hábito
+	 * não tem, e inventar-lhe um intervalo era decidir por quem não decidiu.
+	 */
+	Baseline *float64
+	Target   *float64
+	Unidade  string
+
 	JourneyID string
 	// Paused muda o que o ecrã diz: "em pausa desde 3 de setembro" não é a
 	// mesma coisa que uma adesão baixa, e mostrá-las igual culpa quem avisou.
@@ -214,6 +225,8 @@ func (s *ProgressService) Snapshot(ctx context.Context, in SnapshotInput) (Snaps
 	}
 
 	alvo, movingTowards, atingido := s.alvoDe(ctx, j.ID, tendencia)
+	out.Target = alvo
+	out.Baseline, out.Unidade = s.partidaDe(ctx, j.ID)
 
 	if j.Horizon == "open_ended" {
 		// Sem data a prever: o que se mede é consistência e progressão.
@@ -265,6 +278,28 @@ func (s *ProgressService) alvoDe(ctx context.Context, journeyID string, t *journ
 		return &alvo, &anda, atingido
 	}
 	return nil, nil, false
+}
+
+/*
+ * partidaDe devolve o peso de onde a pessoa partiu, e a unidade.
+ *
+ * É a outra ponta da escala: sem ela, um gráfico que vá do peso de hoje ao
+ * alvo esconde o caminho já andado — que é a parte de que uma pessoa precisa
+ * de se lembrar num mês mau.
+ */
+func (s *ProgressService) partidaDe(ctx context.Context, journeyID string) (*float64, string) {
+	targets, err := s.journeys.TargetsOf(ctx, journeyID)
+	if err != nil {
+		return nil, ""
+	}
+	for _, target := range targets {
+		if target.Metric != "body_weight" {
+			continue
+		}
+		partida := target.Baseline
+		return &partida, target.Unit
+	}
+	return nil, ""
 }
 
 func previsaoDe(t *journey.Trend, alvo *float64) *Forecast {

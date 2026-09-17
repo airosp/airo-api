@@ -25,7 +25,13 @@ var (
 // e porque a tradução é uma decisão: sem plano ainda, o dia é de corpo inteiro,
 // que é melhor do que não haver treino nenhum para mostrar.
 type Profiles struct {
-	prefs    *repo.PreferenceRepo
+	prefs *repo.PreferenceRepo
+	/*
+	 * equipa diz quem a pessoa pôs como treinador — o único papel que muda o
+	 * treino. Nulo deixa o plano como o motor o monta, que é o que acontece em
+	 * qualquer arnês de teste que não a ligue.
+	 */
+	equipa   *repo.SpecialistRepo
 	repo     *repo.ProfileRepo
 	uploader Uploader
 	// NutritionGoal por omissão até o objectivo existir.
@@ -57,6 +63,10 @@ type SaveProfileInput struct {
 	FoodBudget     string
 	FoodExclusions []string
 
+	// MaxImpact é o tecto de pancada nas articulações. Nulo = sem tecto.
+	MaxImpact *string
+	// NutritionDetail é quanto da nutrição se mostra. Vazio = não mexer.
+	NutritionDetail string
 	// Nil quer dizer "não mexer". Ver a nota em `dto.ProfileRequest`.
 	Preferences *repo.Preferences
 }
@@ -73,12 +83,16 @@ type SavedProfile struct {
 	WorkoutMinutes int      `json:"workoutMinutes"`
 	WorkoutTime    string   `json:"workoutTime"`
 	Equipment      []string `json:"equipment"`
-	DietStyle      string   `json:"dietStyle"`
-	MealsPerDay    int      `json:"mealsPerDay"`
-	FoodBudget     string   `json:"foodBudget"`
-	FoodExclusions []string `json:"foodExclusions"`
-	PhotoURL       string   `json:"photoUrl,omitempty"`
-	Complete       bool     `json:"complete"`
+	// MaxImpact ausente quer dizer sem tecto — a maioria.
+	MaxImpact *string `json:"maxImpact,omitempty"`
+	// NutritionDetail é quanto da nutrição se mostra: "simple" ou "detailed".
+	NutritionDetail string   `json:"nutritionDetail"`
+	DietStyle       string   `json:"dietStyle"`
+	MealsPerDay     int      `json:"mealsPerDay"`
+	FoodBudget      string   `json:"foodBudget"`
+	FoodExclusions  []string `json:"foodExclusions"`
+	PhotoURL        string   `json:"photoUrl,omitempty"`
+	Complete        bool     `json:"complete"`
 
 	PinnedExercises       []string                         `json:"pinnedExercises"`
 	ExcludedExercises     []string                         `json:"excludedExercises"`
@@ -98,7 +112,9 @@ func (p *Profiles) Save(ctx ctxLike, userID string, in SaveProfileInput, now tim
 		Experience: in.Experience, WorkoutDays: in.WorkoutDays,
 		WorkoutMinutes: in.WorkoutMinutes, WorkoutTime: in.WorkoutTime,
 		Equipment: in.Equipment, DietStyle: in.DietStyle,
-		MealsPerDay: in.MealsPerDay, FoodBudget: in.FoodBudget,
+		MaxImpact: tectoDeImpacto(in.MaxImpact), MaxImpactDado: in.MaxImpact != nil,
+		NutritionDetail: in.NutritionDetail,
+		MealsPerDay:     in.MealsPerDay, FoodBudget: in.FoodBudget,
 		FoodExclusions: in.FoodExclusions,
 	}, now); err != nil {
 		return SavedProfile{}, err
@@ -200,7 +216,8 @@ func (p *Profiles) Read(ctx ctxLike, userID string) (SavedProfile, error) {
 		HeightCm: row.HeightCm, WeightKg: row.WeightKg,
 		Experience: row.Experience, WorkoutDays: nonNilInts(row.WorkoutDays),
 		WorkoutMinutes: row.WorkoutMinutes, WorkoutTime: row.WorkoutTime,
-		Equipment: nonNil(row.Equipment), DietStyle: row.DietStyle,
+		Equipment: nonNil(row.Equipment), MaxImpact: row.MaxImpact,
+		NutritionDetail: row.NutritionDetail, DietStyle: row.DietStyle,
 		MealsPerDay: row.MealsPerDay, FoodBudget: row.FoodBudget,
 		FoodExclusions: nonNil(row.FoodExclusions), PhotoURL: deref(row.PhotoURL),
 		Complete: row.Complete,
@@ -303,6 +320,19 @@ func (p *Profiles) TrainingProfile(ctx ctxLike, userID string, day time.Time) (T
 		WorkoutMinutes: row.WorkoutMinutes,
 		LocalDay:       day,
 	}
+	// O tecto de impacto é uma condição de quem treina, como o equipamento: um
+	// exercício acima dele não existe para esta pessoa, e o motor escolhe outro
+	// no lugar em vez de deixar um buraco no treino.
+	if row.MaxImpact != nil {
+		out.MaxImpact = *row.MaxImpact
+	}
+	// O treinador da equipa muda o treino — ver `training/metodo.go`. Um
+	// nutricionista na equipa não entra aqui: não mexe no plano de treino.
+	if p.equipa != nil {
+		if treinador, err := p.equipa.Treinador(c, userID); err == nil {
+			out.Specialist = treinador
+		}
+	}
 
 	// As escolhas da pessoa entram no motor. Sem elas o servidor montava uma
 	// sessão diferente da que o telemóvel tem, o Modo Foco reparava e voltava
@@ -388,4 +418,30 @@ func (p *Profiles) EquipmentOf(ctx ctxLike, userID string) ([]string, string, er
 		return nil, "", err
 	}
 	return nonNil(row.Equipment), row.Experience, nil
+}
+
+/*
+ * tectoDeImpacto traduz o que veio do pedido para o que a coluna guarda.
+ *
+ * `""` é a pessoa a tirar o tecto, e um enum não tem valor vazio: tem de ir
+ * `NULL`. Sem isto, tirar o tecto rebentava com um erro de enum — e o erro
+ * aparecia como 500 a quem só queria voltar a fazer saltos.
+ */
+func tectoDeImpacto(v *string) *string {
+	if v == nil || *v == "" {
+		return nil
+	}
+	return v
+}
+
+/*
+ * ComEquipa liga o serviço à equipa, para o treinador poder mudar o treino.
+ *
+ * Separado do construtor para os arneses de teste que não precisam dela não
+ * terem de a montar — e porque acrescentar um parâmetro a `NewProfiles` era
+ * mexer em todos eles para nada.
+ */
+func (p *Profiles) ComEquipa(e *repo.SpecialistRepo) *Profiles {
+	p.equipa = e
+	return p
 }

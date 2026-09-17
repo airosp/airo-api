@@ -36,6 +36,18 @@ type AuthConfig struct {
 	MaxAttempts int
 	ResendAfter time.Duration
 	RefreshTTL  time.Duration
+	/*
+	 * SessionMaxAge é quanto tempo uma sessão vive **desde que foi aberta**,
+	 * por mais que se renove.
+	 *
+	 * ⚠️ O `RefreshTTL` não chega: cada rotação emite um token com prazo novo,
+	 * por isso quem abre a app todas as semanas nunca mais volta a provar que o
+	 * número é dele. E os números de telemóvel são reciclados pelas operadoras
+	 * — em Moçambique, um cartão sem uso volta ao mercado. Sem tecto, a conta
+	 * fica acessível a quem herdar o número, com o histórico de peso, as
+	 * medidas e o nome de quem a abriu.
+	 */
+	SessionMaxAge time.Duration
 
 	Limits auth.Limits
 }
@@ -49,7 +61,10 @@ func DefaultAuthConfig(pepper []byte) AuthConfig {
 		MaxAttempts: 5,
 		ResendAfter: 60 * time.Second,
 		RefreshTTL:  60 * 24 * time.Hour,
-		Limits:      auth.DefaultLimits(),
+		// Sessenta dias. Mais do que isso e o número pode já não ser da mesma
+		// pessoa; menos, e pedia-se o código a quem treina todas as semanas.
+		SessionMaxAge: 60 * 24 * time.Hour,
+		Limits:        auth.DefaultLimits(),
 	}
 }
 
@@ -79,7 +94,16 @@ type RequestOTPResult struct {
 }
 
 var (
-	ErrRateLimited    = errors.New("limite excedido")
+	ErrRateLimited = errors.New("limite excedido")
+	/*
+	 * ErrReauthRequired: a sessão passou da idade e é preciso provar o número
+	 * outra vez.
+	 *
+	 * Distinto de um token inválido de propósito: aqui não houve roubo nem
+	 * engano, e o ecrã diz porquê em vez de deixar a pessoa a pensar que a app
+	 * se avariou.
+	 */
+	ErrReauthRequired = errors.New("sessão antiga: é preciso entrar outra vez")
 	ErrDeliveryFailed = errors.New("entrega falhou")
 	// ErrUndeliverable é o número que não recebe por este canal. Repetir não
 	// resolve, e a mensagem a dar é outra.
@@ -145,7 +169,8 @@ func (s *AuthService) RequestOTP(ctx context.Context, in RequestOTPInput) (Reque
 		return RequestOTPResult{}, err
 	}
 
-	if _, err := s.sender.Send(ctx, phone, code, channel); err != nil {
+	idDaMensagem, err := s.sender.Send(ctx, phone, code, channel)
+	if err != nil {
 		_ = s.repo.AppendAuthEvent(ctx, "otp_delivery_failed", nil, &phone, device, nil)
 
 		var u Undeliverable
@@ -167,6 +192,11 @@ func (s *AuthService) RequestOTP(ctx context.Context, in RequestOTPInput) (Reque
 		auth.Refund(ctx, s.limiter, decision)
 
 		return RequestOTPResult{}, fmt.Errorf("%w: %v", ErrDeliveryFailed, err)
+	}
+	// O identificador que a Meta devolve é o que liga este desafio ao webhook
+	// de entrega: sem ele guardado, a confirmação chega e não se sabe de quem é.
+	if idDaMensagem != "" {
+		_ = s.repo.SetChallengeMessageID(ctx, id, idDaMensagem)
 	}
 	_ = s.repo.AppendAuthEvent(ctx, "otp_requested", nil, &phone, device, map[string]any{"channel": channel})
 
@@ -291,8 +321,9 @@ func (s *AuthService) issueRefresh(ctx context.Context, userID, deviceID, family
 	token := base64.RawURLEncoding.EncodeToString(raw)
 	sum := sha256.Sum256([]byte(token))
 
+	agora := s.clk.Now()
 	if _, _, err := s.repo.InsertRefresh(ctx, userID, deviceID, familyID, sum[:],
-		s.clk.Now().Add(s.cfg.RefreshTTL)); err != nil {
+		agora, agora.Add(s.cfg.RefreshTTL)); err != nil {
 		return "", err
 	}
 	return token, nil
@@ -344,6 +375,10 @@ func (s *AuthService) Logout(ctx context.Context, token string) error {
 func (s *AuthService) Refresh(ctx context.Context, token, deviceID string) (RefreshResult, error) {
 	var out RefreshResult
 	var reuse *repo.RefreshToken
+	// A sessão que passou da idade. Revoga-se **fora** da transacção, pela mesma
+	// razão que a reutilização: revogar aqui e devolver erro a seguir faz a
+	// transacção reverter, e a família ficava viva.
+	var velha *repo.RefreshToken
 	sum := sha256.Sum256([]byte(token))
 
 	err := s.repo.WithTx(ctx, func(ctx context.Context) error {
@@ -367,6 +402,19 @@ func (s *AuthService) Refresh(ctx context.Context, token, deviceID string) (Refr
 			return repo.ErrTokenNotFound
 		}
 
+		// A sessão tem idade, e não só prazo: ver `SessionMaxAge`.
+		if s.cfg.SessionMaxAge > 0 {
+			desde, err := s.repo.FamilyStartedAt(ctx, existing.FamilyID)
+			if err != nil {
+				return err
+			}
+			if s.clk.Now().Sub(desde) > s.cfg.SessionMaxAge {
+				t := existing
+				velha = &t
+				return ErrReauthRequired
+			}
+		}
+
 		next, err := s.issueRefresh(ctx, existing.UserID, existing.DeviceID, existing.FamilyID)
 		if err != nil {
 			return err
@@ -383,6 +431,13 @@ func (s *AuthService) Refresh(ctx context.Context, token, deviceID string) (Refr
 		return nil
 	})
 
+	if velha != nil {
+		if err := s.repo.RevokeFamily(ctx, velha.FamilyID, "reauth_required"); err != nil {
+			return out, err
+		}
+		_ = s.repo.AppendAuthEvent(ctx, "reauth_required", &velha.UserID, nil, &velha.DeviceID, nil)
+		return out, ErrReauthRequired
+	}
 	if reuse != nil {
 		// Não se sabe qual das duas partes é a legítima, e deixar as duas a
 		// correr é deixar o atacante lá dentro. Cai tudo, e a pessoa volta a

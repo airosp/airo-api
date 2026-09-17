@@ -13,3 +13,8 @@
 *.test
 *.out
 coverage.*
+
+# O binário do gerador da especificação, que tem o nome da pasta. A barra
+# fixa-o à raiz: sem ela, o `.gitignore` apanhava também cmd/openapi/.
+/openapi
+

@@ -36,6 +36,8 @@ type SessionHistory interface {
 	History(ctx context.Context, userID string, from, to time.Time) ([]repo.HistoryRow, error)
 	// PerformedIn traz o que se fez em cada exercício — a carga incluída.
 	PerformedIn(ctx context.Context, userID string, from, to time.Time) ([]repo.PerformedRow, error)
+	// LastLoads traz a última carga de cada exercício, para a propor.
+	LastLoads(ctx context.Context, userID string) ([]repo.UltimaCarga, error)
 }
 
 type Training struct {
@@ -553,4 +555,47 @@ func porExtenso(m domain.Metric) string {
  */
 func semZerosAtras(v float64) string {
 	return strings.ReplaceAll(strconv.FormatFloat(v, 'f', -1, 64), ".", ",")
+}
+
+/*
+ * LoadSuggestions propõe a carga de hoje a partir do que ficou registado.
+ *
+ * ⚠️ **Propõe; não manda.** O número chega ao comando já preenchido e quem
+ * treina muda-o com um toque. A app sabe o que ficou registado — não sabe se a
+ * pessoa dormiu mal, nem se a barra é a mesma.
+ */
+func (h Training) LoadSuggestions(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Sessions == nil {
+		apierr.Write(w, apierr.Internal, "O histórico está indisponível.", "")
+		return
+	}
+
+	ultimas, err := h.Sessions.LastLoads(r.Context(), userID)
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível ler as cargas anteriores.")
+		return
+	}
+
+	out := make([]map[string]any, 0, len(ultimas))
+	for _, u := range ultimas {
+		p := training.PropoeCarga(u.ExerciseSlug, u.WeightKg, u.Completas)
+		if p.SugestaoKg <= 0 {
+			// Sem proposta não se manda linha: uma lista com números a zero é
+			// uma lista que o ecrã tem de filtrar outra vez.
+			continue
+		}
+		out = append(out, map[string]any{
+			"exerciseId": p.ExerciseID,
+			"lastKg":     p.UltimaKg,
+			"suggestKg":  p.SugestaoKg,
+			"reason":     p.Motivo,
+			"lastDay":    u.LocalDay.Format("2006-01-02"),
+		})
+	}
+	apierr.WriteJSON(w, http.StatusOK, map[string]any{"suggestions": out})
 }

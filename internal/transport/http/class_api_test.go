@@ -84,6 +84,9 @@ func serveTrainingComAulas(t *testing.T, duracao int) (http.Handler, string) {
 	t.Helper()
 	_, pool, userID := serve(t)
 
+	if _, err := repo.NewSpecialistRepo(repo.NewTxManager(pool)).Seed(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := pool.Exec(context.Background(),
 		`INSERT INTO workout_class
 		   (id,title,specialist,focus,level,duration_seconds,kcal,video_url,published)
@@ -117,6 +120,9 @@ func serveTrainingComAulasDeFoco(t *testing.T, foco string) (http.Handler, strin
 	t.Helper()
 	_, pool, userID := serve(t)
 
+	if _, err := repo.NewSpecialistRepo(repo.NewTxManager(pool)).Seed(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := pool.Exec(context.Background(),
 		`INSERT INTO workout_class
 		   (id,title,specialist,focus,level,duration_seconds,kcal,video_url,published)

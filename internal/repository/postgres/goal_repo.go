@@ -516,3 +516,90 @@ func (r *GoalRepo) GoalOf(ctx context.Context, userID string) (string, error) {
 		return "fatLoss", nil
 	}
 }
+
+// ErrHorizonteAberto diz que se tentou marcar data numa jornada sem ela.
+var ErrHorizonteAberto = errors.New("jornada de horizonte aberto: não tem data para mudar")
+
+// AlteracaoDeObjetivo é o que se pode mudar sem recomeçar a jornada.
+//
+// Nil quer dizer "não mexer". É a diferença entre um `PATCH` e um `PUT`: quem
+// só muda a data não tem de reenviar o peso alvo, e um campo ausente não pode
+// significar "apaga".
+type AlteracaoDeObjetivo struct {
+	Priority   *string
+	TargetKg   *float64
+	TargetDate *time.Time
+}
+
+/*
+ * UpdateActiveGoal altera o objectivo activo.
+ *
+ * ⚠️ **Altera; não recomeça.** Mudar o peso alvo de 74 para 72 não devia
+ * apagar três meses de histórico — e era essa a única saída que havia, porque o
+ * `POST /v1/goals` recusa um segundo objectivo activo.
+ *
+ * O que não se altera por aqui: o tipo, a direcção e o **horizonte**. Trocar de
+ * perder peso para ganhar massa não é corrigir um número. E passar de uma data
+ * marcada para um horizonte aberto muda a forma da jornada inteira — o esquema
+ * diz isso em voz alta: com data há fases e não há ciclos, sem data há ciclos e
+ * não há fases (`journey_horizon_dates`). Isso é uma jornada nova, com a antiga
+ * guardada.
+ *
+ * Devolve falso quando não há objectivo activo.
+ */
+func (r *GoalRepo) UpdateActiveGoal(ctx context.Context, userID string, a AlteracaoDeObjetivo) (bool, error) {
+	q := r.tx.Q(ctx)
+
+	var goalID, journeyID string
+	err := q.QueryRow(ctx,
+		`SELECT g.id::text, j.id::text
+		   FROM goal g JOIN journey j ON j.goal_id = g.id
+		  WHERE g.user_id = $1 AND g.status = 'active'`, userID).Scan(&goalID, &journeyID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("ler objectivo activo: %w", err)
+	}
+
+	if a.Priority != nil {
+		if _, err := q.Exec(ctx,
+			`UPDATE goal SET priority = $2::goal_priority WHERE id = $1::uuid`,
+			goalID, *a.Priority); err != nil {
+			return false, fmt.Errorf("alterar prioridade: %w", err)
+		}
+	}
+
+	if a.TargetDate != nil {
+		// Só onde já havia data. Num horizonte aberto, marcar uma data é mudar
+		// a forma da jornada — e a restrição `journey_horizon_dates` recusa-o,
+		// com razão.
+		tag, err := q.Exec(ctx,
+			`UPDATE journey SET target_date = $2
+			  WHERE id = $1::uuid AND horizon = 'fixed'`, journeyID, *a.TargetDate)
+		if err != nil {
+			return false, fmt.Errorf("alterar a data: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return false, ErrHorizonteAberto
+		}
+		if _, err := q.Exec(ctx,
+			`UPDATE target SET due_date = $2 WHERE journey_id = $1::uuid`,
+			journeyID, *a.TargetDate); err != nil {
+			return false, fmt.Errorf("alterar a data dos alvos: %w", err)
+		}
+	}
+
+	if a.TargetKg != nil {
+		// O `baseline` não se toca: é de onde a pessoa partiu, e reescrevê-lo
+		// apagava o progresso já feito.
+		if _, err := q.Exec(ctx,
+			`UPDATE target SET value = $2, status = 'pending'
+			  WHERE journey_id = $1::uuid AND metric = 'body_weight'`,
+			journeyID, *a.TargetKg); err != nil {
+			return false, fmt.Errorf("alterar o peso alvo: %w", err)
+		}
+	}
+
+	return true, nil
+}

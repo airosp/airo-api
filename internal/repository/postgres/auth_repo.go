@@ -93,6 +93,48 @@ func (r *AuthRepo) MarkVerified(ctx context.Context, id string) error {
 	return err
 }
 
+/*
+ * SetChallengeMessageID guarda o identificador que o canal devolveu.
+ *
+ * É o que liga um desafio ao webhook de entrega. Sem ele, a confirmação da Meta
+ * chega e não se sabe a que pedido pertence — e o `200` do envio continua a ser
+ * lido como entrega, que é o erro que o pacote `whatsapp` avisa logo à cabeça.
+ */
+func (r *AuthRepo) SetChallengeMessageID(ctx context.Context, challengeID, messageID string) error {
+	_, err := r.tx.Q(ctx).Exec(ctx,
+		`UPDATE otp_challenge SET provider_message_id = $2 WHERE id = $1`, challengeID, messageID)
+	return err
+}
+
+/*
+ * MarkDelivery grava o que o canal disse sobre a entrega.
+ *
+ * Devolve o número a que a mensagem pertencia, para o registo de auditoria
+ * poder dizer de quem se trata — e `false` quando o identificador não é de
+ * nenhum desafio nosso, que é o caso de qualquer evento que não nos diga
+ * respeito.
+ *
+ * **Só avança**: `sent` → `delivered` → `read`. Os eventos da Meta chegam fora
+ * de ordem com frequência, e um `sent` atrasado não pode desfazer um `read` que
+ * já lá estava.
+ */
+func (r *AuthRepo) MarkDelivery(ctx context.Context, messageID, status string) (string, bool, error) {
+	var phone string
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`UPDATE otp_challenge SET delivery_status = $2
+		  WHERE provider_message_id = $1
+		    AND COALESCE(array_position(ARRAY['sent','delivered','read'], delivery_status), 0)
+		        < array_position(ARRAY['sent','delivered','read'], $2)
+		 RETURNING phone_e164`, messageID, status).Scan(&phone)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, fmt.Errorf("gravar entrega: %w", err)
+	}
+	return phone, true, nil
+}
+
 // UserByPhone devolve o utilizador, se existir.
 func (r *AuthRepo) UserByPhone(ctx context.Context, phone string) (string, bool, error) {
 	var id string
@@ -145,21 +187,28 @@ var (
 	ErrTokenReuse = errors.New("reutilização de token detectada")
 )
 
-// InsertRefresh grava o token. Com `familyID` vazio abre uma família nova — e
-// quem a gera é a base de dados: formatar um uuid à mão produz uuids inválidos
-// que só falham no INSERT.
-func (r *AuthRepo) InsertRefresh(ctx context.Context, userID, deviceID, familyID string, hash []byte, expiresAt time.Time) (id, family string, err error) {
+/*
+ * InsertRefresh grava o token. Com `familyID` vazio abre uma família nova — e
+ * quem a gera é a base de dados: formatar um uuid à mão produz uuids inválidos
+ * que só falham no INSERT.
+ *
+ * ⚠️ O `issued_at` vem de fora e não do `now()` da base de dados. É a data que
+ * a reautenticação conta — a idade da sessão —, e tinha de vir do mesmo relógio
+ * que decide o `expires_at`: com dois relógios, a idade da sessão passava a
+ * depender de qual deles estava adiantado, e não havia forma de a testar.
+ */
+func (r *AuthRepo) InsertRefresh(ctx context.Context, userID, deviceID, familyID string, hash []byte, issuedAt, expiresAt time.Time) (id, family string, err error) {
 	if familyID == "" {
 		err = r.tx.Q(ctx).QueryRow(ctx,
-			`INSERT INTO refresh_token (user_id, device_id, family_id, token_hash, expires_at)
-			 VALUES ($1,$2,gen_random_uuid(),$3,$4) RETURNING id, family_id`,
-			userID, deviceID, hash, expiresAt).Scan(&id, &family)
+			`INSERT INTO refresh_token (user_id, device_id, family_id, token_hash, issued_at, expires_at)
+			 VALUES ($1,$2,gen_random_uuid(),$3,$4,$5) RETURNING id, family_id`,
+			userID, deviceID, hash, issuedAt, expiresAt).Scan(&id, &family)
 		return id, family, err
 	}
 	err = r.tx.Q(ctx).QueryRow(ctx,
-		`INSERT INTO refresh_token (user_id, device_id, family_id, token_hash, expires_at)
-		 VALUES ($1,$2,$3,$4,$5) RETURNING id, family_id`,
-		userID, deviceID, familyID, hash, expiresAt).Scan(&id, &family)
+		`INSERT INTO refresh_token (user_id, device_id, family_id, token_hash, issued_at, expires_at)
+		 VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, family_id`,
+		userID, deviceID, familyID, hash, issuedAt, expiresAt).Scan(&id, &family)
 	return id, family, err
 }
 
@@ -169,6 +218,25 @@ func (r *AuthRepo) RefreshByHash(ctx context.Context, hash []byte) (RefreshToken
 		`SELECT id, user_id, device_id, family_id, expires_at, revoked_at
 		   FROM refresh_token WHERE token_hash = $1`, hash,
 	).Scan(&t.ID, &t.UserID, &t.DeviceID, &t.FamilyID, &t.ExpiresAt, &t.RevokedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return t, ErrTokenNotFound
+	}
+	return t, err
+}
+
+/*
+ * FamilyStartedAt diz quando a sessão deste aparelho começou.
+ *
+ * A rotação mantém a família, por isso o token mais antigo da família é o que
+ * nasceu no `verify` — é essa a data em que a pessoa provou ser dona do número,
+ * e é a ela que a reautenticação conta. O `expires_at` de cada token não serve:
+ * cada rotação emite outro com prazo novo, e quem abre a app todas as semanas
+ * nunca mais voltaria a provar nada.
+ */
+func (r *AuthRepo) FamilyStartedAt(ctx context.Context, familyID string) (time.Time, error) {
+	var t time.Time
+	err := r.tx.Q(ctx).QueryRow(ctx,
+		`SELECT MIN(issued_at) FROM refresh_token WHERE family_id = $1`, familyID).Scan(&t)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, ErrTokenNotFound
 	}
@@ -213,4 +281,70 @@ func (r *AuthRepo) AppendAuthEvent(ctx context.Context, kind string, userID, pho
 // WithTx expõe o limite de transacção ao serviço.
 func (r *AuthRepo) WithTx(ctx context.Context, fn func(context.Context) error) error {
 	return r.tx.Do(ctx, fn)
+}
+
+// SessaoActiva é um aparelho com sessão viva.
+type SessaoActiva struct {
+	DeviceID   string
+	Platform   string
+	Model      string
+	AppVersion string
+	FirstSeen  time.Time
+	LastSeen   time.Time
+	// ExpiresAt é o fim da sessão mais longa daquele aparelho.
+	ExpiresAt time.Time
+}
+
+/*
+ * Sessions lista os aparelhos com sessão viva.
+ *
+ * ⚠️ **Um aparelho, não um token.** A rotação cria um `refresh_token` novo a
+ * cada renovação: listar tokens dava vinte linhas iguais para o mesmo
+ * telemóvel, e ninguém reconhece o seu telefone numa lista de vinte.
+ */
+func (r *AuthRepo) Sessions(ctx context.Context, userID string, agora time.Time) ([]SessaoActiva, error) {
+	rows, err := r.tx.Q(ctx).Query(ctx,
+		`SELECT d.id, d.platform, COALESCE(d.model,''), COALESCE(d.app_version,''),
+		        d.first_seen_at, d.last_seen_at, max(t.expires_at)
+		   FROM device d
+		   JOIN refresh_token t ON t.device_id = d.id
+		  WHERE d.user_id = $1
+		    AND t.revoked_at IS NULL
+		    AND t.expires_at > $2
+		  GROUP BY d.id, d.platform, d.model, d.app_version, d.first_seen_at, d.last_seen_at
+		  ORDER BY d.last_seen_at DESC`, userID, agora)
+	if err != nil {
+		return nil, fmt.Errorf("ler sessões: %w", err)
+	}
+	defer rows.Close()
+
+	out := []SessaoActiva{}
+	for rows.Next() {
+		var s SessaoActiva
+		if err := rows.Scan(&s.DeviceID, &s.Platform, &s.Model, &s.AppVersion,
+			&s.FirstSeen, &s.LastSeen, &s.ExpiresAt); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+/*
+ * RevokeDevice termina a sessão de um aparelho.
+ *
+ * Revoga **todos** os tokens vivos daquele aparelho, não só o último: a família
+ * inteira vai abaixo, que é o que "terminar sessão neste aparelho" quer dizer.
+ * Devolve quantos caíram, para o ecrã saber se acertou em alguma coisa.
+ */
+func (r *AuthRepo) RevokeDevice(ctx context.Context, userID, deviceID, motivo string) (int, error) {
+	tag, err := r.tx.Q(ctx).Exec(ctx,
+		`UPDATE refresh_token
+		    SET revoked_at = now(), revoke_reason = $3
+		  WHERE user_id = $1 AND device_id = $2 AND revoked_at IS NULL`,
+		userID, deviceID, motivo)
+	if err != nil {
+		return 0, fmt.Errorf("terminar sessão: %w", err)
+	}
+	return int(tag.RowsAffected()), nil
 }

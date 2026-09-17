@@ -18,10 +18,8 @@ func NewCatalogRepo(tx *TxManager) *CatalogRepo { return &CatalogRepo{tx: tx} }
 
 // categoryOf traduz o padrão de movimento para a categoria do esquema.
 //
-// A taxonomia completa da especificação (13 padrões, `goals[]`, impacto) ainda
-// não existe na biblioteca do cliente — é a Lacuna 1. Ao migrar, os campos
-// novos ficam com valores conservadores em vez de ficarem vazios: um exercício
-// sem dificuldade técnica declarada seria proposto a quem nunca o fez.
+// A categoria é uma e o exercício pode atravessar vários padrões; manda o
+// principal, que é o que o motor usa para prescrever séries e descanso.
 func categoryOf(p training.MovementPattern) string {
 	switch p {
 	case training.Cardio:
@@ -35,15 +33,21 @@ func categoryOf(p training.MovementPattern) string {
 	}
 }
 
-func impactOf(p training.MovementPattern) string {
-	switch p {
-	case training.Cardio:
-		return "high"
-	case training.Mobility:
-		return "low"
-	default:
-		return "moderate"
+/*
+ * padroesDe traduz os padrões para texto, para o `text[]` do esquema.
+ *
+ * ⚠️ Era `[]string{string(e.Pattern)}` — uma lista de um só elemento numa
+ * coluna feita de propósito para guardar vários. O comentário da migração
+ * dizia-o em voz alta («um burpee é [squat, push, jump]») e a coluna estava a
+ * receber `[cardio]` na mesma.
+ */
+func padroesDe(e training.Exercise) []string {
+	ps := training.PadroesDe(e)
+	out := make([]string, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, string(p))
 	}
+	return out
 }
 
 func mechanicsOf(p training.MovementPattern) string {
@@ -72,17 +76,19 @@ func (r *CatalogRepo) SeedExercises(ctx context.Context) (int, error) {
 			intensity = "low"
 		}
 		_, err := q.Exec(ctx,
-			`INSERT INTO exercise (slug, name, category, movement_patterns, primary_muscles,
+			`INSERT INTO exercise (slug, name, category, movement_patterns, goals, primary_muscles,
 			                       equipment, difficulty, technical_difficulty, physical_difficulty,
 			                       intensity, impact_level, mechanics, measure,
 			                       is_warmup, is_cooldown, cue, demo_query)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$8,$9,$10,$11,$12,$13,$14,$15,$16)
 			 ON CONFLICT (slug) DO UPDATE SET
 			   name = EXCLUDED.name, primary_muscles = EXCLUDED.primary_muscles,
+			   movement_patterns = EXCLUDED.movement_patterns, goals = EXCLUDED.goals,
+			   impact_level = EXCLUDED.impact_level,
 			   equipment = EXCLUDED.equipment, cue = EXCLUDED.cue,
 			   is_warmup = EXCLUDED.is_warmup, is_cooldown = EXCLUDED.is_cooldown`,
-			e.ID, e.Name, categoryOf(e.Pattern), []string{string(e.Pattern)}, e.Muscles,
-			e.Equipment, string(e.Level), intensity, impactOf(e.Pattern), mechanicsOf(e.Pattern),
+			e.ID, e.Name, categoryOf(e.Pattern), padroesDe(e), training.ObjectivosDe(e), e.Muscles,
+			e.Equipment, string(e.Level), intensity, string(training.ImpactoDe(e)), mechanicsOf(e.Pattern),
 			string(e.Measure), e.Warmup, e.Cooldown, e.Cue, e.DemoQuery)
 		if err != nil {
 			return 0, fmt.Errorf("carregar exercício %q: %w", e.ID, err)

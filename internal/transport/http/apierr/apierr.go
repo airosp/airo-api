@@ -81,6 +81,15 @@ const (
 	OTPExhausted       Code = "otp_exhausted"
 	DeliveryFailed     Code = "delivery_failed"
 	TokenReuseDetected Code = "token_reuse_detected"
+	/*
+	 * ReauthRequired: a sessão passou da idade e é preciso provar o número
+	 * outra vez.
+	 *
+	 * Código próprio e não `unauthorized`: aqui não houve roubo nem engano, e o
+	 * ecrã tem de poder dizer porquê. Uma sessão que termina sem explicação
+	 * parece uma avaria — e quem acha que a app se avariou não volta.
+	 */
+	ReauthRequired Code = "reauth_required"
 )
 
 func init() {
@@ -91,4 +100,5 @@ func init() {
 	status[OTPExhausted] = http.StatusTooManyRequests
 	status[DeliveryFailed] = http.StatusBadGateway
 	status[TokenReuseDetected] = http.StatusUnauthorized
+	status[ReauthRequired] = http.StatusUnauthorized
 }

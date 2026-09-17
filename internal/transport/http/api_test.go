@@ -89,7 +89,7 @@ func serve(t *testing.T) (http.Handler, *pgxpool.Pool, string) {
 	router := airohttp.NewRouter(airohttp.Deps{
 		Log: quiet, Version: "test", DB: pool,
 		Auth:        fakeAuth{userID: userID},
-		Goals:       &handlers.Goals{Service: svc, Profiles: profiles{}, Reader: repo.NewGoalRepo(tx)},
+		Goals:       &handlers.Goals{Service: svc, Profiles: profiles{}, Reader: repo.NewGoalRepo(tx), Editor: repo.NewGoalRepo(tx)},
 		Idempotency: middleware.NewMemoryStore(time.Hour),
 	})
 	return router, pool, userID

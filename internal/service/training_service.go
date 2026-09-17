@@ -31,6 +31,11 @@ type TodayInput struct {
 	Pinned        []string
 	Excluded      []string
 	Prescriptions map[string]training.Prescription
+	// MaxImpact é o tecto de impacto do perfil. Vazio = sem tecto.
+	MaxImpact string
+	// Specialist é o treinador da equipa. Vazio = o plano sai como o motor o
+	// monta — ver `training/metodo.go`.
+	Specialist string
 }
 
 // Today monta a sessão do dia e devolve o **pacote** — não os exercícios.
@@ -48,6 +53,8 @@ func (s *TrainingService) Today(in TodayInput) (view.SessionPackage, training.Se
 		Pinned:        in.Pinned,
 		Excluded:      in.Excluded,
 		Prescriptions: in.Prescriptions,
+		MaxImpact:     training.Impact(in.MaxImpact),
+		Specialist:    in.Specialist,
 	})
 	if err != nil {
 		return view.SessionPackage{}, training.Session{}, nil, err

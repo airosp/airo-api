@@ -172,6 +172,28 @@ func validateProfile(req dto.ProfileRequest) (service.SaveProfileInput, string, 
 		Preferences:    preferenciasDe(req),
 	}
 
+	// Quanto da nutrição se mostra. Vazio não mexe.
+	if req.NutritionDetail != "" {
+		if !oneOf(req.NutritionDetail, "simple", "detailed") {
+			return in, "nutritionDetail", "Modo de nutrição desconhecido."
+		}
+		in.NutritionDetail = req.NutritionDetail
+	}
+
+	// O tecto de impacto: ausente não mexe, `""` limpa, e um valor
+	// desconhecido é recusado aqui — chegar à base de dados dava 500, e 500
+	// quer dizer "a culpa é nossa".
+	if req.MaxImpact != nil {
+		if *req.MaxImpact == "" {
+			vazio := ""
+			in.MaxImpact = &vazio
+		} else if !oneOf(*req.MaxImpact, "low", "moderate", "high") {
+			return in, "maxImpact", "Nível de impacto desconhecido."
+		} else {
+			in.MaxImpact = req.MaxImpact
+		}
+	}
+
 	if in.DisplayName == "" {
 		return in, "displayName", "Diz-nos como te chamas."
 	}
