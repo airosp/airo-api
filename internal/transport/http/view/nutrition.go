@@ -198,6 +198,14 @@ type AdesaoNutricionalView struct {
 	Score      float64 `json:"score"`
 	LoggedDays int     `json:"loggedDays"`
 	Evaluable  bool    `json:"evaluable"`
+	/*
+	 * A ingestão média do período, em kcal. Nula sem dias registados.
+	 *
+	 * Vai porque o ecrã a mostra ao lado do alvo — "comeste 2 180, o alvo é
+	 * 2 000" — e sem ela o cartão teria de a recalcular a partir dos registos,
+	 * que é precisamente o cálculo que saiu daqui.
+	 */
+	AverageIntakeKcal *int `json:"averageIntakeKcal"`
 }
 
 type SignalView struct {
@@ -242,6 +250,7 @@ func BuildCycleAssessment(
 			Adherence: AdesaoNutricionalView{
 				Calories: a.Calories, Protein: a.Protein, Meals: a.Meals,
 				Score: a.Score, LoggedDays: a.LoggedDays, Evaluable: a.Evaluable,
+				AverageIntakeKcal: a.AverageIntakeKcal,
 			},
 		},
 		Adaptation: PropostaNutricionalView{
