@@ -42,7 +42,8 @@ func comprasComPlano(pool *pgxpool.Pool, userID string, agora time.Time) airohtt
 	}
 	goals := repo.NewGoalRepo(tx)
 	profiles := service.NewProfiles(repo.NewProfileRepo(tx), nil, repo.NewPreferenceRepo(tx))
-	planos := service.NewNutritionService(goals, repo.NewMealPrefRepo(tx), cfgs.Nutrition, cfgs.Goal)
+	planos := service.NewNutritionService(goals, repo.NewMealPrefRepo(tx), cfgs.Nutrition, cfgs.Goal).
+		ComAvaliacao(repo.NewNutritionRepo(tx), repo.NewProgressRepo(tx))
 	relogio := clock.NewFixed(agora)
 
 	return airohttp.Deps{
@@ -52,8 +53,15 @@ func comprasComPlano(pool *pgxpool.Pool, userID string, agora time.Time) airohtt
 			Store: repo.NewShoppingRepo(tx),
 			Plans: planos, Profiles: profiles, Clock: relogio,
 		},
-		Profile:     &handlers.Profile{Profiles: profiles, Clock: relogio},
-		Nutrition:   &handlers.Nutrition{Plans: planos, Profiles: profiles},
+		Profile: &handlers.Profile{Profiles: profiles, Clock: relogio},
+		Nutrition: &handlers.Nutrition{
+			Plans: planos, Profiles: profiles, Cycles: planos,
+			Logs: repo.NewNutritionRepo(tx),
+		},
+		Goals: &handlers.Goals{
+			Service:  service.NewGoalService(tx, goals, cfgs, relogio),
+			Profiles: profiles, Reader: goals, Editor: goals,
+		},
 		Idempotency: middleware.NewMemoryStore(time.Hour),
 	}
 }

@@ -25,12 +25,26 @@ type StrategyReader interface {
 type NutritionService struct {
 	strategies StrategyReader
 	meals      MealPreferences
+	logs       LogReader
+	weights    WeightReader
 	nutCfg     nutrition.Config
 	goalCfg    goal.Config
 }
 
 func NewNutritionService(s StrategyReader, meals MealPreferences, nutCfg nutrition.Config, goalCfg goal.Config) *NutritionService {
 	return &NutritionService{strategies: s, meals: meals, nutCfg: nutCfg, goalCfg: goalCfg}
+}
+
+/*
+ * ComAvaliacao liga o que a avaliação do ciclo precisa de ler.
+ *
+ * Separado do construtor porque a maioria de quem usa este serviço só quer o
+ * plano do dia: obrigar toda a gente a passar dois repositórios que não usa era
+ * espalhar a avaliação por sítios que não têm nada a ver com ela.
+ */
+func (s *NutritionService) ComAvaliacao(logs LogReader, weights WeightReader) *NutritionService {
+	s.logs, s.weights = logs, weights
+	return s
 }
 
 // NutritionTodayInput é o que o motor precisa e o pedido não traz. Vem todo do
@@ -285,4 +299,133 @@ func (s *NutritionService) Rebalance(ctx context.Context, in NutritionTodayInput
 		Day: novo, Consumed: consumed,
 		Delta: out.Delta, Applied: out.Applied, Floored: out.Floored,
 	}, nil
+}
+
+// ── A avaliação do ciclo ─────────────────────────────────────────────────────
+
+// LogReader lê os registos de refeição de um intervalo.
+type LogReader interface {
+	Logs(ctx context.Context, userID string, from, to time.Time) ([]repo.MealLog, error)
+}
+
+// WeightReader lê a série do peso, para saber o que o corpo fez no período.
+type WeightReader interface {
+	Series(ctx context.Context, userID, metric string, since time.Time) ([]repo.MeasurementEntry, error)
+}
+
+type CycleAssessment struct {
+	Cycle      nutrition.Cycle
+	Assessment nutrition.AssessmentResult
+	Adaptation nutrition.AdaptationResult
+	Strategy   nutrition.Strategy2
+}
+
+/*
+ * AssessCycle avalia o ciclo em curso e propõe o passo seguinte.
+ *
+ * ⚠️ Isto **só existia no telemóvel**. A única máquina capaz de dizer "o teu
+ * alvo está errado, vamos corrigi-lo" era o aparelho de quem estivesse a olhar
+ * para o ecrã: quem trocasse de telemóvel perdia a avaliação, e o servidor não
+ * podia propor nada sozinho.
+ *
+ * **O ciclo é o período em que a estratégia esteve de pé** — `effective_from`.
+ * Há uma tabela `nutrition_cycle` no esquema desde o primeiro dia e nunca
+ * ninguém lhe escreveu uma linha; guardar ali uma segunda data era arranjar
+ * duas verdades sobre quando isto começou.
+ */
+func (s *NutritionService) AssessCycle(ctx context.Context, in NutritionTodayInput) (CycleAssessment, error) {
+	if s.logs == nil || s.weights == nil {
+		return CycleAssessment{}, errors.New("avaliação do ciclo indisponível")
+	}
+	linha, err := s.strategies.CurrentStrategy(ctx, in.UserID, in.LocalDay)
+	if errors.Is(err, repo.ErrNotFound) {
+		return CycleAssessment{}, ErrSemEstrategia
+	}
+	if err != nil {
+		return CycleAssessment{}, err
+	}
+
+	inicio := linha.EffectiveFrom.UTC()
+	agora := in.LocalDay.UTC()
+	estrategia := estrategiaDaLinha(linha)
+
+	registos, err := s.logs.Logs(ctx, in.UserID, inicio, agora)
+	if err != nil {
+		return CycleAssessment{}, err
+	}
+
+	// `body_weight` e não `weight`: é o nome no enum `metric_key`, e o Postgres
+	// recusa o outro em vez de o ignorar — que é a forma certa de recusar.
+	pesos, err := s.weights.Series(ctx, in.UserID, "body_weight", inicio)
+	if err != nil {
+		return CycleAssessment{}, err
+	}
+
+	ciclo, err := nutrition.StartCycle(s.nutCfg, nutrition.StartCycleInput{
+		StrategyID:   linha.ID,
+		Index:        0,
+		StartDateISO: inicio.Format("2006-01-02"),
+	})
+	if err != nil {
+		return CycleAssessment{}, err
+	}
+
+	avaliacao, adaptacao := nutrition.AssessCycle(s.nutCfg, nutrition.AssessCycleInput{
+		Strategy:       estrategia,
+		Logs:           registosParaMotor(registos),
+		PeriodStartISO: inicio.Format(isoComMilesimos),
+		NowISO:         agora.Format(isoComMilesimos),
+		WeightChangeKg: variacaoDePeso(pesos),
+	})
+	return CycleAssessment{Cycle: ciclo, Assessment: avaliacao, Adaptation: adaptacao, Strategy: estrategia}, nil
+}
+
+// ErrSemEstrategia: ainda não há nada em vigor para avaliar.
+var ErrSemEstrategia = errors.New("sem estratégia nutricional em vigor")
+
+const isoComMilesimos = "2006-01-02T15:04:05.000Z"
+
+func estrategiaDaLinha(l repo.StrategyRow) nutrition.Strategy2 {
+	return nutrition.Strategy2{
+		GoalType:      nutrition.GoalType(l.Goal),
+		CalorieTarget: l.CalorieTarget,
+		Macros: nutrition.Macros{
+			Protein: l.ProteinG, Carbs: l.CarbsG, Fat: l.FatG,
+		},
+		MealsPerDay: 3,
+		// O ajuste face ao gasto é a diferença entre o alvo e o que se estimou
+		// gastar: é dele que sai o que o período previa em quilos.
+		EnergyAdjustment: l.CalorieTarget - l.TDEEEstimated,
+		BasisTDEE:        l.TDEEEstimated,
+		BasisSource:      "estimated",
+	}
+}
+
+func registosParaMotor(linhas []repo.MealLog) []nutrition.Log {
+	out := make([]nutrition.Log, 0, len(linhas))
+	for _, l := range linhas {
+		out = append(out, nutrition.Log{
+			RecordedAtISO: l.RecordedAt.UTC().Format(isoComMilesimos),
+			Status:        nutrition.LogStatus(l.Status),
+			Kcal:          float64(l.Kcal),
+			Macros:        nutrition.MacrosFloat{Protein: l.Protein, Carbs: l.Carbs, Fat: l.Fat},
+			Portion:       l.Portion,
+		})
+	}
+	return out
+}
+
+/*
+ * variacaoDePeso é o que o corpo fez no período.
+ *
+ * Nulo com menos de duas pesagens, e é de propósito: sem duas não há variação,
+ * e devolver zero seria dizer "não mudou nada" quando a verdade é "não sei".
+ * São duas conclusões opostas — uma manda ajustar o alvo, a outra manda esperar.
+ */
+func variacaoDePeso(serie []repo.MeasurementEntry) *float64 {
+	if len(serie) < 2 {
+		return nil
+	}
+	delta := serie[len(serie)-1].Value - serie[0].Value
+	return &delta
 }

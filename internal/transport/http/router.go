@@ -300,6 +300,10 @@ func NewRouter(d Deps) http.Handler {
 			mux.Handle("PUT /v1/nutrition/logs/{id}",
 				middleware.Chain(http.HandlerFunc(d.Nutrition.SaveLog), middleware.Auth(d.Auth)))
 			// O plano do dia não passa pela idempotência: é uma leitura.
+			// A avaliação do ciclo: o que os registos dizem sobre o alvo, e a
+			// proposta que daí sai — **não aplicada**. Quem aceita é a pessoa.
+			mux.Handle("GET /v1/nutrition/assessment",
+				middleware.Chain(http.HandlerFunc(d.Nutrition.Assessment), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/nutrition/today",
 				middleware.Chain(http.HandlerFunc(d.Nutrition.Today), middleware.Auth(d.Auth)))
 			// Trocar uma refeição não passa pela idempotência de propósito:

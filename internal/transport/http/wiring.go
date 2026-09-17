@@ -113,10 +113,13 @@ func Wire(p Platform) Deps {
 	if p.MealImages != nil {
 		refeicoes = mealUploader{c: p.MealImages}
 	}
-	nutritionSvc := service.NewNutritionService(goals, repo.NewMealPrefRepo(tx), configs.Nutrition, configs.Goal)
+	// A avaliação do ciclo lê os registos e a série do peso: é do que foi
+	// comido com o que o corpo fez que sai a proposta de mudar o alvo.
+	nutritionSvc := service.NewNutritionService(goals, repo.NewMealPrefRepo(tx), configs.Nutrition, configs.Goal).
+		ComAvaliacao(repo.NewNutritionRepo(tx), repo.NewProgressRepo(tx))
 	deps.Nutrition = &handlers.Nutrition{
 		Photos: refeicoes, Logs: repo.NewNutritionRepo(tx),
-		Plans: nutritionSvc, Profiles: profiles,
+		Plans: nutritionSvc, Profiles: profiles, Cycles: nutritionSvc,
 	}
 
 	// Sem Cloudinary a conta apaga-se na mesma: uma imagem órfã limpa-se

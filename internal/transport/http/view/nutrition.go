@@ -163,3 +163,90 @@ func basisText(s nutrition.Strategy2, stored bool) string {
 	}
 	return fmt.Sprintf("Estimativa · gasto %d kcal. Cria o teu objectivo para afinar.", s.BasisTDEE)
 }
+
+// ── A avaliação do ciclo ─────────────────────────────────────────────────────
+
+type CycleAssessmentView struct {
+	Cycle      CycleView               `json:"cycle"`
+	Assessment AssessmentView          `json:"assessment"`
+	Adaptation PropostaNutricionalView `json:"adaptation"`
+}
+
+type CycleView struct {
+	ID           string `json:"id"`
+	StartDateISO string `json:"startDateISO"`
+	EndDateISO   string `json:"endDateISO"`
+	Status       string `json:"status"`
+}
+
+type AssessmentView struct {
+	/** A frase que o ecrã mostra. Decidida aqui, não montada no telemóvel. */
+	Headline   string       `json:"headline"`
+	Response   string       `json:"response"`
+	Confidence string       `json:"confidence"`
+	Signals    []SignalView `json:"signals"`
+	/** O gasto que o corpo revelou. Nulo quando não há base para o dizer. */
+	ObservedTdee *int                  `json:"observedTdee"`
+	Adherence    AdesaoNutricionalView `json:"adherence"`
+}
+
+// Distinta da `AdherenceView` do treino: aquela mede sessões, esta mede pratos.
+type AdesaoNutricionalView struct {
+	Calories   float64 `json:"calories"`
+	Protein    float64 `json:"protein"`
+	Meals      float64 `json:"meals"`
+	Score      float64 `json:"score"`
+	LoggedDays int     `json:"loggedDays"`
+	Evaluable  bool    `json:"evaluable"`
+}
+
+type SignalView struct {
+	ID       string `json:"id"`
+	Severity string `json:"severity"`
+	Message  string `json:"message"`
+}
+
+// Distinta da `AdaptationView` do treino: aquela muda o plano, esta muda o alvo.
+type PropostaNutricionalView struct {
+	Kind   string `json:"kind"`
+	Reason string `json:"reason"`
+	/** A variação proposta. Nunca aplicada sem a pessoa aceitar. */
+	CalorieDelta int  `json:"calorieDelta"`
+	Applied      bool `json:"applied"`
+}
+
+/*
+ * BuildCycleAssessment recebe os valores do motor, e não o do serviço.
+ *
+ * A `view` não pode importar o `service` — é ele que a importa. Passar os três
+ * valores soltos custa uma linha a quem chama e evita um ciclo de dependências
+ * que obrigaria a mover uma das duas camadas.
+ */
+func BuildCycleAssessment(
+	ciclo nutrition.Cycle, avaliacao nutrition.AssessmentResult, proposta nutrition.AdaptationResult,
+) CycleAssessmentView {
+	sinais := make([]SignalView, 0, len(avaliacao.Signals))
+	for _, s := range avaliacao.Signals {
+		sinais = append(sinais, SignalView{ID: s.ID, Severity: s.Severity, Message: s.Message})
+	}
+	a := avaliacao.Adherence
+	return CycleAssessmentView{
+		Cycle: CycleView{
+			ID: ciclo.ID, StartDateISO: ciclo.StartDateISO,
+			EndDateISO: ciclo.EndDateISO, Status: ciclo.Status,
+		},
+		Assessment: AssessmentView{
+			Headline: avaliacao.Headline, Response: string(avaliacao.Response),
+			Confidence: string(avaliacao.Confidence), Signals: sinais,
+			ObservedTdee: avaliacao.ObservedTDEE,
+			Adherence: AdesaoNutricionalView{
+				Calories: a.Calories, Protein: a.Protein, Meals: a.Meals,
+				Score: a.Score, LoggedDays: a.LoggedDays, Evaluable: a.Evaluable,
+			},
+		},
+		Adaptation: PropostaNutricionalView{
+			Kind: proposta.Kind, Reason: proposta.Reason,
+			CalorieDelta: proposta.CalorieDelta, Applied: proposta.Applied,
+		},
+	}
+}

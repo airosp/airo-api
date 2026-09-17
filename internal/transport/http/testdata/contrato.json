@@ -354,6 +354,86 @@
   },
   {
     "metodo": "GET",
+    "caminho": "/v1/nutrition/assessment",
+    "status": 200,
+    "resposta": {
+      "adaptation.applied": "booleano",
+      "adaptation.calorieDelta": "número",
+      "adaptation.kind": "texto",
+      "adaptation.reason": "texto",
+      "assessment.adherence.calories": "número",
+      "assessment.adherence.evaluable": "booleano",
+      "assessment.adherence.loggedDays": "número",
+      "assessment.adherence.meals": "número",
+      "assessment.adherence.protein": "número",
+      "assessment.adherence.score": "número",
+      "assessment.confidence": "texto",
+      "assessment.headline": "texto",
+      "assessment.observedTdee": "nulo",
+      "assessment.response": "texto",
+      "assessment.signals[]": "vazio",
+      "cycle.endDateISO": "texto",
+      "cycle.id": "texto",
+      "cycle.startDateISO": "texto",
+      "cycle.status": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/assessment?localDay=2026-09-16",
+    "status": 200,
+    "resposta": {
+      "adaptation.applied": "booleano",
+      "adaptation.calorieDelta": "número",
+      "adaptation.kind": "texto",
+      "adaptation.reason": "texto",
+      "assessment.adherence.calories": "número",
+      "assessment.adherence.evaluable": "booleano",
+      "assessment.adherence.loggedDays": "número",
+      "assessment.adherence.meals": "número",
+      "assessment.adherence.protein": "número",
+      "assessment.adherence.score": "número",
+      "assessment.confidence": "texto",
+      "assessment.headline": "texto",
+      "assessment.observedTdee": "nulo",
+      "assessment.response": "texto",
+      "assessment.signals[]": "vazio",
+      "cycle.endDateISO": "texto",
+      "cycle.id": "texto",
+      "cycle.startDateISO": "texto",
+      "cycle.status": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/assessment?localDay=2026-09-26",
+    "status": 200,
+    "resposta": {
+      "adaptation.applied": "booleano",
+      "adaptation.calorieDelta": "número",
+      "adaptation.kind": "texto",
+      "adaptation.reason": "texto",
+      "assessment.adherence.calories": "número",
+      "assessment.adherence.evaluable": "booleano",
+      "assessment.adherence.loggedDays": "número",
+      "assessment.adherence.meals": "número",
+      "assessment.adherence.protein": "número",
+      "assessment.adherence.score": "número",
+      "assessment.confidence": "texto",
+      "assessment.headline": "texto",
+      "assessment.observedTdee": "nulo",
+      "assessment.response": "texto",
+      "assessment.signals[].id": "texto",
+      "assessment.signals[].message": "texto",
+      "assessment.signals[].severity": "texto",
+      "cycle.endDateISO": "texto",
+      "cycle.id": "texto",
+      "cycle.startDateISO": "texto",
+      "cycle.status": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
     "caminho": "/v1/nutrition/custom-foods",
     "status": 200,
     "resposta": {
@@ -1069,13 +1149,13 @@
     "resposta": {
       "pending": "número",
       "photos.food:banana": "texto",
-      "photos.food:carrot": "texto",
-      "photos.food:cassava": "texto",
+      "photos.food:chicken": "texto",
       "photos.food:couve": "texto",
-      "photos.food:mango": "texto",
-      "photos.food:oats": "texto",
-      "photos.food:okra": "texto",
-      "photos.food:rice": "texto"
+      "photos.food:eggs": "texto",
+      "photos.food:milk": "texto",
+      "photos.food:potato": "texto",
+      "photos.food:rice": "texto",
+      "photos.food:xima": "texto"
     }
   },
   {
@@ -1253,6 +1333,96 @@
   },
   {
     "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_0_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_0_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_0_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
     "caminho": "/v1/nutrition/logs/log_1",
     "status": 200,
     "pedido": {
@@ -1283,6 +1453,366 @@
       "photoUrl": "texto",
       "portion": "número",
       "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_10_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_10_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_10_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_11_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_11_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_11_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_12_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_12_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_12_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_13_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_13_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_13_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
       "recordedAt": "texto",
       "slot": "texto",
       "source": "texto",
@@ -1329,6 +1859,96 @@
   },
   {
     "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_1_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_1_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_1_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
     "caminho": "/v1/nutrition/logs/log_2",
     "status": 200,
     "pedido": {
@@ -1367,6 +1987,96 @@
   },
   {
     "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_2_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_2_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_2_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
     "caminho": "/v1/nutrition/logs/log_3",
     "status": 200,
     "pedido": {
@@ -1397,6 +2107,636 @@
       "photoUrl": "texto",
       "portion": "número",
       "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_3_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_3_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_3_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_4_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_4_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_4_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_5_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_5_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_5_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_6_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_6_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_6_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_7_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_7_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_7_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_8_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_8_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_8_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_9_breakfast",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_9_dinner",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_9_lunch",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portion": "número",
       "recordedAt": "texto",
       "slot": "texto",
       "source": "texto",

@@ -65,12 +65,23 @@ type PlanRow struct {
 }
 
 type StrategyRow struct {
+	ID            string
 	Goal          string
 	CalorieTarget int
 	ProteinG      int
 	CarbsG        int
 	FatG          int
 	TDEEEstimated int
+	/*
+	 * Desde quando esta estratégia está em vigor.
+	 *
+	 * ⚠️ **É isto o início do ciclo.** Existe uma tabela `nutrition_cycle` no
+	 * esquema desde o `0001_init.sql` e nunca ninguém lhe escreveu uma linha —
+	 * porque o ciclo não é uma entidade à parte: é o período em que uma
+	 * estratégia esteve de pé. Guardá-lo noutro sítio era arranjar uma segunda
+	 * data que podia discordar desta.
+	 */
+	EffectiveFrom time.Time
 }
 
 type GoalRepo struct{ tx *TxManager }
@@ -225,14 +236,15 @@ func (r *GoalRepo) InsertStrategy(ctx context.Context, userID, journeyID string,
 func (r *GoalRepo) CurrentStrategy(ctx context.Context, userID string, day time.Time) (StrategyRow, error) {
 	var s StrategyRow
 	err := r.tx.Q(ctx).QueryRow(ctx,
-		`SELECT goal, calorie_target, protein_g, carbs_g, fat_g, tdee_estimated
+		`SELECT id, goal, calorie_target, protein_g, carbs_g, fat_g, tdee_estimated, effective_from
 		   FROM nutrition_strategy
 		  WHERE user_id = $1
 		    AND effective_from <= $2
 		    AND (effective_to IS NULL OR effective_to >= $2)
 		  ORDER BY effective_from DESC, created_at DESC
 		  LIMIT 1`, userID, day,
-	).Scan(&s.Goal, &s.CalorieTarget, &s.ProteinG, &s.CarbsG, &s.FatG, &s.TDEEEstimated)
+	).Scan(&s.ID, &s.Goal, &s.CalorieTarget, &s.ProteinG, &s.CarbsG, &s.FatG,
+		&s.TDEEEstimated, &s.EffectiveFrom)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return StrategyRow{}, ErrNotFound
 	}

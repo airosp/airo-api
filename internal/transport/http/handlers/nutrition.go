@@ -36,6 +36,8 @@ type Nutrition struct {
 	Logs     MealLogStore
 	Plans    *service.NutritionService
 	Profiles NutritionProfileReader
+	/** Quem avalia o ciclo. Ausente, a rota diz que está indisponível. */
+	Cycles CycleAssessor
 }
 
 // SaveLog grava um registo do diário.
@@ -519,4 +521,62 @@ func (h Nutrition) Rebalance(w http.ResponseWriter, r *http.Request) {
 		// deixar de ser refeição. Fingir que fechou seria pior.
 		"floored": out.Floored,
 	})
+}
+
+// CycleAssessor avalia o ciclo em curso e propõe o passo seguinte.
+type CycleAssessor interface {
+	AssessCycle(ctx context.Context, in service.NutritionTodayInput) (service.CycleAssessment, error)
+}
+
+/*
+ * Assessment devolve a avaliação do ciclo e a proposta que dela sai.
+ *
+ * ⚠️ Esta decisão **só existia no telemóvel**: `assessCycle` corria no
+ * `NutritionStrategyCard` e não tinha gémeo em Go. A única máquina capaz de
+ * dizer "o teu alvo está errado, vamos corrigi-lo" era o aparelho de quem
+ * estivesse a olhar para o ecrã — quem trocasse de telemóvel perdia a
+ * avaliação, e o servidor não podia propor nada sozinho.
+ *
+ * A proposta sai daqui **não aplicada**. Um alvo calórico que muda sozinho
+ * porque alguém abriu um ecrã é um alvo em que não se confia: quem decide
+ * aceitar é a pessoa, e é isso que `POST /v1/adaptations/{id}/apply` faz.
+ */
+func (h Nutrition) Assessment(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Cycles == nil || h.Profiles == nil {
+		apierr.Write(w, apierr.Internal, "A avaliação está indisponível.", "")
+		return
+	}
+
+	day, err := localDay(r)
+	if err != nil {
+		apierr.Write(w, apierr.ValidationFailed, "Dia inválido.", "localDay")
+		return
+	}
+
+	in, err := h.Profiles.NutritionProfile(r.Context(), userID, day)
+	switch {
+	case errors.Is(err, service.ErrProfileMissing), errors.Is(err, service.ErrWeightMissing):
+		apierr.Write(w, apierr.ValidationFailed, "Perfil incompleto. Cria o teu plano primeiro.", "")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível ler o teu perfil.")
+		return
+	}
+
+	out, err := h.Cycles.AssessCycle(r.Context(), in)
+	switch {
+	case errors.Is(err, service.ErrSemEstrategia):
+		// Ainda não há nada em vigor para avaliar. Não é um erro: é o princípio.
+		apierr.Write(w, apierr.NotFound, "Ainda não há um plano alimentar em curso para avaliar.", "")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível avaliar o ciclo.")
+		return
+	}
+	apierr.WriteJSON(w, http.StatusOK, view.BuildCycleAssessment(out.Cycle, out.Assessment, out.Adaptation))
 }

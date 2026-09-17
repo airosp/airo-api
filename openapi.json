@@ -1182,6 +1182,42 @@
         ]
       }
     },
+    "/v1/nutrition/assessment": {
+      "get": {
+        "operationId": "getNutritionAssessment",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "adaptation": {
+                      "type": "object"
+                    },
+                    "assessment": {
+                      "type": "object"
+                    },
+                    "cycle": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
     "/v1/nutrition/custom-foods": {
       "get": {
         "operationId": "getNutritionCustomFoods",
