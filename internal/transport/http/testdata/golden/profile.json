@@ -1,0 +1,20 @@
+{
+  "age": "número",
+  "complete": "booleano",
+  "dietStyle": "texto",
+  "displayName": "texto",
+  "equipment[]": "texto",
+  "excludedExercises[]": "vazio",
+  "experience": "texto",
+  "foodBudget": "texto",
+  "foodExclusions[]": "texto",
+  "heightCm": "número",
+  "mealsPerDay": "número",
+  "nutritionDetail": "texto",
+  "pinnedExercises[]": "vazio",
+  "sex": "texto",
+  "weightKg": "número",
+  "workoutDays[]": "número",
+  "workoutMinutes": "número",
+  "workoutTime": "texto"
+}

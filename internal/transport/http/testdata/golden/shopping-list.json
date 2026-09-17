@@ -1,0 +1,6 @@
+{
+  "checked[]": "texto",
+  "extras[].id": "texto",
+  "extras[].label": "texto",
+  "week": "texto"
+}

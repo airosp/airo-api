@@ -1,0 +1,1793 @@
+{
+  "components": {
+    "securitySchemes": {
+      "sessao": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Gerado por `go run ./cmd/openapi`. As formas das respostas vêm dos golden files, que por sua vez vêm de respostas verdadeiras — não há terceira cópia escrita à mão.",
+    "title": "Airo API",
+    "version": "1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "getHealthz",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "getMetrics",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "getReadyz",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    },
+    "/v1/account": {
+      "delete": {
+        "operationId": "deleteAccount",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/adaptations/{id}/apply": {
+      "post": {
+        "operationId": "postAdaptationsIdApply",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/adaptations/{id}/dismiss": {
+      "post": {
+        "operationId": "postAdaptationsIdDismiss",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "postAuthLogout",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    },
+    "/v1/auth/otp/request": {
+      "post": {
+        "operationId": "postAuthOtpRequest",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    },
+    "/v1/auth/otp/verify": {
+      "post": {
+        "operationId": "postAuthOtpVerify",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    },
+    "/v1/auth/sessions": {
+      "get": {
+        "operationId": "getAuthSessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "sessions": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/sessions/{id}": {
+      "delete": {
+        "operationId": "deleteAuthSessionsId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/token/refresh": {
+      "post": {
+        "operationId": "postAuthTokenRefresh",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    },
+    "/v1/calendar/marks": {
+      "get": {
+        "operationId": "getCalendarMarks",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/calendar/marks/{id}": {
+      "delete": {
+        "operationId": "deleteCalendarMarksId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putCalendarMarksId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/classes": {
+      "get": {
+        "operationId": "getClasses",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/classes/{id}": {
+      "get": {
+        "operationId": "getClassesId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/exercises": {
+      "get": {
+        "operationId": "getExercises",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/exercises/{id}": {
+      "get": {
+        "operationId": "getExercisesId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/foods": {
+      "get": {
+        "operationId": "getFoods",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/foods/{id}/substitutes": {
+      "get": {
+        "operationId": "getFoodsIdSubstitutes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/goals": {
+      "post": {
+        "operationId": "postGoals",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/goals/active": {
+      "get": {
+        "operationId": "getGoalsActive",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchGoalsActive",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/goals/assess": {
+      "post": {
+        "operationId": "postGoalsAssess",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/hydration": {
+      "get": {
+        "operationId": "getHydration",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/hydration/{day}": {
+      "put": {
+        "operationId": "putHydrationDay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/journeys/{id}/pause": {
+      "post": {
+        "operationId": "postJourneysIdPause",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/journeys/{id}/resume": {
+      "post": {
+        "operationId": "postJourneysIdResume",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/measurements": {
+      "get": {
+        "operationId": "getMeasurements",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "postMeasurements",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/media/food-photos": {
+      "post": {
+        "operationId": "postMediaFoodPhotos",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/media/photos": {
+      "get": {
+        "operationId": "getMediaPhotos",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/media/videos": {
+      "get": {
+        "operationId": "getMediaVideos",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/custom-foods": {
+      "get": {
+        "operationId": "getNutritionCustomFoods",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/custom-foods/{id}": {
+      "delete": {
+        "operationId": "deleteNutritionCustomFoodsId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putNutritionCustomFoodsId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/favourites": {
+      "get": {
+        "operationId": "getNutritionFavourites",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/favourites/{id}": {
+      "delete": {
+        "operationId": "deleteNutritionFavouritesId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putNutritionFavouritesId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/logs": {
+      "get": {
+        "operationId": "getNutritionLogs",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/logs/{id}": {
+      "delete": {
+        "operationId": "deleteNutritionLogsId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putNutritionLogsId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/meal-photo": {
+      "post": {
+        "operationId": "postNutritionMealPhoto",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/meals/{slot}/swap": {
+      "delete": {
+        "operationId": "deleteNutritionMealsSlotSwap",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slot",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "postNutritionMealsSlotSwap",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slot",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/rebalance": {
+      "post": {
+        "operationId": "postNutritionRebalance",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/shopping-list/{week}": {
+      "get": {
+        "operationId": "getNutritionShoppingListWeek",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "checked": {
+                      "type": "array"
+                    },
+                    "extras": {
+                      "type": "array"
+                    },
+                    "week": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putNutritionShoppingListWeek",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "checked": {
+                      "type": "array"
+                    },
+                    "extras": {
+                      "type": "array"
+                    },
+                    "week": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/nutrition/today": {
+      "get": {
+        "operationId": "getNutritionToday",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/plan/week": {
+      "get": {
+        "operationId": "getPlanWeek",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/playlists": {
+      "get": {
+        "operationId": "getPlaylists",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/playlists/{id}": {
+      "get": {
+        "operationId": "getPlaylistsId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/playlists/{id}/items/{position}/done": {
+      "post": {
+        "operationId": "postPlaylistsIdItemsPositionDone",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "position",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/playlists/{id}/items/{position}/skip": {
+      "post": {
+        "operationId": "postPlaylistsIdItemsPositionSkip",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "position",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/playlists/{id}/items/{position}/watched": {
+      "post": {
+        "operationId": "postPlaylistsIdItemsPositionWatched",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "position",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/playlists/{id}/progress": {
+      "delete": {
+        "operationId": "deletePlaylistsIdProgress",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/profile": {
+      "get": {
+        "operationId": "getProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "age": {
+                      "type": "number"
+                    },
+                    "complete": {
+                      "type": "boolean"
+                    },
+                    "dietStyle": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "equipment": {
+                      "type": "array"
+                    },
+                    "excludedExercises": {
+                      "type": "array"
+                    },
+                    "experience": {
+                      "type": "string"
+                    },
+                    "foodBudget": {
+                      "type": "string"
+                    },
+                    "foodExclusions": {
+                      "type": "array"
+                    },
+                    "heightCm": {
+                      "type": "number"
+                    },
+                    "mealsPerDay": {
+                      "type": "number"
+                    },
+                    "nutritionDetail": {
+                      "type": "string"
+                    },
+                    "pinnedExercises": {
+                      "type": "array"
+                    },
+                    "sex": {
+                      "type": "string"
+                    },
+                    "weightKg": {
+                      "type": "number"
+                    },
+                    "workoutDays": {
+                      "type": "array"
+                    },
+                    "workoutMinutes": {
+                      "type": "number"
+                    },
+                    "workoutTime": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putProfile",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "age": {
+                      "type": "number"
+                    },
+                    "complete": {
+                      "type": "boolean"
+                    },
+                    "dietStyle": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "equipment": {
+                      "type": "array"
+                    },
+                    "excludedExercises": {
+                      "type": "array"
+                    },
+                    "experience": {
+                      "type": "string"
+                    },
+                    "foodBudget": {
+                      "type": "string"
+                    },
+                    "foodExclusions": {
+                      "type": "array"
+                    },
+                    "heightCm": {
+                      "type": "number"
+                    },
+                    "mealsPerDay": {
+                      "type": "number"
+                    },
+                    "nutritionDetail": {
+                      "type": "string"
+                    },
+                    "pinnedExercises": {
+                      "type": "array"
+                    },
+                    "sex": {
+                      "type": "string"
+                    },
+                    "weightKg": {
+                      "type": "number"
+                    },
+                    "workoutDays": {
+                      "type": "array"
+                    },
+                    "workoutMinutes": {
+                      "type": "number"
+                    },
+                    "workoutTime": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/profile/photo": {
+      "delete": {
+        "operationId": "deleteProfilePhoto",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "postProfilePhoto",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/progress/adaptations": {
+      "get": {
+        "operationId": "getProgressAdaptations",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/progress/snapshot": {
+      "get": {
+        "operationId": "getProgressSnapshot",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/specialists": {
+      "get": {
+        "operationId": "getSpecialists",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/specialists/team": {
+      "put": {
+        "operationId": "putSpecialistsTeam",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/training/day-edits": {
+      "get": {
+        "operationId": "getTrainingDayEdits",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/training/day-edits/{day}": {
+      "put": {
+        "operationId": "putTrainingDayEditsDay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/training/habits": {
+      "get": {
+        "operationId": "getTrainingHabits",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/training/load-suggestions": {
+      "get": {
+        "operationId": "getTrainingLoadSuggestions",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/training/sessions": {
+      "get": {
+        "operationId": "getTrainingSessions",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "postTrainingSessions",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/training/sessions/open": {
+      "post": {
+        "operationId": "postTrainingSessionsOpen",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/training/sessions/{id}/events": {
+      "post": {
+        "operationId": "postTrainingSessionsIdEvents",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/training/today": {
+      "get": {
+        "operationId": "getTrainingToday",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "kind": {
+                      "type": "string"
+                    },
+                    "session": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/webhooks/whatsapp": {
+      "get": {
+        "operationId": "getWebhooksWhatsapp",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      },
+      "post": {
+        "operationId": "postWebhooksWhatsapp",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://airo-api.savanapoint.com"
+    },
+    {
+      "description": "ensaio local",
+      "url": "http://localhost:8090"
+    }
+  ]
+}

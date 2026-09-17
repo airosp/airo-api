@@ -44,3 +44,16 @@ jobs:
 
       - name: Build
         run: go build ./...
+
+      # A especificação é gerada do código; se estiver atrás dele, alguém a
+      # esqueceu. Ver cmd/openapi.
+      - name: Especificação em dia
+        run: |
+          go run ./cmd/openapi > /tmp/openapi.json
+          if ! diff -q /tmp/openapi.json openapi.json >/dev/null 2>&1; then
+            echo "✗ openapi.json está desactualizado — corre:"
+            echo "    go run ./cmd/openapi > openapi.json"
+            diff openapi.json /tmp/openapi.json | head -40 || true
+            exit 1
+          fi
+          echo "✓ especificação em dia"

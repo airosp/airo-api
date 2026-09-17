@@ -1,0 +1,7 @@
+{
+  "sessions[].deviceId": "texto",
+  "sessions[].label": "texto",
+  "sessions[].lastSeen": "texto",
+  "sessions[].platform": "texto",
+  "sessions[].since": "texto"
+}
