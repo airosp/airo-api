@@ -39,6 +39,18 @@ type ProgressSnapshot struct {
 	JourneyID string `json:"journeyId,omitempty"`
 
 	/*
+	 * A fase em curso, decidida no servidor.
+	 *
+	 * ⚠️ `currentPhase` corria no telemóvel em quatro sítios. A fase decide qual
+	 * é o plano em vigor — logo, decide a adesão contra a qual a pessoa é
+	 * medida. Quatro respostas possíveis à mesma pergunta é uma a mais.
+	 *
+	 * Ausente num horizonte aberto, que não tem fases: dizer "fase 1 de 1" a
+	 * quem não escolheu um prazo era inventar uma estrutura que não existe.
+	 */
+	Phase *PhaseView `json:"phase,omitempty"`
+
+	/*
 	 * Scale é o intervalo em que o gráfico do peso se desenha.
 	 *
 	 * ⚠️ O telemóvel escalava ao mínimo e ao máximo da série, e isso mente das
@@ -51,6 +63,21 @@ type ProgressSnapshot struct {
 	 * volta a fazer o que fazia, que é o melhor que dá sem alvo.
 	 */
 	Scale *ScaleView `json:"scale,omitempty"`
+}
+
+// PhaseView é a fase em curso. O `total` vai junto porque "Fase 2" sozinho não
+// diz nada: a pergunta que se faz a olhar para um plano é "de quantas?".
+type PhaseView struct {
+	ID    string `json:"id"`
+	Kind  string `json:"kind"`
+	Index int    `json:"index"`
+	Title string `json:"title"`
+	/** O que esta fase existe para fazer, numa frase. */
+	Intent       string `json:"intent"`
+	StartDateISO string `json:"startDateISO"`
+	EndDateISO   string `json:"endDateISO"`
+	Weeks        int    `json:"weeks"`
+	Total        int    `json:"total"`
 }
 
 // ScaleView é o intervalo do eixo, já decidido.
@@ -132,6 +159,8 @@ type RiskView struct {
 type SnapshotData struct {
 	Horizon   string
 	MetricKey string
+	/** A fase em curso, já decidida. Nula num horizonte aberto. */
+	Phase *PhaseView
 
 	JourneyID string
 	// Paused muda o que o ecrã diz — ver `PausedView`.
@@ -179,6 +208,7 @@ func BuildProgressSnapshot(s SnapshotData) ProgressSnapshot {
 	}
 
 	out.Scale = escalaDo(s)
+	out.Phase = s.Phase
 
 	if s.Trend != nil {
 		out.Trend = &TrendView{

@@ -88,6 +88,19 @@ type Snapshot struct {
 	Target   *float64
 	Unidade  string
 
+	/*
+	 * A fase em que a jornada vai — decidida aqui.
+	 *
+	 * ⚠️ `currentPhase` corria no telemóvel em **quatro sítios**: o separador de
+	 * início, o de progresso, o cartão da jornada e o próprio contexto. Quatro
+	 * respostas possíveis à mesma pergunta, e a fase é o que decide qual é o
+	 * plano em vigor — logo, o que decide a adesão contra a qual a pessoa é
+	 * medida.
+	 *
+	 * Nula quando a jornada não tem fases: um horizonte aberto não as tem.
+	 */
+	Phase *PhaseView
+
 	JourneyID string
 	// Paused muda o que o ecrã diz: "em pausa desde 3 de setembro" não é a
 	// mesma coisa que uma adesão baixa, e mostrá-las igual culpa quem avisou.
@@ -212,7 +225,31 @@ func (s *ProgressService) Snapshot(ctx context.Context, in SnapshotInput) (Snaps
 		return Snapshot{}, err
 	}
 
+	/*
+	 * As fases, montadas do mesmo motor que o telemóvel usava.
+	 *
+	 * Um horizonte aberto não tem data de fim e não tem fases — e aí a resposta
+	 * certa é não mandar nenhuma, em vez de inventar uma que não existe.
+	 */
+	var fase *PhaseView
+	if j.TargetDate != nil {
+		fases := journey.BuildPhases(s.cfg, journey.Journey{
+			ID: j.ID, GoalID: j.GoalID,
+			StartDateISO:  j.StartDate.UTC().Format(time.RFC3339),
+			TargetDateISO: j.TargetDate.UTC().Format(time.RFC3339),
+		})
+		if actual := journey.CurrentPhase(fases, in.Now.UTC().Format(time.RFC3339)); actual != nil {
+			fase = &PhaseView{
+				ID: actual.ID, Kind: string(actual.Kind), Index: actual.Index,
+				Title: actual.Title, Intent: actual.Intent,
+				StartDateISO: actual.StartDateISO, EndDateISO: actual.EndDateISO,
+				Weeks: actual.Weeks, Total: len(fases),
+			}
+		}
+	}
+
 	out := Snapshot{
+		Phase:        fase,
 		Paused:       emPausa,
 		PausedSince:  desde,
 		PausedDays:   pausados,
@@ -574,4 +611,22 @@ func (s *ProgressService) Resume(ctx context.Context, userID, journeyID string, 
 		return false, ErrSemJornada
 	}
 	return p.ResumeJourney(ctx, userID, journeyID, at)
+}
+
+/*
+ * PhaseView é a fase em curso, e quantas há ao todo.
+ *
+ * O `Total` vai junto porque "Fase 2" sozinho não diz nada: a pergunta que se
+ * faz a olhar para um plano é "de quantas?".
+ */
+type PhaseView struct {
+	ID           string
+	Kind         string
+	Index        int
+	Title        string
+	Intent       string
+	StartDateISO string
+	EndDateISO   string
+	Weeks        int
+	Total        int
 }

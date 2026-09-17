@@ -108,6 +108,15 @@ func paraVista(s service.Snapshot) view.SnapshotData {
 		Adherence:   s.Adherence,
 		Risks:       s.Risks,
 	}
+	// A fase em curso. O telemóvel calculava-a em quatro sítios.
+	if s.Phase != nil {
+		out.Phase = &view.PhaseView{
+			ID: s.Phase.ID, Kind: s.Phase.Kind, Index: s.Phase.Index,
+			Title: s.Phase.Title, Intent: s.Phase.Intent,
+			StartDateISO: s.Phase.StartDateISO, EndDateISO: s.Phase.EndDateISO,
+			Weeks: s.Phase.Weeks, Total: s.Phase.Total,
+		}
+	}
 	if s.Baseline != nil {
 		out.Baseline = *s.Baseline
 	}

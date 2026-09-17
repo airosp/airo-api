@@ -2494,6 +2494,9 @@
                     "journeyId": {
                       "type": "string"
                     },
+                    "phase": {
+                      "type": "object"
+                    },
                     "risks": {
                       "type": "array"
                     },
