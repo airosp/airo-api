@@ -72,6 +72,7 @@ func start() {
 		startErr = err
 		return
 	}
+	descartarSeIncompleto(binaries)
 
 	shared = embedded.NewDatabase(embedded.DefaultConfig().
 		Version(embedded.V16).
@@ -92,6 +93,46 @@ func start() {
 	}
 	runtimeDir = runtime
 	baseURL = fmt.Sprintf("postgres://airo:airo@127.0.0.1:%d/airo_test?sslmode=disable", port)
+}
+
+// descartarSeIncompleto apaga a cache de binários quando lhe falta uma peça.
+//
+// A `embedded-postgres` decide extrair ou não pela **existência** da directoria.
+// Se uma extracção for interrompida a meio — um `kill`, a máquina a desligar —
+// fica lá uma árvore com as pastas criadas e os ficheiros por copiar, e a
+// biblioteca dá-a por boa para sempre. O sintoma que sai daí não aponta para a
+// cache: o `initdb` queixa-se de uma instalação corrompida, e os testes de
+// serviço falham em todas as corridas seguintes sem nada no código ter mudado.
+//
+// `postgres.bki` é o ficheiro que o `initdb` lê para construir o catálogo. É
+// dos últimos a ser escrito e é indispensável: se existir, a extracção chegou
+// ao fim. Se faltar, mais vale pagar o download outra vez do que herdar uma
+// cache partida.
+func descartarSeIncompleto(binaries string) {
+	if _, err := os.Stat(binaries); err != nil {
+		return // ainda não há cache; a biblioteca extrai.
+	}
+	for _, peca := range []string{
+		filepath.Join("bin", "initdb"),
+		filepath.Join("bin", "postgres"),
+		filepath.Join("share", "postgresql", "postgres.bki"),
+	} {
+		if _, err := os.Stat(filepath.Join(binaries, peca)); err == nil {
+			continue
+		}
+		// O `.lock` é reaberto por quem vier a seguir; apagamos só o conteúdo.
+		entradas, err := os.ReadDir(binaries)
+		if err != nil {
+			return
+		}
+		for _, e := range entradas {
+			if e.Name() == ".lock" {
+				continue
+			}
+			_ = os.RemoveAll(filepath.Join(binaries, e.Name()))
+		}
+		return
+	}
 }
 
 // lockBinaries impede que dois processos extraiam os binários ao mesmo tempo.
