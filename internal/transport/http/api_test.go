@@ -30,6 +30,9 @@ import (
 
 func TestMain(m *testing.M) {
 	code := m.Run()
+	// O contrato que os testes gravaram — ver `gravador_test.go`. Não custa
+	// nada quando a gravação está desligada, que é o caso normal.
+	escreverContrato()
 	pgtest.Stop()
 	os.Exit(code)
 }
@@ -105,6 +108,7 @@ func post(t *testing.T, h http.Handler, path, body string, headers map[string]st
 	}
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
+	gravarContrato(http.MethodPost, path, body, w)
 	return w
 }
 

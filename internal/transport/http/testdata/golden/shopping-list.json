@@ -1,6 +1,9 @@
 {
   "checked[]": "texto",
+  "extras[].category": "texto",
+  "extras[].grams": "número",
   "extras[].id": "texto",
   "extras[].label": "texto",
+  "prices.rice": "número",
   "week": "texto"
 }

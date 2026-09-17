@@ -69,6 +69,8 @@ func gravar(t *testing.T, h http.Handler, id, corpo string) *httptest.ResponseRe
 	r.Header.Set("Authorization", "Bearer token-de-teste")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
+	// Esta não passa pelos ajudantes comuns, e por isso grava aqui.
+	gravarContrato(http.MethodPut, "/v1/nutrition/logs/"+id, corpo, w)
 	return w
 }
 

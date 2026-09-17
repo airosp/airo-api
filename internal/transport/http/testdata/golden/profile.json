@@ -5,6 +5,7 @@
   "displayName": "texto",
   "equipment[]": "texto",
   "excludedExercises[]": "vazio",
+  "exercisePrescriptions{}": "vazio",
   "experience": "texto",
   "foodBudget": "texto",
   "foodExclusions[]": "texto",

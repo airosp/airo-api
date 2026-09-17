@@ -27,10 +27,13 @@ type listaJSON struct {
 	Week    string   `json:"week"`
 	Checked []string `json:"checked"`
 	Extras  []struct {
-		ID    string `json:"id"`
-		Label string `json:"label"`
-		Note  string `json:"note"`
+		ID       string `json:"id"`
+		Label    string `json:"label"`
+		Note     string `json:"note"`
+		Category string `json:"category"`
+		Grams    int    `json:"grams"`
 	} `json:"extras"`
+	Prices map[string]float64 `json:"prices"`
 }
 
 func lista(t *testing.T, h http.Handler, semana string) listaJSON {
@@ -173,5 +176,76 @@ func TestSemanaInvalidaRecusada(t *testing.T) {
 			`{"checked":["rice"]}`); w.Code != http.StatusUnprocessableEntity {
 			t.Errorf("%q devolveu %d — %s", s, w.Code, w.Body.String())
 		}
+	}
+}
+
+/*
+ * Um item escrito à mão entra no grupo que a pessoa escolheu, e com peso.
+ *
+ * ⚠️ Tudo o que era escrito à mão caía num saco no fim chamado "mais alguma
+ * coisa": quem quisesse acrescentar manga ia à fruta e não a encontrava lá.
+ * Quem anda pelo mercado anda por secções, e uma manga longe da fruta é uma
+ * manga que se esquece.
+ */
+func TestUmExtraEntraNoGrupoEscolhido(t *testing.T) {
+	h := serveCompras(t)
+
+	corpo := `{"extras":[
+	   {"id":"e1","label":"Manga","category":"fruit","grams":1500},
+	   {"id":"e2","label":"Sabão"},
+	   {"id":"e3","label":"Cuscuz","category":"inventado"}]}`
+	if w := put(t, h, "/v1/nutrition/shopping-list/"+quarta, corpo); w.Code != http.StatusOK {
+		t.Fatalf("gravar: %d — %s", w.Code, w.Body.String())
+	}
+
+	l := lista(t, h, quarta)
+	if len(l.Extras) != 3 {
+		t.Fatalf("extras: %+v", l.Extras)
+	}
+	if l.Extras[0].Category != "fruit" || l.Extras[0].Grams != 1500 {
+		t.Errorf("a manga não ficou na fruta: %+v", l.Extras[0])
+	}
+	// Sem grupo e com um grupo que não existe caem os dois no mesmo sítio: é
+	// melhor aparecerem no fim do que desaparecerem.
+	if l.Extras[1].Category != "outros" || l.Extras[2].Category != "outros" {
+		t.Errorf("caíram fora de outros: %+v", l.Extras[1:])
+	}
+}
+
+/*
+ * Os preços sobrevivem, e o que não é um preço não entra.
+ *
+ * Uma lista de compras sem preços é uma lista de intenções. O preço não vem do
+ * plano — muda de mercado para mercado —, por isso é a pessoa que o aponta.
+ */
+func TestOsPrecosFicamGravados(t *testing.T) {
+	h := serveCompras(t)
+
+	corpo := `{"checked":["chicken"],
+	           "prices":{"chicken":450.5,"rice":0,"couve":-12,"lixo":1000001,"e1":12.349}}`
+	if w := put(t, h, "/v1/nutrition/shopping-list/"+quarta, corpo); w.Code != http.StatusOK {
+		t.Fatalf("gravar: %d — %s", w.Code, w.Body.String())
+	}
+
+	l := lista(t, h, quarta)
+	if l.Prices["chicken"] != 450.5 {
+		t.Errorf("o preço do frango: %v", l.Prices["chicken"])
+	}
+	// Duas casas, que é o que o metical tem. Mais do que isso é ruído.
+	if l.Prices["e1"] != 12.35 {
+		t.Errorf("as casas decimais: %v", l.Prices["e1"])
+	}
+	for _, chave := range []string{"rice", "couve", "lixo"} {
+		if _, existe := l.Prices[chave]; existe {
+			t.Errorf("%q entrou com %v", chave, l.Prices[chave])
+		}
+	}
+}
+
+// Uma semana por tocar traz os preços vazios, e não `null`.
+func TestSemPrecosVemMapaVazio(t *testing.T) {
+	h := serveCompras(t)
+	if l := lista(t, h, quarta); l.Prices == nil {
+		t.Fatal("prices veio nulo — o cliente tem de distinguir vazio de ausente")
 	}
 }

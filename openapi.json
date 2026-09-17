@@ -20,6 +20,21 @@
         "operationId": "getHealthz",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           }
         }
@@ -40,6 +55,21 @@
         "operationId": "getReadyz",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           }
         }
@@ -294,6 +324,21 @@
         "operationId": "getClasses",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "classes": {
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -322,6 +367,75 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "durationClock": {
+                      "type": "string"
+                    },
+                    "durationLabel": {
+                      "type": "string"
+                    },
+                    "durationSeconds": {
+                      "type": "number"
+                    },
+                    "equipment": {
+                      "type": "array"
+                    },
+                    "equipmentLabel": {
+                      "type": "string"
+                    },
+                    "focus": {
+                      "type": "string"
+                    },
+                    "focusLabel": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "kcal": {
+                      "type": "number"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "string"
+                    },
+                    "levelLabel": {
+                      "type": "string"
+                    },
+                    "muscles": {
+                      "type": "array"
+                    },
+                    "specialist": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "thumbnailUrl": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "videoHeight": {
+                      "type": "number"
+                    },
+                    "videoUrl": {
+                      "type": "string"
+                    },
+                    "videoWidth": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -340,6 +454,21 @@
         "operationId": "getExercises",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "exercises": {
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -368,6 +497,39 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "cue": {
+                      "type": "string"
+                    },
+                    "equipment": {
+                      "type": "array"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "string"
+                    },
+                    "measure": {
+                      "type": "string"
+                    },
+                    "muscles": {
+                      "type": "array"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "pattern": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -386,6 +548,21 @@
         "operationId": "getFoods",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "foods": {
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -414,6 +591,18 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "substitutions": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -430,8 +619,65 @@
     "/v1/goals": {
       "post": {
         "operationId": "postGoals",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "direction": {
+                    "type": "string"
+                  },
+                  "horizon": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string"
+                  },
+                  "targetDate": {
+                    "type": "string"
+                  },
+                  "targets": {
+                    "type": "array"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "assessment": {
+                      "type": "array"
+                    },
+                    "goal": {
+                      "type": "object"
+                    },
+                    "journey": {
+                      "type": "object"
+                    },
+                    "nutrition": {
+                      "type": "object"
+                    },
+                    "plan": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -450,6 +696,39 @@
         "operationId": "getGoalsActive",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "direction": {
+                      "type": "string"
+                    },
+                    "horizon": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "journey": {
+                      "type": "object"
+                    },
+                    "priority": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "targets": {
+                      "type": "array"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -464,8 +743,56 @@
       },
       "patch": {
         "operationId": "patchGoalsActive",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "targetWeightKg": {
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "direction": {
+                      "type": "string"
+                    },
+                    "horizon": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "journey": {
+                      "type": "object"
+                    },
+                    "priority": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "targets": {
+                      "type": "array"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -482,8 +809,62 @@
     "/v1/goals/assess": {
       "post": {
         "operationId": "postGoalsAssess",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "direction": {
+                    "type": "string"
+                  },
+                  "horizon": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string"
+                  },
+                  "targetDate": {
+                    "type": "string"
+                  },
+                  "targets": {
+                    "type": "array"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "milestones": {
+                      "type": "array"
+                    },
+                    "recommendations": {
+                      "type": "object"
+                    },
+                    "signals": {
+                      "type": "object"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -528,8 +909,38 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "ml": {
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "day": {
+                      "type": "string"
+                    },
+                    "ml": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -618,8 +1029,62 @@
       },
       "post": {
         "operationId": "postMeasurements",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "metric": {
+                    "type": "string"
+                  },
+                  "note": {
+                    "type": "string"
+                  },
+                  "recordedAt": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "created": {
+                      "type": "boolean"
+                    },
+                    "day": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "metric": {
+                      "type": "string"
+                    },
+                    "recordedAt": {
+                      "type": "string"
+                    },
+                    "unit": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -636,8 +1101,38 @@
     "/v1/media/food-photos": {
       "post": {
         "operationId": "postMediaFoodPhotos",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "foods": {
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "pending": {
+                      "type": "number"
+                    },
+                    "photos": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -692,6 +1187,18 @@
         "operationId": "getNutritionCustomFoods",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "foods": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -744,8 +1251,44 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "kcal": {
+                    "type": "number"
+                  },
+                  "macros": {
+                    "type": "object"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "serving": {
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -764,6 +1307,18 @@
         "operationId": "getNutritionFavourites",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "favourites": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -816,8 +1371,47 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "items": {
+                    "type": "array"
+                  },
+                  "kcal": {
+                    "type": "number"
+                  },
+                  "savedAt": {
+                    "type": "string"
+                  },
+                  "slot": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -888,8 +1482,104 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "kcal": {
+                    "type": "number"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "localDay": {
+                    "type": "string"
+                  },
+                  "macros": {
+                    "type": "object"
+                  },
+                  "photoThumbUrl": {
+                    "type": "string"
+                  },
+                  "photoUrl": {
+                    "type": "string"
+                  },
+                  "portion": {
+                    "type": "number"
+                  },
+                  "portionLabel": {
+                    "type": "string"
+                  },
+                  "recordedAt": {
+                    "type": "string"
+                  },
+                  "slot": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "kcal": {
+                      "type": "number"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "localDay": {
+                      "type": "string"
+                    },
+                    "macros": {
+                      "type": "object"
+                    },
+                    "photoThumbUrl": {
+                      "type": "string"
+                    },
+                    "photoUrl": {
+                      "type": "string"
+                    },
+                    "portion": {
+                      "type": "number"
+                    },
+                    "portionLabel": {
+                      "type": "string"
+                    },
+                    "recordedAt": {
+                      "type": "string"
+                    },
+                    "slot": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1018,6 +1708,9 @@
                     "extras": {
                       "type": "array"
                     },
+                    "prices": {
+                      "type": "object"
+                    },
                     "week": {
                       "type": "string"
                     }
@@ -1050,6 +1743,27 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "checked": {
+                    "type": "array"
+                  },
+                  "extras": {
+                    "type": "array"
+                  },
+                  "prices": {
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -1061,6 +1775,9 @@
                     },
                     "extras": {
                       "type": "array"
+                    },
+                    "prices": {
+                      "type": "object"
                     },
                     "week": {
                       "type": "string"
@@ -1106,6 +1823,24 @@
         "operationId": "getPlanWeek",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "days": {
+                      "type": "array"
+                    },
+                    "start": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1124,6 +1859,21 @@
         "operationId": "getPlaylists",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "playlists": {
+                      "type": "array"
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1152,6 +1902,63 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "classCount": {
+                      "type": "number"
+                    },
+                    "durationLabel": {
+                      "type": "string"
+                    },
+                    "durationSeconds": {
+                      "type": "number"
+                    },
+                    "forYou": {
+                      "type": "boolean"
+                    },
+                    "goalLabel": {
+                      "type": "string"
+                    },
+                    "goals": {
+                      "type": "array"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "items": {
+                      "type": "array"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "level": {
+                      "type": "string"
+                    },
+                    "levelLabel": {
+                      "type": "string"
+                    },
+                    "nextPosition": {
+                      "type": "number"
+                    },
+                    "progress": {
+                      "type": "object"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "zones": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1328,6 +2135,9 @@
                     "excludedExercises": {
                       "type": "array"
                     },
+                    "exercisePrescriptions{}": {
+                      "type": "object"
+                    },
                     "experience": {
                       "type": "string"
                     },
@@ -1339,6 +2149,9 @@
                     },
                     "heightCm": {
                       "type": "number"
+                    },
+                    "maxImpact": {
+                      "type": "string"
                     },
                     "mealsPerDay": {
                       "type": "number"
@@ -1383,6 +2196,69 @@
       },
       "put": {
         "operationId": "putProfile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "age": {
+                    "type": "number"
+                  },
+                  "dietStyle": {
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "equipment": {
+                    "type": "array"
+                  },
+                  "excludedExercises": {
+                    "type": "array"
+                  },
+                  "exercisePrescriptions": {
+                    "type": "object"
+                  },
+                  "experience": {
+                    "type": "string"
+                  },
+                  "foodBudget": {
+                    "type": "string"
+                  },
+                  "foodExclusions": {
+                    "type": "array"
+                  },
+                  "heightCm": {
+                    "type": "number"
+                  },
+                  "mealsPerDay": {
+                    "type": "number"
+                  },
+                  "pinnedExercises": {
+                    "type": "array"
+                  },
+                  "sex": {
+                    "type": "string"
+                  },
+                  "weightKg": {
+                    "type": "number"
+                  },
+                  "workoutDays": {
+                    "type": "array"
+                  },
+                  "workoutMinutes": {
+                    "type": "number"
+                  },
+                  "workoutTime": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -1406,6 +2282,9 @@
                     },
                     "excludedExercises": {
                       "type": "array"
+                    },
+                    "exercisePrescriptions": {
+                      "type": "object"
                     },
                     "experience": {
                       "type": "string"
@@ -1500,6 +2379,18 @@
         "operationId": "getProgressAdaptations",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "adaptations": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1518,6 +2409,30 @@
         "operationId": "getProgressSnapshot",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "adherence": {
+                      "type": "object"
+                    },
+                    "horizon": {
+                      "type": "string"
+                    },
+                    "journeyId": {
+                      "type": "string"
+                    },
+                    "risks": {
+                      "type": "array"
+                    },
+                    "scale": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1536,6 +2451,21 @@
         "operationId": "getSpecialists",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "specialists": {
+                      "type": "array"
+                    },
+                    "team": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1552,8 +2482,35 @@
     "/v1/specialists/team": {
       "put": {
         "operationId": "putSpecialistsTeam",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "team": {
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "team": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1572,6 +2529,18 @@
         "operationId": "getTrainingDayEdits",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "days": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1598,8 +2567,44 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "removed": {
+                    "type": "array"
+                  },
+                  "swapped": {
+                    "type": "object"
+                  },
+                  "tuned": {
+                    "type": "object"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "day": {
+                      "type": "string"
+                    },
+                    "edits": {
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1618,6 +2623,21 @@
         "operationId": "getTrainingHabits",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "habits": {
+                      "type": "array"
+                    },
+                    "threshold": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1636,6 +2656,18 @@
         "operationId": "getTrainingLoadSuggestions",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "suggestions": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1668,8 +2700,59 @@
       },
       "post": {
         "operationId": "postTrainingSessions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "durationSeconds": {
+                    "type": "number"
+                  },
+                  "localDay": {
+                    "type": "string"
+                  },
+                  "occurredAt": {
+                    "type": "string"
+                  },
+                  "performed": {
+                    "type": "array"
+                  },
+                  "plannedSeconds": {
+                    "type": "number"
+                  },
+                  "setsDone": {
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "countsForStreak": {
+                      "type": "boolean"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "streak": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1734,21 +2817,6 @@
         "operationId": "getTrainingToday",
         "responses": {
           "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "properties": {
-                    "kind": {
-                      "type": "string"
-                    },
-                    "session": {
-                      "type": "object"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
             "description": "Feito."
           },
           "401": {

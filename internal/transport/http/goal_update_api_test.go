@@ -15,6 +15,7 @@ func patch(t *testing.T, h http.Handler, path, body string) *httptest.ResponseRe
 	r.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
+	gravarContrato(http.MethodPatch, path, body, w)
 	return w
 }
 

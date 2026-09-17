@@ -20,6 +20,7 @@ func del(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 	r.Header.Set("Authorization", "Bearer token-de-teste")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
+	gravarContrato(http.MethodDelete, path, "", w)
 	return w
 }
 

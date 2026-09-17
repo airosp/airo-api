@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strings"
 	"time"
@@ -46,6 +47,19 @@ const (
 type estadoDaLista struct {
 	Checked []string `json:"checked"`
 	Extras  []extra  `json:"extras"`
+	/*
+	 * Quanto custa cada linha, em meticais, pela chave da linha.
+	 *
+	 * ⚠️ Uma lista de compras sem preços é uma lista de intenções: ninguém sai
+	 * de casa sem saber se o que está no papel cabe no que tem na carteira. E
+	 * o preço não vem do plano — varia de mercado para mercado e de semana
+	 * para semana —, por isso é a pessoa que o aponta, e é dela.
+	 *
+	 * A chave é a da linha: `chicken` para um alimento do plano, o id do extra
+	 * para o que foi escrito à mão. Assim o preço sobrevive a mudar de semana
+	 * enquanto o alimento continuar na lista.
+	 */
+	Precos map[string]float64 `json:"prices,omitempty"`
 }
 
 // Um item escrito à mão. O `id` é do cliente — é ele que tem a lista aberta.
@@ -53,6 +67,19 @@ type extra struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	Note  string `json:"note,omitempty"`
+	/*
+	 * Em que grupo entra na lista.
+	 *
+	 * ⚠️ Tudo o que era escrito à mão caía num saco no fim chamado "mais
+	 * alguma coisa". Quem quisesse acrescentar manga ia à fruta e não a
+	 * encontrava lá — encontrava-a no fim, longe do resto da fruta, que é
+	 * exactamente onde não serve a quem anda pelo mercado por secções.
+	 *
+	 * Vazio cai em "outros", que é para o sabão e para o que não é comida.
+	 */
+	Category string `json:"category,omitempty"`
+	/** Quanto comprar. Zero quer dizer que a pessoa não disse. */
+	Grams int `json:"grams,omitempty"`
 }
 
 // Get devolve o estado de uma semana. Vazio quando ainda não foi tocada.
@@ -81,6 +108,7 @@ func (h Shopping) Get(w http.ResponseWriter, r *http.Request) {
 			"week":    semana.Format("2006-01-02"),
 			"checked": []string{},
 			"extras":  []extra{},
+			"prices":  map[string]float64{},
 		})
 		return
 	case err != nil:
@@ -97,6 +125,7 @@ func (h Shopping) Get(w http.ResponseWriter, r *http.Request) {
 		"week":    semana.Format("2006-01-02"),
 		"checked": naoNil(estado.Checked),
 		"extras":  extrasNaoNil(estado.Extras),
+		"prices":  naoNilPrecos(estado.Precos),
 	})
 }
 
@@ -128,6 +157,10 @@ func (h Shopping) Save(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, apierr.ValidationFailed, "Corpo do pedido inválido.", "")
 		return
 	}
+	if len(req.Precos) > maximoItensRiscados {
+		apierr.Write(w, apierr.ValidationFailed, "Demasiados preços.", "prices")
+		return
+	}
 	if len(req.Checked) > maximoItensRiscados {
 		apierr.Write(w, apierr.ValidationFailed, "Riscaste mais do que cabe numa lista.", "checked")
 		return
@@ -154,9 +187,39 @@ func (h Shopping) Save(w http.ResponseWriter, r *http.Request) {
 		if e.ID == "" || e.Label == "" || len(e.ID) > maximoLetrasDoItem {
 			continue
 		}
+		// Um grupo que a app não conhece cai em "outros": é melhor a manga
+		// aparecer no fim do que desaparecer.
+		categoria := strings.TrimSpace(e.Category)
+		if !gruposDaLista[categoria] {
+			categoria = "outros"
+		}
 		limpo.Extras = append(limpo.Extras, extra{
 			ID: e.ID, Label: corta(e.Label, maximoLetrasDoItem), Note: corta(e.Note, maximoLetrasDoItem),
+			Category: categoria,
+			Grams:    limitar(e.Grams, 0, maximoGramas),
 		})
+	}
+
+	/*
+	 * Os preços, limpos.
+	 *
+	 * Negativos e absurdos ficam de fora: um preço é o que se paga, e um saco
+	 * de arroz não custa um milhão de meticais. Zero também sai — quer dizer
+	 * "não apontei", e guardá-lo era guardar a ausência de uma resposta.
+	 */
+	if len(req.Precos) > 0 {
+		limpo.Precos = map[string]float64{}
+		for chave, valor := range req.Precos {
+			chave = strings.TrimSpace(chave)
+			if chave == "" || len(chave) > maximoLetrasDoItem {
+				continue
+			}
+			if valor <= 0 || valor > maximoPreco || math.IsNaN(valor) || math.IsInf(valor, 0) {
+				continue
+			}
+			// Duas casas: o metical tem centavos e mais do que isso é ruído.
+			limpo.Precos[chave] = math.Round(valor*100) / 100
+		}
 	}
 
 	bruto, err := json.Marshal(limpo)
@@ -179,7 +242,44 @@ func (h Shopping) Save(w http.ResponseWriter, r *http.Request) {
 		"week":    semana.Format("2006-01-02"),
 		"checked": limpo.Checked,
 		"extras":  limpo.Extras,
+		"prices":  naoNilPrecos(limpo.Precos),
 	})
+}
+
+/*
+ * Os grupos em que uma linha pode entrar.
+ *
+ * São os do catálogo de alimentos mais "outros", que é para o sabão e para o
+ * que não é comida. Estão aqui e não numa tabela porque são a forma da lista
+ * — mudá-los é mudar como se anda pelo mercado, não é dado.
+ */
+var gruposDaLista = map[string]bool{
+	"protein": true, "carb": true, "vegetable": true,
+	"fat": true, "fruit": true, "dairy": true, "outros": true,
+}
+
+const (
+	/** Cem quilos: acima disto é erro de dedo, não uma compra. */
+	maximoGramas = 100000
+	/** Um milhão de meticais numa linha é erro de dedo, não um preço. */
+	maximoPreco = 1000000.0
+)
+
+func limitar(v, min, max int) int {
+	if v < min {
+		return min
+	}
+	if v > max {
+		return max
+	}
+	return v
+}
+
+func naoNilPrecos(m map[string]float64) map[string]float64 {
+	if m == nil {
+		return map[string]float64{}
+	}
+	return m
 }
 
 /*

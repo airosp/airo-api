@@ -1,0 +1,1689 @@
+[
+  {
+    "metodo": "GET",
+    "caminho": "/healthz",
+    "status": 200,
+    "resposta": {
+      "status": "texto",
+      "version": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/readyz",
+    "status": 200,
+    "resposta": {
+      "status": "texto",
+      "version": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/auth/sessions",
+    "status": 200,
+    "resposta": {
+      "sessions[].deviceId": "texto",
+      "sessions[].label": "texto",
+      "sessions[].lastSeen": "texto",
+      "sessions[].platform": "texto",
+      "sessions[].since": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/calendar/marks?from=2026-08-18\u0026to=2026-09-17",
+    "status": 200,
+    "resposta": {
+      "marks[]": "vazio"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/classes",
+    "status": 200,
+    "resposta": {
+      "classes[].durationClock": "texto",
+      "classes[].durationLabel": "texto",
+      "classes[].durationSeconds": "número",
+      "classes[].equipmentLabel": "texto",
+      "classes[].equipment[]": "vazio",
+      "classes[].focus": "texto",
+      "classes[].focusLabel": "texto",
+      "classes[].id": "texto",
+      "classes[].kcal": "número",
+      "classes[].label": "texto",
+      "classes[].level": "texto",
+      "classes[].levelLabel": "texto",
+      "classes[].muscles[]": "texto",
+      "classes[].specialist": "texto",
+      "classes[].summary": "texto",
+      "classes[].thumbnailUrl": "texto",
+      "classes[].title": "texto",
+      "classes[].videoHeight": "número",
+      "classes[].videoUrl": "texto",
+      "classes[].videoWidth": "número",
+      "total": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/classes/alongar-depois-do-treino",
+    "status": 200,
+    "resposta": {
+      "durationClock": "texto",
+      "durationLabel": "texto",
+      "durationSeconds": "número",
+      "equipmentLabel": "texto",
+      "equipment[]": "vazio",
+      "focus": "texto",
+      "focusLabel": "texto",
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "level": "texto",
+      "levelLabel": "texto",
+      "muscles[]": "texto",
+      "specialist": "texto",
+      "summary": "texto",
+      "thumbnailUrl": "texto",
+      "title": "texto",
+      "videoHeight": "número",
+      "videoUrl": "texto",
+      "videoWidth": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/classes/mobilidade-da-manha",
+    "status": 200,
+    "resposta": {
+      "durationClock": "texto",
+      "durationLabel": "texto",
+      "durationSeconds": "número",
+      "equipmentLabel": "texto",
+      "equipment[]": "texto",
+      "focus": "texto",
+      "focusLabel": "texto",
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "level": "texto",
+      "levelLabel": "texto",
+      "muscles[]": "texto",
+      "specialist": "texto",
+      "summary": "texto",
+      "thumbnailUrl": "texto",
+      "title": "texto",
+      "videoHeight": "número",
+      "videoUrl": "texto",
+      "videoWidth": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/classes?all=1",
+    "status": 200,
+    "resposta": {
+      "classes[].durationClock": "texto",
+      "classes[].durationLabel": "texto",
+      "classes[].durationSeconds": "número",
+      "classes[].equipmentLabel": "texto",
+      "classes[].equipment[]": "vazio",
+      "classes[].focus": "texto",
+      "classes[].focusLabel": "texto",
+      "classes[].id": "texto",
+      "classes[].kcal": "número",
+      "classes[].label": "texto",
+      "classes[].level": "texto",
+      "classes[].levelLabel": "texto",
+      "classes[].muscles[]": "texto",
+      "classes[].specialist": "texto",
+      "classes[].summary": "texto",
+      "classes[].thumbnailUrl": "texto",
+      "classes[].title": "texto",
+      "classes[].videoHeight": "número",
+      "classes[].videoUrl": "texto",
+      "classes[].videoWidth": "número",
+      "total": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/classes?all=1\u0026focus=mobility",
+    "status": 200,
+    "resposta": {
+      "classes[].durationClock": "texto",
+      "classes[].durationLabel": "texto",
+      "classes[].durationSeconds": "número",
+      "classes[].equipmentLabel": "texto",
+      "classes[].equipment[]": "vazio",
+      "classes[].focus": "texto",
+      "classes[].focusLabel": "texto",
+      "classes[].id": "texto",
+      "classes[].kcal": "número",
+      "classes[].label": "texto",
+      "classes[].level": "texto",
+      "classes[].levelLabel": "texto",
+      "classes[].muscles[]": "texto",
+      "classes[].specialist": "texto",
+      "classes[].summary": "texto",
+      "classes[].thumbnailUrl": "texto",
+      "classes[].title": "texto",
+      "classes[].videoHeight": "número",
+      "classes[].videoUrl": "texto",
+      "classes[].videoWidth": "número",
+      "total": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/exercises",
+    "status": 200,
+    "resposta": {
+      "exercises[].cue": "texto",
+      "exercises[].equipment[]": "vazio",
+      "exercises[].id": "texto",
+      "exercises[].level": "texto",
+      "exercises[].measure": "texto",
+      "exercises[].muscles[]": "texto",
+      "exercises[].name": "texto",
+      "exercises[].pattern": "texto",
+      "total": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/exercises/pushup",
+    "status": 200,
+    "resposta": {
+      "cue": "texto",
+      "equipment[]": "vazio",
+      "id": "texto",
+      "level": "texto",
+      "measure": "texto",
+      "muscles[]": "texto",
+      "name": "texto",
+      "pattern": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/foods",
+    "status": 200,
+    "resposta": {
+      "foods[].budget": "texto",
+      "foods[].carbsG": "número",
+      "foods[].category": "texto",
+      "foods[].fatG": "número",
+      "foods[].id": "texto",
+      "foods[].kcal": "número",
+      "foods[].name": "texto",
+      "foods[].proteinG": "número",
+      "foods[].servingG": "número",
+      "total": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/foods/chicken/substitutes",
+    "status": 200,
+    "resposta": {
+      "substitutions[].foodId": "texto",
+      "substitutions[].grams": "número",
+      "substitutions[].kcal": "número",
+      "substitutions[].match": "número",
+      "substitutions[].name": "texto",
+      "substitutions[].portionLabel": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/goals/active",
+    "status": 200,
+    "resposta": {
+      "direction": "texto",
+      "horizon": "texto",
+      "id": "texto",
+      "journey.horizon": "texto",
+      "journey.id": "texto",
+      "journey.startDate": "texto",
+      "journey.status": "texto",
+      "journey.targetDate": "texto",
+      "priority": "texto",
+      "status": "texto",
+      "targets[].baseline": "número",
+      "targets[].direction": "texto",
+      "targets[].dueDate": "texto",
+      "targets[].metric": "texto",
+      "targets[].unit": "texto",
+      "targets[].value": "número",
+      "type": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/hydration?from=2026-08-18\u0026to=2026-09-17",
+    "status": 200,
+    "resposta": {
+      "days[]": "vazio"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/hydration?from=2026-09-01\u0026to=2026-09-30",
+    "status": 200,
+    "resposta": {
+      "days[].day": "texto",
+      "days[].ml": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/hydration?from=2026-09-16\u0026to=2026-09-16",
+    "status": 200,
+    "resposta": {
+      "days[].day": "texto",
+      "days[].ml": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/measurements?from=2026-08-18\u0026to=2026-09-17",
+    "status": 200,
+    "resposta": {
+      "measurements[].day": "texto",
+      "measurements[].id": "texto",
+      "measurements[].metric": "texto",
+      "measurements[].recordedAt": "texto",
+      "measurements[].unit": "texto",
+      "measurements[].value": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/measurements?metric=altura_da_alma",
+    "status": 422,
+    "resposta": {
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/measurements?metric=body_weight\u0026since=2026-01-01",
+    "status": 200,
+    "resposta": {
+      "measurements[].day": "texto",
+      "measurements[].id": "texto",
+      "measurements[].metric": "texto",
+      "measurements[].note": "texto",
+      "measurements[].recordedAt": "texto",
+      "measurements[].unit": "texto",
+      "measurements[].value": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/measurements?since=2026-01-01",
+    "status": 200,
+    "resposta": {
+      "measurements[].day": "texto",
+      "measurements[].id": "texto",
+      "measurements[].metric": "texto",
+      "measurements[].recordedAt": "texto",
+      "measurements[].unit": "texto",
+      "measurements[].value": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/media/photos?query=treino",
+    "status": 200,
+    "resposta": {
+      "photos[]": "vazio"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/media/videos?query=treino",
+    "status": 200,
+    "resposta": {
+      "videos[]": "vazio"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/custom-foods",
+    "status": 200,
+    "resposta": {
+      "foods[].id": "texto",
+      "foods[].kcal": "número",
+      "foods[].macros.carbs": "número",
+      "foods[].macros.fat": "número",
+      "foods[].macros.protein": "número",
+      "foods[].name": "texto",
+      "foods[].serving": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/favourites",
+    "status": 200,
+    "resposta": {
+      "favourites[].id": "texto",
+      "favourites[].items[].foodId": "texto",
+      "favourites[].items[].grams": "número",
+      "favourites[].kcal": "número",
+      "favourites[].savedAt": "texto",
+      "favourites[].slot": "texto",
+      "favourites[].title": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/logs?from=2026-08-18\u0026to=2026-09-17",
+    "status": 200,
+    "resposta": {
+      "logs[]": "vazio"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/shopping-list/2026-08-03",
+    "status": 200,
+    "resposta": {
+      "checked[]": "texto",
+      "extras[]": "vazio",
+      "prices{}": "vazio",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-07",
+    "status": 200,
+    "resposta": {
+      "checked[]": "vazio",
+      "extras[]": "vazio",
+      "prices{}": "vazio",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-14",
+    "status": 200,
+    "resposta": {
+      "checked[]": "vazio",
+      "extras[]": "vazio",
+      "prices{}": "vazio",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-16",
+    "status": 200,
+    "resposta": {
+      "checked[]": "texto",
+      "extras[].category": "texto",
+      "extras[].grams": "número",
+      "extras[].id": "texto",
+      "extras[].label": "texto",
+      "prices.rice": "número",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-17",
+    "status": 200,
+    "resposta": {
+      "checked[]": "vazio",
+      "extras[]": "vazio",
+      "prices{}": "vazio",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-18",
+    "status": 200,
+    "resposta": {
+      "checked[]": "texto",
+      "extras[]": "vazio",
+      "prices{}": "vazio",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-20",
+    "status": 200,
+    "resposta": {
+      "checked[]": "texto",
+      "extras[]": "vazio",
+      "prices{}": "vazio",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-21",
+    "status": 200,
+    "resposta": {
+      "checked[]": "vazio",
+      "extras[]": "vazio",
+      "prices{}": "vazio",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/nutrition/today?localDay=2026-09-17",
+    "status": 200,
+    "resposta": {
+      "basis": "texto",
+      "calorieTarget": "número",
+      "dayISO": "texto",
+      "hydration.label": "texto",
+      "hydration.stepMl": "número",
+      "hydration.targetMl": "número",
+      "macros.carbsG": "número",
+      "macros.fatG": "número",
+      "macros.proteinG": "número",
+      "meals[].id": "texto",
+      "meals[].items[].carbsG": "número",
+      "meals[].items[].fatG": "número",
+      "meals[].items[].foodId": "texto",
+      "meals[].items[].grams": "número",
+      "meals[].items[].kcal": "número",
+      "meals[].items[].name": "texto",
+      "meals[].items[].proteinG": "número",
+      "meals[].kcal": "número",
+      "meals[].macros.carbsG": "número",
+      "meals[].macros.fatG": "número",
+      "meals[].macros.proteinG": "número",
+      "meals[].role": "texto",
+      "meals[].share": "número",
+      "meals[].slot": "texto",
+      "meals[].subtitle": "texto",
+      "meals[].title": "texto",
+      "trainsToday": "booleano"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/plan/week",
+    "status": 200,
+    "resposta": {
+      "days[].active": "booleano",
+      "days[].date": "texto",
+      "days[].done": "booleano",
+      "days[].focus": "texto",
+      "days[].id": "texto",
+      "days[].label": "texto",
+      "days[].minutes": "número",
+      "days[].training": "booleano",
+      "days[].weekday": "texto",
+      "start": "texto",
+      "summary": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/playlists",
+    "status": 200,
+    "resposta": {
+      "playlists[].classCount": "número",
+      "playlists[].durationLabel": "texto",
+      "playlists[].durationSeconds": "número",
+      "playlists[].forYou": "booleano",
+      "playlists[].goalLabel": "texto",
+      "playlists[].goals[]": "texto",
+      "playlists[].id": "texto",
+      "playlists[].label": "texto",
+      "playlists[].level": "texto",
+      "playlists[].levelLabel": "texto",
+      "playlists[].nextPosition": "número",
+      "playlists[].progress.completed": "booleano",
+      "playlists[].progress.done": "número",
+      "playlists[].progress.encouragement": "texto",
+      "playlists[].progress.label": "texto",
+      "playlists[].progress.note": "texto",
+      "playlists[].progress.percent": "número",
+      "playlists[].progress.remaining": "número",
+      "playlists[].progress.skipped": "número",
+      "playlists[].progress.total": "número",
+      "playlists[].progress.trainedLabel": "texto",
+      "playlists[].progress.trainedSeconds": "número",
+      "playlists[].summary": "texto",
+      "playlists[].title": "texto",
+      "playlists[].zones[]": "texto",
+      "total": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/playlists/perder-gordura-em-casa",
+    "status": 200,
+    "resposta": {
+      "classCount": "número",
+      "durationLabel": "texto",
+      "durationSeconds": "número",
+      "forYou": "booleano",
+      "goalLabel": "texto",
+      "goals[]": "texto",
+      "id": "texto",
+      "items[].durationClock": "texto",
+      "items[].durationLabel": "texto",
+      "items[].durationSeconds": "número",
+      "items[].equipmentLabel": "texto",
+      "items[].equipment[]": "vazio",
+      "items[].focus": "texto",
+      "items[].focusLabel": "texto",
+      "items[].id": "texto",
+      "items[].isNext": "booleano",
+      "items[].kcal": "número",
+      "items[].label": "texto",
+      "items[].level": "texto",
+      "items[].levelLabel": "texto",
+      "items[].muscles[]": "texto",
+      "items[].position": "número",
+      "items[].specialist": "texto",
+      "items[].status": "texto",
+      "items[].statusLabel": "texto",
+      "items[].subtitle": "texto",
+      "items[].summary": "texto",
+      "items[].thumbnailUrl": "texto",
+      "items[].title": "texto",
+      "items[].videoHeight": "número",
+      "items[].videoUrl": "texto",
+      "items[].videoWidth": "número",
+      "items[].watchedSeconds": "número",
+      "label": "texto",
+      "level": "texto",
+      "levelLabel": "texto",
+      "nextPosition": "número",
+      "progress.completed": "booleano",
+      "progress.done": "número",
+      "progress.encouragement": "texto",
+      "progress.label": "texto",
+      "progress.note": "texto",
+      "progress.percent": "número",
+      "progress.remaining": "número",
+      "progress.skipped": "número",
+      "progress.total": "número",
+      "progress.trainedLabel": "texto",
+      "progress.trainedSeconds": "número",
+      "summary": "texto",
+      "title": "texto",
+      "zones[]": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/profile",
+    "status": 200,
+    "resposta": {
+      "age": "número",
+      "complete": "booleano",
+      "dietStyle": "texto",
+      "displayName": "texto",
+      "equipment[]": "vazio",
+      "excludedExercises[]": "vazio",
+      "exercisePrescriptions{}": "vazio",
+      "experience": "texto",
+      "foodBudget": "texto",
+      "foodExclusions[]": "vazio",
+      "heightCm": "número",
+      "maxImpact": "texto",
+      "mealsPerDay": "número",
+      "nutritionDetail": "texto",
+      "pinnedExercises[]": "vazio",
+      "sex": "texto",
+      "weightKg": "número",
+      "workoutDays[]": "número",
+      "workoutMinutes": "número",
+      "workoutTime": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/progress/adaptations",
+    "status": 200,
+    "resposta": {
+      "adaptations[].changes[]": "texto",
+      "adaptations[].createdAt": "texto",
+      "adaptations[].id": "texto",
+      "adaptations[].kind": "texto",
+      "adaptations[].reason": "texto",
+      "adaptations[].title": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/progress/snapshot",
+    "status": 200,
+    "resposta": {
+      "adherence.completion": "número",
+      "adherence.duration": "número",
+      "adherence.evaluable": "booleano",
+      "adherence.frequency": "número",
+      "adherence.overall": "número",
+      "adherence.schedule": "número",
+      "horizon": "texto",
+      "journeyId": "texto",
+      "risks[].confidence": "texto",
+      "risks[].detail": "texto",
+      "risks[].evidence[]": "texto",
+      "risks[].level": "texto",
+      "risks[].recommendation": "texto",
+      "risks[].type": "texto",
+      "scale.max": "número",
+      "scale.min": "número",
+      "scale.target": "número",
+      "scale.unit": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/specialists",
+    "status": 200,
+    "resposta": {
+      "specialists[].bio": "texto",
+      "specialists[].clients": "número",
+      "specialists[].gradient[]": "texto",
+      "specialists[].headline": "texto",
+      "specialists[].id": "texto",
+      "specialists[].initials": "texto",
+      "specialists[].invited": "booleano",
+      "specialists[].name": "texto",
+      "specialists[].rating": "número",
+      "specialists[].recommendedFor[]": "texto",
+      "specialists[].responseTime": "texto",
+      "specialists[].role": "texto",
+      "specialists[].roleLabel": "texto",
+      "specialists[].tags[]": "texto",
+      "team[]": "vazio"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/day-edits",
+    "status": 200,
+    "resposta": {
+      "days[].day": "texto",
+      "days[].edits.added": "nulo",
+      "days[].edits.removed[]": "texto",
+      "days[].edits.swapped.plank.exerciseId": "texto",
+      "days[].edits.swapped.plank.restSeconds": "número",
+      "days[].edits.swapped.plank.sets": "número",
+      "days[].edits.swapped.plank.target": "número",
+      "days[].edits.tuned.row.sets": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/habits",
+    "status": 200,
+    "resposta": {
+      "habits[].from": "texto",
+      "habits[].kind": "texto",
+      "habits[].since": "texto",
+      "habits[].times": "número",
+      "habits[].to": "texto",
+      "threshold": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/load-suggestions",
+    "status": 200,
+    "resposta": {
+      "suggestions[].exerciseId": "texto",
+      "suggestions[].lastDay": "texto",
+      "suggestions[].lastKg": "número",
+      "suggestions[].reason": "texto",
+      "suggestions[].suggestKg": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/sessions?from=2026-08-18\u0026to=2026-09-17",
+    "status": 200,
+    "resposta": {
+      "sessions[]": "vazio"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/sessions?from=2026-09-01\u0026to=2026-09-30",
+    "status": 200,
+    "resposta": {
+      "sessions[].durationSeconds": "número",
+      "sessions[].exercises": "número",
+      "sessions[].focus": "texto",
+      "sessions[].id": "texto",
+      "sessions[].kcal": "número",
+      "sessions[].localDay": "texto",
+      "sessions[].occurredAt": "texto",
+      "sessions[].performed[].done[]": "texto",
+      "sessions[].performed[].exerciseId": "texto",
+      "sessions[].performed[].name": "texto",
+      "sessions[].performed[].sets": "número",
+      "sessions[].performed[].target": "texto",
+      "sessions[].plannedSeconds": "número",
+      "sessions[].setsDone": "número",
+      "sessions[].setsPlanned": "número",
+      "sessions[].status": "texto",
+      "sessions[].title": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/today?localDay=2026-09-12",
+    "status": 200,
+    "resposta": {
+      "kind": "texto",
+      "session.completionThresholdSeconds": "número",
+      "session.estimatedKcal": "número",
+      "session.estimatedSeconds": "número",
+      "session.sessionId": "texto",
+      "session.steps[].action.icon": "texto",
+      "session.steps[].action.label": "texto",
+      "session.steps[].autoAdvanceAfterSeconds": "número",
+      "session.steps[].capsule": "texto",
+      "session.steps[].controls.addSet.enabled": "booleano",
+      "session.steps[].controls.removeSet.enabled": "booleano",
+      "session.steps[].controls.removeSet.reason": "texto",
+      "session.steps[].cue": "texto",
+      "session.steps[].dial.label": "texto",
+      "session.steps[].dial.unit": "texto",
+      "session.steps[].dial.value": "texto",
+      "session.steps[].index": "número",
+      "session.steps[].kind": "texto",
+      "session.steps[].muscles[]": "texto",
+      "session.steps[].pill": "texto",
+      "session.steps[].progress.blocks[].filled": "número",
+      "session.steps[].progress.blocks[].role": "texto",
+      "session.steps[].progress.blocks[].weight": "número",
+      "session.steps[].progress.sets.done": "número",
+      "session.steps[].progress.sets.total": "número",
+      "session.summary": "texto",
+      "session.title": "texto",
+      "session.totalSets": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/today?localDay=2026-09-13",
+    "status": 200,
+    "resposta": {
+      "kind": "texto",
+      "session.completionThresholdSeconds": "número",
+      "session.estimatedKcal": "número",
+      "session.estimatedSeconds": "número",
+      "session.sessionId": "texto",
+      "session.steps[].action.icon": "texto",
+      "session.steps[].action.label": "texto",
+      "session.steps[].autoAdvanceAfterSeconds": "número",
+      "session.steps[].capsule": "texto",
+      "session.steps[].controls.addSet.enabled": "booleano",
+      "session.steps[].controls.removeSet.enabled": "booleano",
+      "session.steps[].controls.removeSet.reason": "texto",
+      "session.steps[].cue": "texto",
+      "session.steps[].dial.label": "texto",
+      "session.steps[].dial.unit": "texto",
+      "session.steps[].dial.value": "texto",
+      "session.steps[].index": "número",
+      "session.steps[].kind": "texto",
+      "session.steps[].muscles[]": "texto",
+      "session.steps[].pill": "texto",
+      "session.steps[].progress.blocks[].filled": "número",
+      "session.steps[].progress.blocks[].role": "texto",
+      "session.steps[].progress.blocks[].weight": "número",
+      "session.steps[].progress.sets.done": "número",
+      "session.steps[].progress.sets.total": "número",
+      "session.summary": "texto",
+      "session.title": "texto",
+      "session.totalSets": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/today?localDay=2026-09-16",
+    "status": 200,
+    "resposta": {
+      "kind": "texto",
+      "session.completionThresholdSeconds": "número",
+      "session.estimatedKcal": "número",
+      "session.estimatedSeconds": "número",
+      "session.sessionId": "texto",
+      "session.steps[].action.icon": "texto",
+      "session.steps[].action.label": "texto",
+      "session.steps[].autoAdvanceAfterSeconds": "número",
+      "session.steps[].capsule": "texto",
+      "session.steps[].controls.addSet.enabled": "booleano",
+      "session.steps[].controls.removeSet.enabled": "booleano",
+      "session.steps[].controls.removeSet.reason": "texto",
+      "session.steps[].cue": "texto",
+      "session.steps[].dial.label": "texto",
+      "session.steps[].dial.unit": "texto",
+      "session.steps[].dial.value": "texto",
+      "session.steps[].index": "número",
+      "session.steps[].kind": "texto",
+      "session.steps[].muscles[]": "texto",
+      "session.steps[].pill": "texto",
+      "session.steps[].progress.blocks[].filled": "número",
+      "session.steps[].progress.blocks[].role": "texto",
+      "session.steps[].progress.blocks[].weight": "número",
+      "session.steps[].progress.sets.done": "número",
+      "session.steps[].progress.sets.total": "número",
+      "session.summary": "texto",
+      "session.title": "texto",
+      "session.totalSets": "número"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/training/today?localDay=2026-09-17",
+    "status": 200,
+    "resposta": {
+      "class.durationClock": "texto",
+      "class.durationLabel": "texto",
+      "class.durationSeconds": "número",
+      "class.equipmentLabel": "texto",
+      "class.equipment[]": "vazio",
+      "class.focus": "texto",
+      "class.focusLabel": "texto",
+      "class.id": "texto",
+      "class.kcal": "número",
+      "class.label": "texto",
+      "class.level": "texto",
+      "class.levelLabel": "texto",
+      "class.muscles[]": "texto",
+      "class.specialist": "texto",
+      "class.summary": "texto",
+      "class.thumbnailUrl": "texto",
+      "class.title": "texto",
+      "class.videoHeight": "número",
+      "class.videoUrl": "texto",
+      "class.videoWidth": "número",
+      "kind": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/webhooks/whatsapp?hub.mode=subscribe\u0026hub.verify_token=palavra-passe-da-subscricao\u0026hub.challenge=12345",
+    "status": 200,
+    "resposta": {
+      "": "número"
+    }
+  },
+  {
+    "metodo": "PATCH",
+    "caminho": "/v1/goals/active",
+    "status": 200,
+    "pedido": {
+      "targetWeightKg": "número"
+    },
+    "resposta": {
+      "direction": "texto",
+      "horizon": "texto",
+      "id": "texto",
+      "journey.horizon": "texto",
+      "journey.id": "texto",
+      "journey.startDate": "texto",
+      "journey.status": "texto",
+      "journey.targetDate": "texto",
+      "priority": "texto",
+      "status": "texto",
+      "targets[].baseline": "número",
+      "targets[].direction": "texto",
+      "targets[].dueDate": "texto",
+      "targets[].metric": "texto",
+      "targets[].unit": "texto",
+      "targets[].value": "número",
+      "type": "texto"
+    }
+  },
+  {
+    "metodo": "POST",
+    "caminho": "/v1/goals",
+    "status": 201,
+    "pedido": {
+      "direction": "texto",
+      "horizon": "texto",
+      "priority": "texto",
+      "startDate": "texto",
+      "targetDate": "texto",
+      "targets[].direction": "texto",
+      "targets[].metric": "texto",
+      "targets[].unit": "texto",
+      "targets[].value": "número",
+      "type": "texto"
+    },
+    "resposta": {
+      "assessment.milestones[].isTarget": "booleano",
+      "assessment.milestones[].progress": "número",
+      "assessment.milestones[].value": "número",
+      "assessment.recommendations[].action.kind": "texto",
+      "assessment.recommendations[].action.targetWeightKg": "número",
+      "assessment.recommendations[].id": "texto",
+      "assessment.recommendations[].label": "texto",
+      "assessment.recommendations[].priority": "texto",
+      "assessment.signals[].category": "texto",
+      "assessment.signals[].message": "texto",
+      "assessment.signals[].severity": "texto",
+      "assessment.status": "texto",
+      "goal.horizon": "texto",
+      "goal.id": "texto",
+      "goal.status": "texto",
+      "journey.id": "texto",
+      "journey.phases[].endDate": "texto",
+      "journey.phases[].intent": "texto",
+      "journey.phases[].kind": "texto",
+      "journey.phases[].startDate": "texto",
+      "journey.phases[].title": "texto",
+      "journey.phases[].weeks": "número",
+      "journey.startDate": "texto",
+      "journey.targetDate": "texto",
+      "nutrition.calorieTarget": "número",
+      "nutrition.macros.carbs": "número",
+      "nutrition.macros.fat": "número",
+      "nutrition.macros.protein": "número",
+      "plan.frequency": "número",
+      "plan.id": "texto",
+      "plan.intensity": "texto",
+      "plan.sessionMinutes": "número"
+    }
+  },
+  {
+    "metodo": "POST",
+    "caminho": "/v1/goals/assess",
+    "status": 200,
+    "pedido": {
+      "direction": "texto",
+      "horizon": "texto",
+      "priority": "texto",
+      "startDate": "texto",
+      "targetDate": "texto",
+      "targets[].direction": "texto",
+      "targets[].metric": "texto",
+      "targets[].unit": "texto",
+      "targets[].value": "número",
+      "type": "texto"
+    },
+    "resposta": {
+      "milestones[].isTarget": "booleano",
+      "milestones[].progress": "número",
+      "milestones[].value": "número",
+      "recommendations": "nulo",
+      "signals": "nulo",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "POST",
+    "caminho": "/v1/measurements",
+    "status": 201,
+    "pedido": {
+      "metric": "texto",
+      "note": "texto",
+      "recordedAt": "texto",
+      "value": "número"
+    },
+    "resposta": {
+      "created": "booleano",
+      "day": "texto",
+      "id": "texto",
+      "metric": "texto",
+      "recordedAt": "texto",
+      "unit": "texto",
+      "value": "número"
+    }
+  },
+  {
+    "metodo": "POST",
+    "caminho": "/v1/media/food-photos",
+    "status": 200,
+    "pedido": {
+      "foods[]": "texto"
+    },
+    "resposta": {
+      "pending": "número",
+      "photos.food:avocado": "texto",
+      "photos.food:banana": "texto",
+      "photos.food:beans": "texto",
+      "photos.food:eggs": "texto",
+      "photos.food:mango": "texto",
+      "photos.food:milk": "texto",
+      "photos.food:okra": "texto",
+      "photos.food:xima": "texto"
+    }
+  },
+  {
+    "metodo": "POST",
+    "caminho": "/v1/training/sessions",
+    "status": 201,
+    "pedido": {
+      "durationSeconds": "número",
+      "localDay": "texto",
+      "occurredAt": "texto",
+      "performed[].exerciseId": "texto",
+      "performed[].sets[].completed": "booleano",
+      "performed[].sets[].index": "número",
+      "performed[].sets[].reps": "número",
+      "performed[].sets[].weightKg": "número",
+      "plannedSeconds": "número",
+      "setsDone": "número"
+    },
+    "resposta": {
+      "countsForStreak": "booleano",
+      "id": "texto",
+      "status": "texto",
+      "streak": "número"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/hydration/2026-09-14",
+    "status": 200,
+    "pedido": {
+      "ml": "número"
+    },
+    "resposta": {
+      "day": "texto",
+      "ml": "número"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/hydration/2026-09-15",
+    "status": 200,
+    "pedido": {
+      "ml": "número"
+    },
+    "resposta": {
+      "day": "texto",
+      "ml": "número"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/hydration/2026-09-16",
+    "status": 200,
+    "pedido": {
+      "ml": "número"
+    },
+    "resposta": {
+      "day": "texto",
+      "ml": "número"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/custom-foods/custom_1",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "name": "texto",
+      "serving": "número"
+    },
+    "resposta": {
+      "id": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/favourites/fav_1",
+    "status": 200,
+    "pedido": {
+      "items[].foodId": "texto",
+      "items[].grams": "número",
+      "kcal": "número",
+      "savedAt": "texto",
+      "slot": "texto",
+      "title": "texto"
+    },
+    "resposta": {
+      "id": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/favourites/fav_x",
+    "status": 422,
+    "resposta": {
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_0",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_1",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_1789279256",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_2",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_3",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_mesmo",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_saltado",
+    "status": 200,
+    "pedido": {
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    },
+    "resposta": {
+      "id": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "portion": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/logs/log_x",
+    "status": 422,
+    "resposta": {
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/shopping-list/2026-08-03",
+    "status": 200,
+    "pedido": {
+      "checked[]": "texto"
+    },
+    "resposta": {
+      "checked[]": "texto",
+      "extras[]": "vazio",
+      "prices{}": "vazio",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-16",
+    "status": 200,
+    "pedido": {
+      "checked[]": "texto",
+      "extras[].category": "texto",
+      "extras[].grams": "número",
+      "extras[].id": "texto",
+      "extras[].label": "texto",
+      "prices.rice": "número"
+    },
+    "resposta": {
+      "checked[]": "texto",
+      "extras[].category": "texto",
+      "extras[].grams": "número",
+      "extras[].id": "texto",
+      "extras[].label": "texto",
+      "prices.rice": "número",
+      "week": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/shopping-list/2026-13-40",
+    "status": 422,
+    "resposta": {
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/nutrition/shopping-list/semana-passada",
+    "status": 422,
+    "resposta": {
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/profile",
+    "status": 200,
+    "pedido": {
+      "age": "número",
+      "dietStyle": "texto",
+      "displayName": "texto",
+      "equipment[]": "texto",
+      "excludedExercises[]": "texto",
+      "exercisePrescriptions.push_up.sets": "número",
+      "exercisePrescriptions.push_up.target": "número",
+      "experience": "texto",
+      "foodBudget": "texto",
+      "foodExclusions[]": "vazio",
+      "heightCm": "número",
+      "mealsPerDay": "número",
+      "pinnedExercises[]": "texto",
+      "sex": "texto",
+      "weightKg": "número",
+      "workoutDays[]": "número",
+      "workoutMinutes": "número",
+      "workoutTime": "texto"
+    },
+    "resposta": {
+      "age": "número",
+      "complete": "booleano",
+      "dietStyle": "texto",
+      "displayName": "texto",
+      "equipment[]": "texto",
+      "excludedExercises[]": "texto",
+      "exercisePrescriptions.push_up.sets": "número",
+      "exercisePrescriptions.push_up.target": "número",
+      "experience": "texto",
+      "foodBudget": "texto",
+      "foodExclusions[]": "vazio",
+      "heightCm": "número",
+      "mealsPerDay": "número",
+      "nutritionDetail": "texto",
+      "pinnedExercises[]": "texto",
+      "sex": "texto",
+      "weightKg": "número",
+      "workoutDays[]": "número",
+      "workoutMinutes": "número",
+      "workoutTime": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/specialists/team",
+    "status": 200,
+    "pedido": {
+      "team[]": "texto"
+    },
+    "resposta": {
+      "team[]": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/2026-08-08",
+    "status": 200,
+    "pedido": {
+      "removed[]": "texto"
+    },
+    "resposta": {
+      "day": "texto",
+      "edits.added": "nulo",
+      "edits.removed[]": "texto",
+      "edits.swapped": "nulo",
+      "edits.tuned": "nulo"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/2026-09",
+    "status": 422,
+    "resposta": {
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/2026-09-03",
+    "status": 200,
+    "pedido": {
+      "swapped.barbell_squat.exerciseId": "texto",
+      "swapped.barbell_squat.restSeconds": "número",
+      "swapped.barbell_squat.sets": "número",
+      "swapped.barbell_squat.target": "número"
+    },
+    "resposta": {
+      "day": "texto",
+      "edits.added": "nulo",
+      "edits.removed": "nulo",
+      "edits.swapped.barbell_squat.exerciseId": "texto",
+      "edits.swapped.barbell_squat.restSeconds": "número",
+      "edits.swapped.barbell_squat.sets": "número",
+      "edits.swapped.barbell_squat.target": "número",
+      "edits.tuned": "nulo"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/2026-09-10",
+    "status": 200,
+    "pedido": {
+      "swapped.barbell_squat.exerciseId": "texto",
+      "swapped.barbell_squat.restSeconds": "número",
+      "swapped.barbell_squat.sets": "número",
+      "swapped.barbell_squat.target": "número"
+    },
+    "resposta": {
+      "day": "texto",
+      "edits.added": "nulo",
+      "edits.removed": "nulo",
+      "edits.swapped.barbell_squat.exerciseId": "texto",
+      "edits.swapped.barbell_squat.restSeconds": "número",
+      "edits.swapped.barbell_squat.sets": "número",
+      "edits.swapped.barbell_squat.target": "número",
+      "edits.tuned": "nulo"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/2026-09-16",
+    "status": 200,
+    "pedido": {
+      "removed[]": "texto",
+      "swapped.plank.exerciseId": "texto",
+      "swapped.plank.restSeconds": "número",
+      "swapped.plank.sets": "número",
+      "swapped.plank.target": "número",
+      "tuned.row.sets": "número"
+    },
+    "resposta": {
+      "day": "texto",
+      "edits.added": "nulo",
+      "edits.removed[]": "texto",
+      "edits.swapped.plank.exerciseId": "texto",
+      "edits.swapped.plank.restSeconds": "número",
+      "edits.swapped.plank.sets": "número",
+      "edits.swapped.plank.target": "número",
+      "edits.tuned.row.sets": "número"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/2026-09-17",
+    "status": 200,
+    "pedido": {
+      "swapped.barbell_squat.exerciseId": "texto",
+      "swapped.barbell_squat.restSeconds": "número",
+      "swapped.barbell_squat.sets": "número",
+      "swapped.barbell_squat.target": "número"
+    },
+    "resposta": {
+      "day": "texto",
+      "edits.added": "nulo",
+      "edits.removed": "nulo",
+      "edits.swapped.barbell_squat.exerciseId": "texto",
+      "edits.swapped.barbell_squat.restSeconds": "número",
+      "edits.swapped.barbell_squat.sets": "número",
+      "edits.swapped.barbell_squat.target": "número",
+      "edits.tuned": "nulo"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/2026-13-40",
+    "status": 422,
+    "resposta": {
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/ontem",
+    "status": 422,
+    "resposta": {
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
+    }
+  }
+]

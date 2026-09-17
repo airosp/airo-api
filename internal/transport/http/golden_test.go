@@ -40,6 +40,20 @@ var actualizar = flag.Bool("actualizar", false, "reescrever os golden files")
 func forma(v any, prefixo string, out map[string]string) {
 	switch t := v.(type) {
 	case map[string]any:
+		/*
+		 * Um objecto vazio deixa rasto, como uma lista vazia.
+		 *
+		 * ⚠️ Sem isto ele **desaparecia** da forma: o `prices` da lista de
+		 * compras chega vazio numa semana por tocar, não gravava nada, e o
+		 * contrato ficava a dizer que aquele campo não existe. Um campo que o
+		 * contrato não conhece é um campo que se pode apagar do servidor sem
+		 * ninguém dar por isso — que é exactamente o que isto existe para
+		 * apanhar.
+		 */
+		if len(t) == 0 && prefixo != "" {
+			out[prefixo+"{}"] = "vazio"
+			return
+		}
 		for k, val := range t {
 			caminho := k
 			if prefixo != "" {
@@ -128,8 +142,13 @@ func TestGoldenDoPerfil(t *testing.T) {
 
 func TestGoldenDasCompras(t *testing.T) {
 	h := serveCompras(t)
+	// Um extra **completo**, com grupo e peso, e um preço: os campos opcionais
+	// ausentes não deixam forma nenhuma, e um contrato que não os conhece é um
+	// contrato que os deixa apagar sem ninguém dar por isso.
 	if w := put(t, h, "/v1/nutrition/shopping-list/2026-09-16",
-		`{"checked":["rice"],"extras":[{"id":"e1","label":"Sabão"}]}`); w.Code != http.StatusOK {
+		`{"checked":["rice"],
+		  "extras":[{"id":"e1","label":"Sabão","category":"outros","grams":1500}],
+		  "prices":{"rice":120.5}}`); w.Code != http.StatusOK {
 		t.Fatalf("gravar: %d", w.Code)
 	}
 	w := get(t, h, "/v1/nutrition/shopping-list/2026-09-16")

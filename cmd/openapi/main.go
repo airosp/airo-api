@@ -25,10 +25,9 @@ import (
 
 // rota é uma linha do inventário.
 type rota struct {
-	Metodo   string
-	Caminho  string
-	Privada  bool
-	Resposta string // o nome do golden file, quando existe
+	Metodo  string
+	Caminho string
+	Privada bool
 }
 
 /*
@@ -74,10 +73,9 @@ func lerRotas() ([]rota, error) {
 			contexto += linhas[i+1]
 		}
 		out = append(out, rota{
-			Metodo:   m[1],
-			Caminho:  m[2],
-			Privada:  strings.Contains(contexto, "middleware.Auth") || strings.Contains(contexto, "private("),
-			Resposta: golden[m[1]+" "+m[2]],
+			Metodo:  m[1],
+			Caminho: m[2],
+			Privada: strings.Contains(contexto, "middleware.Auth") || strings.Contains(contexto, "private("),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -90,19 +88,70 @@ func lerRotas() ([]rota, error) {
 }
 
 /*
- * Que golden file descreve a resposta de cada rota.
+ * O contrato gravado pela suite de testes.
  *
- * Isto **é** escrito à mão, e é a única parte que tem de ser: é a ligação entre
- * uma rota e o ficheiro que guarda a forma da resposta dela. Uma rota sem
- * entrada aqui entra na especificação sem esquema, e diz-se que assim é.
+ * ⚠️ A ligação rota → forma era escrita à mão, e cobria seis rotas de
+ * sessenta e quatro. O resto da API ficava sem esquema nenhum — e escrever
+ * quarenta e três testes à mão para lá chegar era um dia de trabalho a
+ * produzir uma cobertura que envelhecia à primeira rota nova.
+ *
+ * Agora vem do `testdata/contrato.json`, que os testes que já existem gravam
+ * ao correr (ver `gravador_test.go`). Um teste novo traz cobertura de contrato
+ * sem ninguém fazer nada, e uma rota sem teste **não aparece** — que é a
+ * verdade, e não um número a fingir.
  */
-var golden = map[string]string{
-	"GET /v1/training/today":                 "training-today",
-	"GET /v1/profile":                        "profile",
-	"PUT /v1/profile":                        "profile",
-	"GET /v1/auth/sessions":                  "auth-sessions",
-	"GET /v1/nutrition/shopping-list/{week}": "shopping-list",
-	"PUT /v1/nutrition/shopping-list/{week}": "shopping-list",
+type chamadaGravada struct {
+	Metodo   string            `json:"metodo"`
+	Caminho  string            `json:"caminho"`
+	Status   int               `json:"status"`
+	Pedido   map[string]string `json:"pedido"`
+	Resposta map[string]string `json:"resposta"`
+}
+
+/*
+ * lerContrato devolve o que a suite gravou, por "MÉTODO padrão".
+ *
+ * Os caminhos gravados são concretos — `/v1/classes/aula_x` — e as rotas são
+ * padrões. Casam-se aqui, com a lista que já se leu do router: é o mesmo
+ * conhecimento a servir duas vezes em vez de ser escrito duas vezes.
+ */
+func lerContrato(rotas []rota) map[string]chamadaGravada {
+	out := map[string]chamadaGravada{}
+	bruto, err := os.ReadFile(filepath.Join("internal", "transport", "http", "testdata", "contrato.json"))
+	if err != nil {
+		return out
+	}
+	var lista []chamadaGravada
+	if err := json.Unmarshal(bruto, &lista); err != nil {
+		return out
+	}
+
+	padroes := make(map[string]*regexp.Regexp, len(rotas))
+	for _, r := range rotas {
+		padroes[r.Metodo+" "+r.Caminho] = comoRegexp(r.Caminho)
+	}
+
+	for _, c := range lista {
+		if c.Status >= 400 {
+			// Uma recusa descreve o que o servidor **não** aceita.
+			continue
+		}
+		for chave, re := range padroes {
+			if !strings.HasPrefix(chave, c.Metodo+" ") {
+				continue
+			}
+			if !re.MatchString(c.Caminho) {
+				continue
+			}
+			// Fica a que descreve mais campos.
+			if velha, existe := out[chave]; existe &&
+				len(velha.Pedido)+len(velha.Resposta) >= len(c.Pedido)+len(c.Resposta) {
+				continue
+			}
+			out[chave] = c
+		}
+	}
+	return out
 }
 
 func main() {
@@ -134,6 +183,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	contrato := lerContrato(rotas)
+	semContrato := 0
+
 	paths := map[string]any{}
 	for _, r := range rotas {
 		item, _ := paths[r.Caminho].(map[string]any)
@@ -142,9 +194,22 @@ func main() {
 			paths[r.Caminho] = item
 		}
 
+		gravada, temContrato := contrato[r.Metodo+" "+r.Caminho]
+
 		op := map[string]any{
 			"operationId": operacao(r),
-			"responses":   respostas(r),
+			"responses":   respostas(r, gravada),
+		}
+		if temContrato && len(gravada.Pedido) > 0 {
+			op["requestBody"] = map[string]any{
+				"required": true,
+				"content": map[string]any{
+					"application/json": map[string]any{"schema": esquemaDe(gravada.Pedido)},
+				},
+			}
+		}
+		if !temContrato {
+			semContrato++
 		}
 		if r.Privada {
 			op["security"] = []any{map[string]any{"sessao": []any{}}}
@@ -162,6 +227,16 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println(string(out))
+
+	/*
+	 * A cobertura vai para o erro padrão, e não para o ficheiro.
+	 *
+	 * É um número que interessa a quem corre o comando e não ao documento: uma
+	 * rota sem contrato é uma rota sem teste, e dizê-lo alto é o que faz a
+	 * cobertura subir. Calar era deixar a especificação parecer completa.
+	 */
+	fmt.Fprintf(os.Stderr, "%d rotas · %d com contrato gravado · %d sem nenhum teste a tocá-las\n",
+		len(rotas), len(rotas)-semContrato, semContrato)
 }
 
 // operacao dá um nome estável a cada rota, para o cliente gerado ter funções
@@ -203,32 +278,32 @@ func parametros(caminho string) []any {
  * — vêm da resposta que o servidor deu mesmo, gravada por
  * `go test -run Golden -actualizar`.
  */
-func respostas(r rota) map[string]any {
+func respostas(r rota, gravada chamadaGravada) map[string]any {
 	ok := map[string]any{"description": "Feito."}
-	if r.Resposta != "" {
-		if esquema := esquemaDoGolden(r.Resposta); esquema != nil {
-			ok["content"] = map[string]any{
-				"application/json": map[string]any{"schema": esquema},
-			}
+	if len(gravada.Resposta) > 0 {
+		ok["content"] = map[string]any{
+			"application/json": map[string]any{"schema": esquemaDe(gravada.Resposta)},
 		}
 	}
-	out := map[string]any{"200": ok}
+	codigo := "200"
+	if gravada.Status >= 200 && gravada.Status < 300 {
+		codigo = fmt.Sprint(gravada.Status)
+	}
+	out := map[string]any{codigo: ok}
 	if r.Privada {
 		out["401"] = map[string]any{"description": "Sessão inválida ou expirada."}
 	}
 	return out
 }
 
-func esquemaDoGolden(nome string) map[string]any {
-	bruto, err := os.ReadFile(filepath.Join("internal", "transport", "http", "testdata", "golden", nome+".json"))
-	if err != nil {
-		return nil
-	}
-	var forma map[string]string
-	if err := json.Unmarshal(bruto, &forma); err != nil {
-		return nil
-	}
-
+/*
+ * esquemaDe traduz a forma gravada — caminho de campo → tipo — para um esquema.
+ *
+ * Só o primeiro nível fica como propriedade: o aninhamento completo dava um
+ * gerador de esquemas, e o que aqui se quer é o **contrato dos nomes**. É o
+ * nome que diverge entre os dois lados, não a profundidade.
+ */
+func esquemaDe(forma map[string]string) map[string]any {
 	propriedades := map[string]any{}
 	caminhos := make([]string, 0, len(forma))
 	for k := range forma {
@@ -237,16 +312,11 @@ func esquemaDoGolden(nome string) map[string]any {
 	sort.Strings(caminhos)
 
 	for _, caminho := range caminhos {
-		// Só o primeiro nível: o aninhamento completo dava um gerador de
-		// esquemas, e o que aqui se quer é o contrato dos nomes.
 		topo := caminho
 		if i := strings.IndexAny(topo, ".["); i > 0 {
 			topo = topo[:i]
 		}
-		if topo == "" {
-			continue
-		}
-		if _, existe := propriedades[topo]; existe {
+		if topo == "" || propriedades[topo] != nil {
 			continue
 		}
 		propriedades[topo] = map[string]any{"type": tipoJSON(forma[caminho], caminho)}
@@ -271,4 +341,30 @@ func tipoJSON(tipo, caminho string) string {
 	default:
 		return "object"
 	}
+}
+
+/*
+ * comoRegexp traduz um padrão de rota para uma expressão que casa caminhos.
+ *
+ * `/v1/classes/{id}` passa a casar `/v1/classes/aula_x`. Constrói-se segmento a
+ * segmento em vez de escapar o padrão inteiro e desfazer o escape a seguir —
+ * foi o que tentei primeiro, e o resultado casou dezoito rotas de setenta e
+ * seis sem dizer que estava errado. Uma cobertura que falha em silêncio é pior
+ * do que nenhuma, porque parece boa.
+ */
+func comoRegexp(padrao string) *regexp.Regexp {
+	var sb strings.Builder
+	sb.WriteString("^")
+	for i, segmento := range strings.Split(padrao, "/") {
+		if i > 0 {
+			sb.WriteString("/")
+		}
+		if strings.HasPrefix(segmento, "{") && strings.HasSuffix(segmento, "}") {
+			sb.WriteString("[^/]+")
+			continue
+		}
+		sb.WriteString(regexp.QuoteMeta(segmento))
+	}
+	sb.WriteString("$")
+	return regexp.MustCompile(sb.String())
 }

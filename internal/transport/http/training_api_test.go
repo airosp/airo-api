@@ -64,6 +64,8 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 	r.Header.Set("Authorization", "Bearer token-de-teste")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
+	// O contrato grava-se aqui, e não num teste à parte: ver `gravador_test.go`.
+	gravarContrato(http.MethodGet, path, "", w)
 	return w
 }
 

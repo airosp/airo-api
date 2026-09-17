@@ -1,10 +1,13 @@
 package http_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -149,4 +152,61 @@ func routerCompleto(t *testing.T) http.Handler {
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	return airohttp.NewRouter(deps)
+}
+
+/*
+ * A especificação no disco é a que o gerador faria agora.
+ *
+ * ⚠️ Apanhei-me a olhar para uma `openapi.json` de ontem a dizer que a lista de
+ * compras não tem preços, com o contrato gravado a dizer que tem — porque o
+ * gerador escreve para o `stdout` e naquele dia o `stdout` foi para um `tail`.
+ * Uma especificação velha é pior do que nenhuma: uma que falta vê-se, uma que
+ * mente é lida e acreditada.
+ *
+ * Correr o gerador é a única comparação honesta — qualquer regra escrita aqui
+ * ao lado dele seria uma terceira cópia a envelhecer sozinha.
+ */
+func TestEspecificacaoEstaEmDia(t *testing.T) {
+	if testing.Short() {
+		t.Skip("corre o gerador; -short salta")
+	}
+	cmd := exec.Command("go", "run", "./cmd/openapi")
+	cmd.Dir = filepath.Join("..", "..", "..")
+	var saida, erros bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &saida, &erros
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("o gerador falhou: %v\n%s", err, erros.String())
+	}
+
+	noDisco, err := os.ReadFile(filepath.Join("..", "..", "..", "openapi.json"))
+	if err != nil {
+		t.Fatalf("sem openapi.json — corre `go run ./cmd/openapi > openapi.json`: %v", err)
+	}
+	if !bytes.Equal(bytes.TrimSpace(noDisco), bytes.TrimSpace(saida.Bytes())) {
+		t.Errorf("a especificação no disco não é a que o gerador faz agora.\n\n"+
+			"Corre:  go run ./cmd/openapi > openapi.json\n\n%s", diferenca(noDisco, saida.Bytes()))
+	}
+}
+
+/** As primeiras linhas que diferem. O ficheiro inteiro não cabe num erro. */
+func diferenca(a, b []byte) string {
+	linhasA, linhasB := strings.Split(string(a), "\n"), strings.Split(string(b), "\n")
+	var out []string
+	for i := 0; i < len(linhasA) || i < len(linhasB); i++ {
+		la, lb := "", ""
+		if i < len(linhasA) {
+			la = linhasA[i]
+		}
+		if i < len(linhasB) {
+			lb = linhasB[i]
+		}
+		if la == lb {
+			continue
+		}
+		out = append(out, fmt.Sprintf("linha %d:\n  no disco: %s\n  agora:    %s", i+1, la, lb))
+		if len(out) == 6 {
+			break
+		}
+	}
+	return strings.Join(out, "\n")
 }

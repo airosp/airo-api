@@ -67,6 +67,7 @@ func put(t *testing.T, h http.Handler, path, body string) *httptest.ResponseReco
 	r.Header.Set("Authorization", "Bearer token-de-teste")
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
+	gravarContrato(http.MethodPut, path, body, w)
 	return w
 }
 
