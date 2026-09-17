@@ -6,21 +6,56 @@ import (
 	"testing"
 	"time"
 
+	"github.com/airosp/airo-api/internal/engine/goal"
+	"github.com/airosp/airo-api/internal/engine/journey"
+	"github.com/airosp/airo-api/internal/engine/nutrition"
+	"github.com/airosp/airo-api/internal/platform/clock"
+	"github.com/airosp/airo-api/internal/service"
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	airohttp "github.com/airosp/airo-api/internal/transport/http"
 	"github.com/airosp/airo-api/internal/transport/http/handlers"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
 )
 
+/*
+ * A lista de compras com o plano ligado por trás.
+ *
+ * O plano é obrigatório e não opcional neste ajudante: a lista **sai** dele, e
+ * um teste que a montasse sem ele estaria a provar o mundo antigo, em que o
+ * telemóvel a inventava sozinho.
+ */
 func serveCompras(t *testing.T) http.Handler {
 	t.Helper()
 	_, pool, userID := serve(t)
-	return airohttp.NewRouter(airohttp.Deps{
+	return airohttp.NewRouter(comprasComPlano(pool, userID, agoraDeEnsaio))
+}
+
+// 2026-09-16 é uma quarta-feira; a segunda dessa semana é 14.
+var agoraDeEnsaio = time.Date(2026, 9, 16, 8, 0, 0, 0, time.UTC)
+
+func comprasComPlano(pool *pgxpool.Pool, userID string, agora time.Time) airohttp.Deps {
+	tx := repo.NewTxManager(pool)
+	cfgs := service.Configs{
+		Goal: goal.DefaultConfig(), Journey: journey.DefaultConfig(), Nutrition: nutrition.DefaultConfig(),
+	}
+	goals := repo.NewGoalRepo(tx)
+	profiles := service.NewProfiles(repo.NewProfileRepo(tx), nil, repo.NewPreferenceRepo(tx))
+	planos := service.NewNutritionService(goals, repo.NewMealPrefRepo(tx), cfgs.Nutrition, cfgs.Goal)
+	relogio := clock.NewFixed(agora)
+
+	return airohttp.Deps{
 		Log: quietLogger(), Version: "test", DB: pool,
-		Auth:        fakeAuth{userID: userID},
-		Shopping:    &handlers.Shopping{Store: repo.NewShoppingRepo(repo.NewTxManager(pool))},
+		Auth: fakeAuth{userID: userID},
+		Shopping: &handlers.Shopping{
+			Store: repo.NewShoppingRepo(tx),
+			Plans: planos, Profiles: profiles, Clock: relogio,
+		},
+		Profile:     &handlers.Profile{Profiles: profiles, Clock: relogio},
+		Nutrition:   &handlers.Nutrition{Plans: planos, Profiles: profiles},
 		Idempotency: middleware.NewMemoryStore(time.Hour),
-	})
+	}
 }
 
 type listaJSON struct {
@@ -34,6 +69,12 @@ type listaJSON struct {
 		Grams    int    `json:"grams"`
 	} `json:"extras"`
 	Prices map[string]float64 `json:"prices"`
+	Items  []struct {
+		FoodID   string `json:"foodId"`
+		Name     string `json:"name"`
+		Category string `json:"category"`
+		Grams    int    `json:"grams"`
+	} `json:"items"`
 }
 
 func lista(t *testing.T, h http.Handler, semana string) listaJSON {
@@ -49,7 +90,6 @@ func lista(t *testing.T, h http.Handler, semana string) listaJSON {
 	return body
 }
 
-// 2026-09-16 é uma quarta-feira; a segunda dessa semana é 14.
 const quarta = "2026-09-16"
 const segunda = "2026-09-14"
 
@@ -247,5 +287,102 @@ func TestSemPrecosVemMapaVazio(t *testing.T) {
 	h := serveCompras(t)
 	if l := lista(t, h, quarta); l.Prices == nil {
 		t.Fatal("prices veio nulo — o cliente tem de distinguir vazio de ausente")
+	}
+}
+
+/*
+ * A lista sai do plano, e não de quem a desenha.
+ *
+ * ⚠️ O telemóvel montava-a sozinho, chamando o motor de nutrição outra vez para
+ * os dias que faltavam na semana. A mesma conta em dois telemóveis com versões
+ * diferentes da app ia ao mercado com duas listas — a lista era função da app
+ * instalada, e não da conta.
+ */
+func TestAListaSaiDoPlano(t *testing.T) {
+	h := serveCompras(t)
+	if w := put(t, h, "/v1/profile", perfilValido); w.Code != http.StatusOK {
+		t.Fatalf("perfil: %d — %s", w.Code, w.Body.String())
+	}
+
+	l := lista(t, h, quarta)
+	if len(l.Items) == 0 {
+		t.Fatal("a lista veio sem nada do plano")
+	}
+	for _, i := range l.Items {
+		if i.FoodID == "" || i.Name == "" || i.Category == "" || i.Grams <= 0 {
+			t.Errorf("linha incompleta: %+v", i)
+		}
+		// Ninguém compra 437 g de frango, e para cima porque faltar comida a
+		// meio da semana é pior do que sobrar.
+		if i.Grams%50 != 0 {
+			t.Errorf("%s veio com %d g, que não é múltiplo de 50", i.FoodID, i.Grams)
+		}
+	}
+
+	// Como se anda no mercado, e não por alfabeto: a proteína primeiro.
+	if l.Items[0].Category != "protein" {
+		t.Errorf("a lista não começa na proteína: %+v", l.Items[0])
+	}
+}
+
+/*
+ * Quem troca o almoço compra o almoço que vai comer.
+ *
+ * ⚠️ Este era o defeito que se via no ecrã: `BuildDayPlan` sozinho não sabe das
+ * trocas — quem sabe delas é o serviço. Com a lista montada no telemóvel, quem
+ * trocasse o almoço de quinta continuava a levar para o mercado os ingredientes
+ * do almoço que tinha trocado.
+ */
+func TestUmaTrocaDeRefeicaoMudaAsCompras(t *testing.T) {
+	h := serveCompras(t)
+	if w := put(t, h, "/v1/profile", perfilValido); w.Code != http.StatusOK {
+		t.Fatalf("perfil: %d — %s", w.Code, w.Body.String())
+	}
+
+	antes := map[string]int{}
+	for _, i := range lista(t, h, quarta).Items {
+		antes[i.FoodID] = i.Grams
+	}
+	if len(antes) == 0 {
+		t.Fatal("sem lista para comparar")
+	}
+
+	if w := post(t, h, "/v1/nutrition/meals/lunch/swap", `{}`, nil); w.Code != http.StatusOK {
+		t.Fatalf("trocar o almoço: %d — %s", w.Code, w.Body.String())
+	}
+
+	depois := map[string]int{}
+	for _, i := range lista(t, h, quarta).Items {
+		depois[i.FoodID] = i.Grams
+	}
+
+	if len(depois) == 0 {
+		t.Fatal("a lista ficou vazia depois da troca")
+	}
+	iguais := len(antes) == len(depois)
+	for id, g := range antes {
+		if depois[id] != g {
+			iguais = false
+			break
+		}
+	}
+	if iguais {
+		t.Error("a lista não mexeu depois de trocar o almoço — está a ignorar as trocas")
+	}
+}
+
+// Sem perfil não há plano — e a lista devolve o que a pessoa escreveu, não um erro.
+func TestSemPerfilAListaAindaTemOQueFoiEscritoAMao(t *testing.T) {
+	h := serveCompras(t)
+	corpo := `{"extras":[{"id":"e1","label":"Sabão","category":"outros"}]}`
+	if w := put(t, h, "/v1/nutrition/shopping-list/"+quarta, corpo); w.Code != http.StatusOK {
+		t.Fatalf("gravar: %d — %s", w.Code, w.Body.String())
+	}
+	l := lista(t, h, quarta)
+	if len(l.Items) != 0 {
+		t.Errorf("sem perfil veio plano: %+v", l.Items)
+	}
+	if len(l.Extras) != 1 {
+		t.Fatalf("o que foi escrito à mão desapareceu: %+v", l.Extras)
 	}
 }

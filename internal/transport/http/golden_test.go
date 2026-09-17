@@ -142,6 +142,12 @@ func TestGoldenDoPerfil(t *testing.T) {
 
 func TestGoldenDasCompras(t *testing.T) {
 	h := serveCompras(t)
+	// Com perfil, para haver plano: sem ele a lista vem sem itens e `items[]`
+	// grava-se como "vazio" — uma lista vazia não diz a forma de uma linha, e
+	// a forma de uma linha é o que aqui se quer fixar.
+	if w := put(t, h, "/v1/profile", perfilValido); w.Code != http.StatusOK {
+		t.Fatalf("perfil: %d — %s", w.Code, w.Body.String())
+	}
 	// Um extra **completo**, com grupo e peso, e um preço: os campos opcionais
 	// ausentes não deixam forma nenhuma, e um contrato que não os conhece é um
 	// contrato que os deixa apagar sem ninguém dar por isso.

@@ -395,6 +395,7 @@
     "resposta": {
       "checked[]": "texto",
       "extras[]": "vazio",
+      "items[]": "vazio",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -406,6 +407,7 @@
     "resposta": {
       "checked[]": "vazio",
       "extras[]": "vazio",
+      "items[]": "vazio",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -417,6 +419,7 @@
     "resposta": {
       "checked[]": "vazio",
       "extras[]": "vazio",
+      "items[]": "vazio",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -431,6 +434,10 @@
       "extras[].grams": "número",
       "extras[].id": "texto",
       "extras[].label": "texto",
+      "items[].category": "texto",
+      "items[].foodId": "texto",
+      "items[].grams": "número",
+      "items[].name": "texto",
       "prices.rice": "número",
       "week": "texto"
     }
@@ -442,6 +449,10 @@
     "resposta": {
       "checked[]": "vazio",
       "extras[]": "vazio",
+      "items[].category": "texto",
+      "items[].foodId": "texto",
+      "items[].grams": "número",
+      "items[].name": "texto",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -453,6 +464,7 @@
     "resposta": {
       "checked[]": "texto",
       "extras[]": "vazio",
+      "items[]": "vazio",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -464,6 +476,7 @@
     "resposta": {
       "checked[]": "texto",
       "extras[]": "vazio",
+      "items[]": "vazio",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -475,6 +488,7 @@
     "resposta": {
       "checked[]": "vazio",
       "extras[]": "vazio",
+      "items[]": "vazio",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -1054,14 +1068,48 @@
     },
     "resposta": {
       "pending": "número",
-      "photos.food:avocado": "texto",
       "photos.food:banana": "texto",
-      "photos.food:beans": "texto",
-      "photos.food:eggs": "texto",
+      "photos.food:carrot": "texto",
+      "photos.food:cassava": "texto",
+      "photos.food:couve": "texto",
       "photos.food:mango": "texto",
-      "photos.food:milk": "texto",
+      "photos.food:oats": "texto",
       "photos.food:okra": "texto",
-      "photos.food:xima": "texto"
+      "photos.food:rice": "texto"
+    }
+  },
+  {
+    "metodo": "POST",
+    "caminho": "/v1/nutrition/meals/lunch/swap",
+    "status": 200,
+    "resposta": {
+      "basis": "texto",
+      "calorieTarget": "número",
+      "dayISO": "texto",
+      "hydration.label": "texto",
+      "hydration.stepMl": "número",
+      "hydration.targetMl": "número",
+      "macros.carbsG": "número",
+      "macros.fatG": "número",
+      "macros.proteinG": "número",
+      "meals[].id": "texto",
+      "meals[].items[].carbsG": "número",
+      "meals[].items[].fatG": "número",
+      "meals[].items[].foodId": "texto",
+      "meals[].items[].grams": "número",
+      "meals[].items[].kcal": "número",
+      "meals[].items[].name": "texto",
+      "meals[].items[].proteinG": "número",
+      "meals[].kcal": "número",
+      "meals[].macros.carbsG": "número",
+      "meals[].macros.fatG": "número",
+      "meals[].macros.proteinG": "número",
+      "meals[].role": "texto",
+      "meals[].share": "número",
+      "meals[].slot": "texto",
+      "meals[].subtitle": "texto",
+      "meals[].title": "texto",
+      "trainsToday": "booleano"
     }
   },
   {
@@ -1451,6 +1499,7 @@
     "resposta": {
       "checked[]": "texto",
       "extras[]": "vazio",
+      "items[]": "vazio",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -1473,6 +1522,10 @@
       "extras[].grams": "número",
       "extras[].id": "texto",
       "extras[].label": "texto",
+      "items[].category": "texto",
+      "items[].foodId": "texto",
+      "items[].grams": "número",
+      "items[].name": "texto",
       "prices.rice": "número",
       "week": "texto"
     }

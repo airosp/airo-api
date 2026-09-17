@@ -4,6 +4,10 @@
   "extras[].grams": "número",
   "extras[].id": "texto",
   "extras[].label": "texto",
+  "items[].category": "texto",
+  "items[].foodId": "texto",
+  "items[].grams": "número",
+  "items[].name": "texto",
   "prices.rice": "número",
   "week": "texto"
 }

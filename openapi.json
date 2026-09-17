@@ -1652,6 +1652,36 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "basis": {
+                      "type": "string"
+                    },
+                    "calorieTarget": {
+                      "type": "number"
+                    },
+                    "dayISO": {
+                      "type": "string"
+                    },
+                    "hydration": {
+                      "type": "object"
+                    },
+                    "macros": {
+                      "type": "object"
+                    },
+                    "meals": {
+                      "type": "array"
+                    },
+                    "trainsToday": {
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
             "description": "Feito."
           },
           "401": {
@@ -1706,6 +1736,9 @@
                       "type": "array"
                     },
                     "extras": {
+                      "type": "array"
+                    },
+                    "items": {
                       "type": "array"
                     },
                     "prices": {
@@ -1774,6 +1807,9 @@
                       "type": "array"
                     },
                     "extras": {
+                      "type": "array"
+                    },
+                    "items": {
                       "type": "array"
                     },
                     "prices": {

@@ -135,7 +135,13 @@ func Wire(p Platform) Deps {
 	deps.Measurements = &handlers.Measurements{Store: repo.NewProgressRepo(tx)}
 	deps.Hydration = &handlers.Hydration{Store: repo.NewHydrationRepo(tx)}
 	deps.SessionEdits = &handlers.SessionEdits{Store: repo.NewSessionEditRepo(tx)}
-	deps.Shopping = &handlers.Shopping{Store: repo.NewShoppingRepo(tx)}
+	// A lista de compras sai do mesmo plano que o ecrã da nutrição — trocas
+	// incluídas. Enquanto o telemóvel a montava sozinho, quem trocasse o almoço
+	// de quinta continuava a levar para o mercado o almoço que tinha trocado.
+	deps.Shopping = &handlers.Shopping{
+		Store: repo.NewShoppingRepo(tx),
+		Plans: nutritionSvc, Profiles: profiles, Clock: p.Clock,
+	}
 	// O acervo entra quando há chave; sem ela, isto serve só o que já está
 	// guardado — que continua a ser a resposta certa para quase todos os
 	// pedidos, porque a imagem já foi encontrada por outra pessoa.
