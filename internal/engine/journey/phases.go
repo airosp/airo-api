@@ -151,3 +151,15 @@ func maxInt(a, b int) int {
 	}
 	return b
 }
+
+/*
+ * CopyOf é o título e a intenção de uma fase, em português.
+ *
+ * Exposto porque a tabela `phase` guarda só o género e as datas — o texto é
+ * decidido aqui, e uma segunda tabela de títulos no telemóvel era uma tabela
+ * que diverge à primeira fase nova.
+ */
+func CopyOf(k PhaseKind) (title, intent string) {
+	c := phaseTitles[k]
+	return c.Title, c.Intent
+}

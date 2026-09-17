@@ -272,6 +272,10 @@ func NewRouter(d Deps) http.Handler {
 				middleware.Chain(http.HandlerFunc(d.Account.Delete), middleware.Auth(d.Auth)))
 		}
 		if d.Progress != nil {
+			// A jornada em curso, como o servidor a guardou desde que o
+			// objectivo nasceu. O telemóvel montava a sua.
+			mux.Handle("GET /v1/journey",
+				middleware.Chain(http.HandlerFunc(d.Progress.Journey), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/progress/snapshot",
 				middleware.Chain(http.HandlerFunc(d.Progress.Snapshot), middleware.Auth(d.Auth)))
 			mux.Handle("GET /v1/plan/week",

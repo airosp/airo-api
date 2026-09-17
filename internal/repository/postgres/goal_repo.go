@@ -615,3 +615,71 @@ func (r *GoalRepo) UpdateActiveGoal(ctx context.Context, userID string, a Altera
 
 	return true, nil
 }
+
+/*
+ * PlansOf lê os planos de treino de uma jornada, do mais recente para trás.
+ *
+ * ⚠️ São escritos desde o primeiro dia e **nunca eram lidos**: o telemóvel
+ * montava os seus com `startJourney` e ficava com eles. Um plano é a frequência
+ * e a duração a que a pessoa se comprometeu — se cada aparelho tiver o seu, a
+ * adesão de um não é a adesão do outro.
+ */
+func (r *GoalRepo) PlansOf(ctx context.Context, journeyID string) ([]PlanRow, error) {
+	rows, err := r.tx.Q(ctx).Query(ctx,
+		`SELECT id, frequency_per_week, session_minutes, intensity, progression,
+		        recovery, effective_from
+		   FROM plan
+		  WHERE journey_id = $1
+		  ORDER BY effective_from DESC, created_at DESC`, journeyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []PlanRow
+	for rows.Next() {
+		var p PlanRow
+		if err := rows.Scan(&p.ID, &p.FrequencyPerWeek, &p.SessionMinutes, &p.Intensity,
+			&p.Progression, &p.Recovery, &p.EffectiveFrom); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}
+
+// JourneyEventRow é uma entrada do histórico imutável da jornada. Distinta da
+// `EventRow` das sessões de treino, que é o que acontece dentro de um treino.
+type JourneyEventRow struct {
+	Kind       string
+	Payload    json.RawMessage
+	OccurredAt time.Time
+}
+
+/*
+ * EventsOf lê o histórico da jornada, do mais recente para trás.
+ *
+ * Limitado: é o que se mostra, não é o arquivo. Uma jornada de um ano tem
+ * centenas de entradas e o ecrã mostra as últimas — mandá-las todas seria
+ * pagar rede por linhas que ninguém vê.
+ */
+func (r *GoalRepo) EventsOf(ctx context.Context, journeyID string, limite int) ([]JourneyEventRow, error) {
+	rows, err := r.tx.Q(ctx).Query(ctx,
+		`SELECT kind, payload, occurred_at FROM journey_event
+		  WHERE journey_id = $1 ORDER BY occurred_at DESC, id DESC LIMIT $2`,
+		journeyID, limite)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []JourneyEventRow
+	for rows.Next() {
+		var e JourneyEventRow
+		if err := rows.Scan(&e.Kind, &e.Payload, &e.OccurredAt); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}

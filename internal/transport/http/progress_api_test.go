@@ -45,6 +45,7 @@ func serveProgresso(t *testing.T) http.Handler {
 			Profiles: profiles, Reader: goals, Editor: goals,
 		},
 		Progress: &handlers.Progress{
+			Journeys: service.NewJourneyService(goals, cfgs.Journey),
 			Service: service.NewProgressService(repo.NewProgressRepo(tx), goals, cfgs.Journey).
 				WithAdaptations(repo.NewAdaptationRepo(tx), goals, repo.NewProfileRepo(tx)).
 				WithAbsences(repo.NewCalendarRepo(tx)),
@@ -199,6 +200,121 @@ func TestSemObjectivoNaoHaProgresso(t *testing.T) {
 		t.Fatalf("perfil: %d — %s", w.Code, w.Body.String())
 	}
 	if w := get(t, h, "/v1/progress/snapshot"); w.Code != http.StatusNotFound {
+		t.Errorf("sem objectivo devolveu %d — %s", w.Code, w.Body.String())
+	}
+}
+
+/*
+ * A jornada volta inteira, como o servidor a guardou.
+ *
+ * ⚠️ Ele escreve-a toda desde o primeiro dia — objectivo, alvos, fases, planos
+ * e acontecimentos — e **nunca a devolvia**. O telemóvel montava a sua com
+ * `startJourney`, e duas contas do mesmo número acabavam com duas jornadas
+ * diferentes, cada uma com as suas fases e os seus planos. E é a fase que
+ * decide qual o plano em vigor, logo a adesão contra a qual a pessoa é medida.
+ */
+func TestAJornadaVoltaInteira(t *testing.T) {
+	h := serveProgresso(t)
+	if w := put(t, h, "/v1/profile", perfilValido); w.Code != http.StatusOK {
+		t.Fatalf("perfil: %d — %s", w.Code, w.Body.String())
+	}
+	if w := post(t, h, "/v1/goals", fixedBody, nil); w.Code != http.StatusCreated {
+		t.Fatalf("objectivo: %d — %s", w.Code, w.Body.String())
+	}
+
+	w := get(t, h, "/v1/journey")
+	if w.Code != http.StatusOK {
+		t.Fatalf("jornada: %d — %s", w.Code, w.Body.String())
+	}
+	var j struct {
+		Goal struct {
+			ID, Type, Horizon, Direction, Priority, Status string
+		} `json:"goal"`
+		Journey struct {
+			ID                string `json:"id"`
+			StartDateISO      string `json:"startDateISO"`
+			TargetDateISO     string `json:"targetDateISO"`
+			Status            string `json:"status"`
+			CurrentPhaseIndex *int   `json:"currentPhaseIndex"`
+		} `json:"journey"`
+		Targets []struct {
+			Metric   string  `json:"metric"`
+			Value    float64 `json:"value"`
+			Baseline float64 `json:"baseline"`
+			Unit     string  `json:"unit"`
+		} `json:"targets"`
+		Phases []struct {
+			Kind         string `json:"kind"`
+			Index        int    `json:"index"`
+			StartDateISO string `json:"startDateISO"`
+			EndDateISO   string `json:"endDateISO"`
+		} `json:"phases"`
+		Plans []struct {
+			ID               string `json:"id"`
+			FrequencyPerWeek int    `json:"frequencyPerWeek"`
+			SessionMinutes   int    `json:"sessionMinutes"`
+		} `json:"plans"`
+		Events []struct {
+			Kind          string `json:"kind"`
+			OccurredAtISO string `json:"occurredAtISO"`
+		} `json:"events"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &j); err != nil {
+		t.Fatalf("resposta ilegível: %v — %s", err, w.Body.String())
+	}
+
+	if j.Goal.ID == "" || j.Journey.ID == "" {
+		t.Fatalf("jornada sem identidade: %+v", j)
+	}
+	if j.Journey.TargetDateISO == "" {
+		t.Error("um objectivo com prazo tem data de fim, e ela não veio")
+	}
+	if len(j.Phases) == 0 {
+		t.Fatal("a jornada veio sem fases — é delas que sai o plano em vigor")
+	}
+	if len(j.Plans) == 0 {
+		t.Fatal("a jornada veio sem planos")
+	}
+	if len(j.Targets) == 0 {
+		t.Fatal("a jornada veio sem alvos")
+	}
+	if len(j.Events) == 0 {
+		t.Error("a jornada veio sem acontecimentos — o histórico é imutável e começa aqui")
+	}
+
+	// As fases não se sobrepõem nem deixam buracos: é delas que sai a que está
+	// em curso, e duas ao mesmo tempo não é uma repartição.
+	for i := 1; i < len(j.Phases); i++ {
+		if j.Phases[i].Index != j.Phases[i-1].Index+1 {
+			t.Errorf("fases fora de ordem: %d depois de %d", j.Phases[i].Index, j.Phases[i-1].Index)
+		}
+		if j.Phases[i].StartDateISO < j.Phases[i-1].EndDateISO {
+			t.Errorf("a fase %d começa antes de a %d acabar", j.Phases[i].Index, j.Phases[i-1].Index)
+		}
+	}
+
+	// E a fase em curso é uma das que vieram.
+	if j.Journey.CurrentPhaseIndex == nil {
+		t.Fatal("não disse em que fase se vai")
+	}
+	encontrada := false
+	for _, f := range j.Phases {
+		if f.Index == *j.Journey.CurrentPhaseIndex {
+			encontrada = true
+		}
+	}
+	if !encontrada {
+		t.Errorf("a fase em curso (%d) não está na lista", *j.Journey.CurrentPhaseIndex)
+	}
+}
+
+// Sem objectivo não há jornada — e isso é o princípio, não um erro.
+func TestSemObjectivoNaoHaJornada(t *testing.T) {
+	h := serveProgresso(t)
+	if w := put(t, h, "/v1/profile", perfilValido); w.Code != http.StatusOK {
+		t.Fatalf("perfil: %d — %s", w.Code, w.Body.String())
+	}
+	if w := get(t, h, "/v1/journey"); w.Code != http.StatusNotFound {
 		t.Errorf("sem objectivo devolveu %d — %s", w.Code, w.Body.String())
 	}
 }

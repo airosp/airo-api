@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"time"
@@ -29,6 +30,8 @@ type Progress struct {
 	Marks    CalendarStore
 	Sessions SessionHistory
 	Training training.Config
+	/** Quem lê a jornada em curso. Ausente, a rota diz que está indisponível. */
+	Journeys JourneyReader
 }
 
 // Snapshot devolve o retrato do progresso.
@@ -410,4 +413,49 @@ func (h Progress) Week(w http.ResponseWriter, r *http.Request) {
 		FocusOf: func(label string) string { return string(cfg.FocusOf(label)) },
 		TitleOf: func(label string) string { return cfg.TitleOf(label) },
 	}))
+}
+
+// JourneyReader lê a jornada em curso, já montada.
+type JourneyReader interface {
+	Bundle(ctx context.Context, userID string, agora time.Time) (service.JourneyBundle, error)
+}
+
+/*
+ * Journey devolve a jornada em curso: objectivo, alvos, fases, planos e o que
+ * aconteceu.
+ *
+ * ⚠️ O servidor escreve isto tudo desde o primeiro dia — `InsertPhases`,
+ * `InsertTargets`, `InsertPlan`, `AppendEvent` — e **nunca o devolvia**. O
+ * telemóvel montava a sua jornada com `startJourney` no `AiroContext` e ficava
+ * com ela: duas contas do mesmo número acabavam com duas jornadas diferentes,
+ * cada uma com as suas fases e os seus planos. E é a fase que decide qual o
+ * plano em vigor, logo a adesão contra a qual a pessoa é medida.
+ */
+func (h Progress) Journey(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		apierr.Write(w, apierr.Unauthorized, "Sessão inválida ou expirada.", "")
+		return
+	}
+	if h.Journeys == nil {
+		apierr.Write(w, apierr.Internal, "A jornada está indisponível.", "")
+		return
+	}
+
+	agora := time.Now().UTC()
+	if h.Clock != nil {
+		agora = h.Clock.Now().UTC()
+	}
+
+	b, err := h.Journeys.Bundle(r.Context(), userID, agora)
+	switch {
+	case errors.Is(err, service.ErrSemJornada):
+		// Ainda não há objectivo. Não é um erro: é o princípio.
+		apierr.Write(w, apierr.NotFound, "Ainda não tens um objectivo em curso.", "")
+		return
+	case err != nil:
+		apierr.WriteInternal(w, r, err, "Não foi possível ler a tua jornada.")
+		return
+	}
+	apierr.WriteJSON(w, http.StatusOK, b.ParaVista())
 }

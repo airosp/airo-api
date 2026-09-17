@@ -181,6 +181,7 @@ func Wire(p Platform) Deps {
 			WithAbsences(repo.NewCalendarRepo(tx)),
 		Profiles: profiles,
 		Clock:    p.Clock,
+		Journeys: service.NewJourneyService(goals, configs.Journey),
 		Marks:    repo.NewCalendarRepo(tx),
 		Sessions: sessions,
 		Training: trainingCfg,

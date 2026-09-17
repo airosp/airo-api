@@ -954,6 +954,51 @@
         ]
       }
     },
+    "/v1/journey": {
+      "get": {
+        "operationId": "getJourney",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "events": {
+                      "type": "array"
+                    },
+                    "goal": {
+                      "type": "object"
+                    },
+                    "journey": {
+                      "type": "object"
+                    },
+                    "phases": {
+                      "type": "array"
+                    },
+                    "plans": {
+                      "type": "array"
+                    },
+                    "targets": {
+                      "type": "array"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
     "/v1/journeys/{id}/pause": {
       "post": {
         "operationId": "postJourneysIdPause",
