@@ -58,10 +58,27 @@ func serie(t *testing.T, h http.Handler, query string) []medicaoJSON {
 func TestPesoGravadoVoltaComANota(t *testing.T) {
 	h := serveMedicoes(t)
 
-	corpo := `{"metric":"body_weight","value":78.4,"recordedAt":"2026-09-10T08:00:00Z","note":"Depois do treino"}`
+	/*
+	 * Com `unit`, que o cliente manda e nenhum teste mandava.
+	 *
+	 * ⚠️ Descoberto pelos tipos gerados do contrato: o telemóvel envia
+	 * `unit: "kg"`, o servidor lê-o e devolve-o, e o contrato não o conhecia —
+	 * porque o contrato é o que os testes mandam. Um campo que só o cliente
+	 * usa é um campo que se pode apagar do servidor sem nada falhar aqui.
+	 */
+	corpo := `{"metric":"body_weight","value":78.4,"unit":"kg","recordedAt":"2026-09-10T08:00:00Z","note":"Depois do treino"}`
 	w := post(t, h, "/v1/measurements", corpo, nil)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("gravar: %d — %s", w.Code, w.Body.String())
+	}
+	var criada struct {
+		Unit string `json:"unit"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &criada); err != nil {
+		t.Fatalf("resposta ilegível: %v", err)
+	}
+	if criada.Unit != "kg" {
+		t.Errorf("a unidade não voltou: %q", criada.Unit)
 	}
 
 	pontos := serie(t, h, "?metric=body_weight&since=2026-01-01")

@@ -748,6 +748,12 @@
             "application/json": {
               "schema": {
                 "properties": {
+                  "priority": {
+                    "type": "string"
+                  },
+                  "targetDate": {
+                    "type": "string"
+                  },
                   "targetWeightKg": {
                     "type": "number"
                   }
@@ -1088,6 +1094,9 @@
                   "recordedAt": {
                     "type": "string"
                   },
+                  "unit": {
+                    "type": "string"
+                  },
                   "value": {
                     "type": "number"
                   }
@@ -1152,6 +1161,9 @@
               "schema": {
                 "properties": {
                   "foods": {
+                    "type": "array"
+                  },
+                  "labels": {
                     "type": "array"
                   }
                 },
@@ -2321,6 +2333,9 @@
                   "age": {
                     "type": "number"
                   },
+                  "birthDate": {
+                    "type": "string"
+                  },
                   "dietStyle": {
                     "type": "string"
                   },
@@ -2347,6 +2362,9 @@
                   },
                   "heightCm": {
                     "type": "number"
+                  },
+                  "maxImpact": {
+                    "type": "string"
                   },
                   "mealsPerDay": {
                     "type": "number"
@@ -2400,7 +2418,7 @@
                     "excludedExercises": {
                       "type": "array"
                     },
-                    "exercisePrescriptions": {
+                    "exercisePrescriptions{}": {
                       "type": "object"
                     },
                     "experience": {
@@ -2414,6 +2432,9 @@
                     },
                     "heightCm": {
                       "type": "number"
+                    },
+                    "maxImpact": {
+                      "type": "string"
                     },
                     "mealsPerDay": {
                       "type": "number"
@@ -2692,13 +2713,22 @@
             "application/json": {
               "schema": {
                 "properties": {
+                  "added": {
+                    "type": "array"
+                  },
                   "removed": {
                     "type": "array"
                   },
                   "swapped": {
                     "type": "object"
                   },
+                  "swapped{}": {
+                    "type": "object"
+                  },
                   "tuned": {
+                    "type": "object"
+                  },
+                  "tuned{}": {
                     "type": "object"
                   }
                 },
@@ -2825,6 +2855,9 @@
             "application/json": {
               "schema": {
                 "properties": {
+                  "classId": {
+                    "type": "string"
+                  },
                   "durationSeconds": {
                     "type": "number"
                   },

@@ -78,12 +78,41 @@ func gravarContrato(metodo, caminho, corpo string, w *httptest.ResponseRecorder)
 	chave := metodo + " " + caminho
 	gravadasMu.Lock()
 	defer gravadasMu.Unlock()
-	if velha, existe := gravadas[chave]; existe {
-		if len(velha.Pedido)+len(velha.Resposta) >= len(nova.Pedido)+len(nova.Resposta) {
-			return
-		}
+
+	velha, existe := gravadas[chave]
+	if !existe {
+		gravadas[chave] = nova
+		return
 	}
-	gravadas[chave] = nova
+
+	/*
+	 * O **pedido** junta-se; a **resposta** substitui-se pela mais completa.
+	 *
+	 * ⚠️ Não é simetria por esquecimento. Num `PATCH`, cada teste manda um
+	 * campo — `targetWeightKg` num, `targetDate` noutro, `priority` num
+	 * terceiro — e todos os três são campos que o servidor aceita. Guardar só
+	 * "a chamada com mais campos" ficava com um deles e escondia os outros
+	 * dois: os tipos gerados daí recusariam chamadas boas.
+	 *
+	 * A resposta é o contrário. Ela vem inteira de cada vez, e uma com metade
+	 * dos campos opcionais ausentes descreve a rota pior do que a completa —
+	 * juntá-las seria inventar uma resposta que a rota nunca deu.
+	 */
+	junta := velha
+	if junta.Pedido == nil {
+		junta.Pedido = map[string]string{}
+	}
+	for campo, tipo := range nova.Pedido {
+		junta.Pedido[campo] = tipo
+	}
+	if len(nova.Resposta) > len(velha.Resposta) {
+		junta.Resposta = nova.Resposta
+		junta.Status = nova.Status
+	}
+	if len(junta.Pedido) == 0 {
+		junta.Pedido = nil
+	}
+	gravadas[chave] = junta
 }
 
 /*

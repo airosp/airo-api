@@ -1123,6 +1123,8 @@
     "caminho": "/v1/goals/active",
     "status": 200,
     "pedido": {
+      "priority": "texto",
+      "targetDate": "texto",
       "targetWeightKg": "número"
     },
     "resposta": {
@@ -1229,6 +1231,7 @@
       "metric": "texto",
       "note": "texto",
       "recordedAt": "texto",
+      "unit": "texto",
       "value": "número"
     },
     "resposta": {
@@ -1246,17 +1249,18 @@
     "caminho": "/v1/media/food-photos",
     "status": 200,
     "pedido": {
-      "foods[]": "texto"
+      "foods[]": "texto",
+      "labels[]": "texto"
     },
     "resposta": {
       "pending": "número",
-      "photos.food:carrot": "texto",
-      "photos.food:cassava": "texto",
+      "photos.food:avocado": "texto",
+      "photos.food:banana": "texto",
+      "photos.food:chicken": "texto",
       "photos.food:couve": "texto",
       "photos.food:mango": "texto",
-      "photos.food:milk": "texto",
-      "photos.food:okra": "texto",
-      "photos.food:rice": "texto",
+      "photos.food:oats": "texto",
+      "photos.food:potato": "texto",
       "photos.food:xima": "texto"
     }
   },
@@ -1299,6 +1303,7 @@
     "caminho": "/v1/training/sessions",
     "status": 201,
     "pedido": {
+      "classId": "texto",
       "durationSeconds": "número",
       "localDay": "texto",
       "occurredAt": "texto",
@@ -1344,13 +1349,14 @@
   {
     "metodo": "PUT",
     "caminho": "/v1/hydration/2026-09-16",
-    "status": 200,
+    "status": 422,
     "pedido": {
       "ml": "número"
     },
     "resposta": {
-      "day": "texto",
-      "ml": "número"
+      "error.code": "texto",
+      "error.field": "texto",
+      "error.message": "texto"
     }
   },
   {
@@ -2956,6 +2962,11 @@
       "extras[].grams": "número",
       "extras[].id": "texto",
       "extras[].label": "texto",
+      "extras[].note": "texto",
+      "prices.chicken": "número",
+      "prices.couve": "número",
+      "prices.e1": "número",
+      "prices.lixo": "número",
       "prices.rice": "número"
     },
     "resposta": {
@@ -2998,6 +3009,7 @@
     "status": 200,
     "pedido": {
       "age": "número",
+      "birthDate": "texto",
       "dietStyle": "texto",
       "displayName": "texto",
       "equipment[]": "texto",
@@ -3006,8 +3018,9 @@
       "exercisePrescriptions.push_up.target": "número",
       "experience": "texto",
       "foodBudget": "texto",
-      "foodExclusions[]": "vazio",
+      "foodExclusions[]": "texto",
       "heightCm": "número",
+      "maxImpact": "texto",
       "mealsPerDay": "número",
       "pinnedExercises[]": "texto",
       "sex": "texto",
@@ -3021,17 +3034,17 @@
       "complete": "booleano",
       "dietStyle": "texto",
       "displayName": "texto",
-      "equipment[]": "texto",
-      "excludedExercises[]": "texto",
-      "exercisePrescriptions.push_up.sets": "número",
-      "exercisePrescriptions.push_up.target": "número",
+      "equipment[]": "vazio",
+      "excludedExercises[]": "vazio",
+      "exercisePrescriptions{}": "vazio",
       "experience": "texto",
       "foodBudget": "texto",
       "foodExclusions[]": "vazio",
       "heightCm": "número",
+      "maxImpact": "texto",
       "mealsPerDay": "número",
       "nutritionDetail": "texto",
-      "pinnedExercises[]": "texto",
+      "pinnedExercises[]": "vazio",
       "sex": "texto",
       "weightKg": "número",
       "workoutDays[]": "número",
@@ -3044,7 +3057,7 @@
     "caminho": "/v1/specialists/team",
     "status": 200,
     "pedido": {
-      "team[]": "texto"
+      "team[]": "vazio"
     },
     "resposta": {
       "team[]": "texto"
@@ -3101,6 +3114,7 @@
     "caminho": "/v1/training/day-edits/2026-09-11",
     "status": 200,
     "pedido": {
+      "removed[]": "texto",
       "swapped.barbell_squat.exerciseId": "texto",
       "swapped.barbell_squat.restSeconds": "número",
       "swapped.barbell_squat.sets": "número",
@@ -3122,12 +3136,15 @@
     "caminho": "/v1/training/day-edits/2026-09-16",
     "status": 200,
     "pedido": {
-      "removed[]": "texto",
+      "added[]": "vazio",
+      "removed[]": "vazio",
       "swapped.plank.exerciseId": "texto",
       "swapped.plank.restSeconds": "número",
       "swapped.plank.sets": "número",
       "swapped.plank.target": "número",
-      "tuned.row.sets": "número"
+      "swapped{}": "vazio",
+      "tuned.row.sets": "número",
+      "tuned{}": "vazio"
     },
     "resposta": {
       "day": "texto",
@@ -3160,6 +3177,7 @@
     "caminho": "/v1/training/day-edits/2026-09-18",
     "status": 200,
     "pedido": {
+      "removed[]": "texto",
       "swapped.barbell_squat.exerciseId": "texto",
       "swapped.barbell_squat.restSeconds": "número",
       "swapped.barbell_squat.sets": "número",
