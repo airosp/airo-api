@@ -31,7 +31,7 @@
   },
   {
     "metodo": "GET",
-    "caminho": "/v1/calendar/marks?from=2026-08-18\u0026to=2026-09-17",
+    "caminho": "/v1/calendar/marks?from=2026-08-19\u0026to=2026-09-18",
     "status": 200,
     "resposta": {
       "marks[]": "vazio"
@@ -262,7 +262,7 @@
   },
   {
     "metodo": "GET",
-    "caminho": "/v1/hydration?from=2026-08-18\u0026to=2026-09-17",
+    "caminho": "/v1/hydration?from=2026-08-19\u0026to=2026-09-18",
     "status": 200,
     "resposta": {
       "days[]": "vazio"
@@ -308,6 +308,7 @@
       "journey.status": "texto",
       "journey.targetDateISO": "texto",
       "phases[].endDateISO": "texto",
+      "phases[].id": "texto",
       "phases[].index": "número",
       "phases[].intent": "texto",
       "phases[].kind": "texto",
@@ -331,7 +332,7 @@
   },
   {
     "metodo": "GET",
-    "caminho": "/v1/measurements?from=2026-08-18\u0026to=2026-09-17",
+    "caminho": "/v1/measurements?from=2026-08-19\u0026to=2026-09-18",
     "status": 200,
     "resposta": {
       "measurements[].day": "texto",
@@ -508,7 +509,7 @@
   },
   {
     "metodo": "GET",
-    "caminho": "/v1/nutrition/logs?from=2026-08-18\u0026to=2026-09-17",
+    "caminho": "/v1/nutrition/logs?from=2026-08-19\u0026to=2026-09-18",
     "status": 200,
     "resposta": {
       "logs[]": "vazio"
@@ -570,7 +571,7 @@
   },
   {
     "metodo": "GET",
-    "caminho": "/v1/nutrition/shopping-list/2026-09-17",
+    "caminho": "/v1/nutrition/shopping-list/2026-09-18",
     "status": 200,
     "resposta": {
       "checked[]": "vazio",
@@ -579,18 +580,6 @@
       "items[].foodId": "texto",
       "items[].grams": "número",
       "items[].name": "texto",
-      "prices{}": "vazio",
-      "week": "texto"
-    }
-  },
-  {
-    "metodo": "GET",
-    "caminho": "/v1/nutrition/shopping-list/2026-09-18",
-    "status": 200,
-    "resposta": {
-      "checked[]": "texto",
-      "extras[]": "vazio",
-      "items[]": "vazio",
       "prices{}": "vazio",
       "week": "texto"
     }
@@ -621,7 +610,7 @@
   },
   {
     "metodo": "GET",
-    "caminho": "/v1/nutrition/today?localDay=2026-09-17",
+    "caminho": "/v1/nutrition/today?localDay=2026-09-18",
     "status": 200,
     "resposta": {
       "basis": "texto",
@@ -900,7 +889,7 @@
   },
   {
     "metodo": "GET",
-    "caminho": "/v1/training/sessions?from=2026-08-18\u0026to=2026-09-17",
+    "caminho": "/v1/training/sessions?from=2026-08-19\u0026to=2026-09-18",
     "status": 200,
     "resposta": {
       "sessions[]": "vazio"
@@ -1095,7 +1084,7 @@
   },
   {
     "metodo": "GET",
-    "caminho": "/v1/training/today?localDay=2026-09-17",
+    "caminho": "/v1/training/today?localDay=2026-09-18",
     "status": 200,
     "resposta": {
       "class.durationClock": "texto",
@@ -1261,12 +1250,12 @@
     },
     "resposta": {
       "pending": "número",
-      "photos.food:banana": "texto",
       "photos.food:carrot": "texto",
       "photos.food:cassava": "texto",
       "photos.food:couve": "texto",
       "photos.food:mango": "texto",
-      "photos.food:potato": "texto",
+      "photos.food:milk": "texto",
+      "photos.food:okra": "texto",
       "photos.food:rice": "texto",
       "photos.food:xima": "texto"
     }
@@ -3063,7 +3052,7 @@
   },
   {
     "metodo": "PUT",
-    "caminho": "/v1/training/day-edits/2026-08-08",
+    "caminho": "/v1/training/day-edits/2026-08-09",
     "status": 200,
     "pedido": {
       "removed[]": "texto"
@@ -3088,7 +3077,7 @@
   },
   {
     "metodo": "PUT",
-    "caminho": "/v1/training/day-edits/2026-09-03",
+    "caminho": "/v1/training/day-edits/2026-09-04",
     "status": 200,
     "pedido": {
       "swapped.barbell_squat.exerciseId": "texto",
@@ -3109,7 +3098,7 @@
   },
   {
     "metodo": "PUT",
-    "caminho": "/v1/training/day-edits/2026-09-10",
+    "caminho": "/v1/training/day-edits/2026-09-11",
     "status": 200,
     "pedido": {
       "swapped.barbell_squat.exerciseId": "texto",
@@ -3154,6 +3143,21 @@
   {
     "metodo": "PUT",
     "caminho": "/v1/training/day-edits/2026-09-17",
+    "status": 200,
+    "pedido": {
+      "removed[]": "texto"
+    },
+    "resposta": {
+      "day": "texto",
+      "edits.added": "nulo",
+      "edits.removed[]": "texto",
+      "edits.swapped": "nulo",
+      "edits.tuned": "nulo"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/training/day-edits/2026-09-18",
     "status": 200,
     "pedido": {
       "swapped.barbell_squat.exerciseId": "texto",

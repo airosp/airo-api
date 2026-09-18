@@ -51,6 +51,8 @@ type JourneyTarget struct {
 }
 
 type JourneyPhase struct {
+	/** É por ele que um plano diz a que fase pertence. */
+	ID    string `json:"id"`
 	Kind  string `json:"kind"`
 	Index int    `json:"index"`
 	/** O texto da fase, decidido aqui: a tabela guarda só o género e as datas. */
@@ -62,7 +64,9 @@ type JourneyPhase struct {
 }
 
 type JourneyPlan struct {
-	ID               string `json:"id"`
+	ID string `json:"id"`
+	/** A fase a que pertence. Vazia num plano sem fase. */
+	PhaseID          string `json:"phaseId,omitempty"`
 	FrequencyPerWeek int    `json:"frequencyPerWeek"`
 	SessionMinutes   int    `json:"sessionMinutes"`
 	Intensity        string `json:"intensity"`

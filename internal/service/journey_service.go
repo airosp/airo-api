@@ -170,7 +170,7 @@ func (b JourneyBundle) ParaVista() view.Journey {
 			semanas = 1
 		}
 		out.Phases = append(out.Phases, view.JourneyPhase{
-			Kind: f.Kind, Index: f.Position, Title: titulo, Intent: intencao,
+			ID: f.ID, Kind: f.Kind, Index: f.Position, Title: titulo, Intent: intencao,
 			StartDateISO: f.StartDate.UTC().Format(time.RFC3339),
 			EndDateISO:   f.EndDate.UTC().Format(time.RFC3339),
 			Weeks:        semanas,
@@ -178,7 +178,7 @@ func (b JourneyBundle) ParaVista() view.Journey {
 	}
 	for _, p := range b.Plans {
 		out.Plans = append(out.Plans, view.JourneyPlan{
-			ID: p.ID, FrequencyPerWeek: p.FrequencyPerWeek, SessionMinutes: p.SessionMinutes,
+			ID: p.ID, PhaseID: p.PhaseID, FrequencyPerWeek: p.FrequencyPerWeek, SessionMinutes: p.SessionMinutes,
 			Intensity: p.Intensity, Progression: p.Progression, Recovery: p.Recovery,
 			EffectiveFromISO: p.EffectiveFrom.UTC().Format("2006-01-02"),
 		})

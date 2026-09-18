@@ -39,6 +39,11 @@ type JourneyRow struct {
 }
 
 type PhaseRow struct {
+	/*
+	 * ID vazio ao escrever — a base gera-o. Ao ler vem preenchido, e é preciso:
+	 * é por ele que `plan.phase_id` aponta para a fase a que o plano pertence.
+	 */
+	ID        string
 	Kind      string
 	Position  int
 	StartDate time.Time
@@ -55,7 +60,9 @@ type TargetRow struct {
 }
 
 type PlanRow struct {
-	ID               string
+	ID string
+	/** A fase a que o plano pertence. Vazia num plano sem fase. */
+	PhaseID          string
 	FrequencyPerWeek int
 	SessionMinutes   int
 	Intensity        string
@@ -341,7 +348,7 @@ func (r *GoalRepo) TargetsOf(ctx context.Context, journeyID string) ([]TargetRow
 
 func (r *GoalRepo) PhasesOf(ctx context.Context, journeyID string) ([]PhaseRow, error) {
 	rows, err := r.tx.Q(ctx).Query(ctx,
-		`SELECT kind, position, start_date, end_date FROM phase
+		`SELECT id, kind, position, start_date, end_date FROM phase
 		  WHERE journey_id = $1 ORDER BY position`, journeyID)
 	if err != nil {
 		return nil, err
@@ -351,7 +358,7 @@ func (r *GoalRepo) PhasesOf(ctx context.Context, journeyID string) ([]PhaseRow, 
 	var out []PhaseRow
 	for rows.Next() {
 		var p PhaseRow
-		if err := rows.Scan(&p.Kind, &p.Position, &p.StartDate, &p.EndDate); err != nil {
+		if err := rows.Scan(&p.ID, &p.Kind, &p.Position, &p.StartDate, &p.EndDate); err != nil {
 			return nil, err
 		}
 		out = append(out, p)
@@ -626,8 +633,8 @@ func (r *GoalRepo) UpdateActiveGoal(ctx context.Context, userID string, a Altera
  */
 func (r *GoalRepo) PlansOf(ctx context.Context, journeyID string) ([]PlanRow, error) {
 	rows, err := r.tx.Q(ctx).Query(ctx,
-		`SELECT id, frequency_per_week, session_minutes, intensity, progression,
-		        recovery, effective_from
+		`SELECT id, COALESCE(phase_id::text, ''), frequency_per_week, session_minutes,
+		        intensity, progression, recovery, effective_from
 		   FROM plan
 		  WHERE journey_id = $1
 		  ORDER BY effective_from DESC, created_at DESC`, journeyID)
@@ -639,8 +646,8 @@ func (r *GoalRepo) PlansOf(ctx context.Context, journeyID string) ([]PlanRow, er
 	var out []PlanRow
 	for rows.Next() {
 		var p PlanRow
-		if err := rows.Scan(&p.ID, &p.FrequencyPerWeek, &p.SessionMinutes, &p.Intensity,
-			&p.Progression, &p.Recovery, &p.EffectiveFrom); err != nil {
+		if err := rows.Scan(&p.ID, &p.PhaseID, &p.FrequencyPerWeek, &p.SessionMinutes,
+			&p.Intensity, &p.Progression, &p.Recovery, &p.EffectiveFrom); err != nil {
 			return nil, err
 		}
 		out = append(out, p)
