@@ -637,7 +637,7 @@
                     "type": "string"
                   },
                   "targetDate": {
-                    "type": "string"
+                    "type": "object"
                   },
                   "targets": {
                     "type": "array"
@@ -2368,6 +2368,9 @@
                   },
                   "mealsPerDay": {
                     "type": "number"
+                  },
+                  "nutritionDetail": {
+                    "type": "string"
                   },
                   "pinnedExercises": {
                     "type": "array"

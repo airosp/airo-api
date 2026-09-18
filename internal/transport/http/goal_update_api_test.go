@@ -165,3 +165,24 @@ func serveComObjetivo(t *testing.T) http.Handler {
 	}
 	return h
 }
+
+/*
+ * Um objectivo sem data: `targetDate` vem **nulo**, e não ausente.
+ *
+ * ⚠️ Descoberto pelos tipos gerados do contrato. O telemóvel manda
+ * `targetDate: null` numa jornada de horizonte aberto — é assim que diz "não
+ * há data" — e nenhum teste mandava nulo, só uma cadeia ou nada. O contrato
+ * ficava a dizer que o campo é sempre texto, e os tipos gerados daí recusavam
+ * a chamada que a app faz todos os dias.
+ */
+func TestObjectivoSemDataAceitaNuloExplicito(t *testing.T) {
+	// Sem objectivo: este cria o dele, e um segundo dava 409 com razão.
+	h, _, _ := serve(t)
+
+	corpo := `{"type":"outcome","horizon":"open_ended","direction":"lose_weight","priority":"weight",
+	 "startDate":"2026-09-12","targetDate":null,
+	 "targets":[{"metric":"body_weight","value":74,"unit":"kg","direction":"decrease"}]}`
+	if w := post(t, h, "/v1/goals", corpo, nil); w.Code != http.StatusCreated {
+		t.Fatalf("nulo explícito recusado: %d — %s", w.Code, w.Body.String())
+	}
+}

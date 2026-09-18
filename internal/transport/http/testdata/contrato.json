@@ -1156,7 +1156,7 @@
       "horizon": "texto",
       "priority": "texto",
       "startDate": "texto",
-      "targetDate": "texto",
+      "targetDate": "nulo|texto",
       "targets[].direction": "texto",
       "targets[].metric": "texto",
       "targets[].unit": "texto",
@@ -1254,14 +1254,14 @@
     },
     "resposta": {
       "pending": "número",
-      "photos.food:avocado": "texto",
       "photos.food:banana": "texto",
-      "photos.food:chicken": "texto",
+      "photos.food:beans": "texto",
       "photos.food:couve": "texto",
+      "photos.food:eggs": "texto",
       "photos.food:mango": "texto",
       "photos.food:oats": "texto",
-      "photos.food:potato": "texto",
-      "photos.food:xima": "texto"
+      "photos.food:okra": "texto",
+      "photos.food:potato": "texto"
     }
   },
   {
@@ -3012,17 +3012,18 @@
       "birthDate": "texto",
       "dietStyle": "texto",
       "displayName": "texto",
-      "equipment[]": "texto",
+      "equipment[]": "texto|vazio",
       "excludedExercises[]": "texto",
       "exercisePrescriptions.push_up.sets": "número",
       "exercisePrescriptions.push_up.target": "número",
       "experience": "texto",
       "foodBudget": "texto",
-      "foodExclusions[]": "texto",
+      "foodExclusions[]": "texto|vazio",
       "heightCm": "número",
       "maxImpact": "texto",
       "mealsPerDay": "número",
-      "pinnedExercises[]": "texto",
+      "nutritionDetail": "texto",
+      "pinnedExercises[]": "texto|vazio",
       "sex": "texto",
       "weightKg": "número",
       "workoutDays[]": "número",
@@ -3057,7 +3058,7 @@
     "caminho": "/v1/specialists/team",
     "status": 200,
     "pedido": {
-      "team[]": "vazio"
+      "team[]": "texto|vazio"
     },
     "resposta": {
       "team[]": "texto"
@@ -3137,7 +3138,7 @@
     "status": 200,
     "pedido": {
       "added[]": "vazio",
-      "removed[]": "vazio",
+      "removed[]": "texto|vazio",
       "swapped.plank.exerciseId": "texto",
       "swapped.plank.restSeconds": "número",
       "swapped.plank.sets": "número",

@@ -76,8 +76,17 @@ const perfilValido = `{
   "heightCm":168,"weightKg":72.4,"experience":"beginner",
   "workoutDays":[0,2,4],"workoutMinutes":35,"workoutTime":"evening",
   "equipment":["dumbbell"],"dietStyle":"omnivore","mealsPerDay":4,
-  "foodBudget":"medium","foodExclusions":["amendoim"]
+  "foodBudget":"medium","foodExclusions":["amendoim"],
+  "nutritionDetail":"detailed"
 }`
+
+/*
+ * ⚠️ `nutritionDetail` entrou aqui por causa dos tipos gerados do contrato.
+ *
+ * O servidor valida-o — recusa um modo desconhecido — e nenhum teste o mandava.
+ * O telemóvel manda-o em todos os perfis, e o contrato não o conhecia: um campo
+ * que só o cliente usa é um campo que se pode apagar daqui sem nada falhar.
+ */
 
 // O caminho que faltava: o perfil não tinha por onde ser escrito, e sem ele
 // nenhuma rota privada dava resposta útil.

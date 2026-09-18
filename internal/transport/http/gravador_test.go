@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -103,7 +104,7 @@ func gravarContrato(metodo, caminho, corpo string, w *httptest.ResponseRecorder)
 		junta.Pedido = map[string]string{}
 	}
 	for campo, tipo := range nova.Pedido {
-		junta.Pedido[campo] = tipo
+		junta.Pedido[campo] = juntarTipos(junta.Pedido[campo], tipo)
 	}
 	if len(nova.Resposta) > len(velha.Resposta) {
 		junta.Resposta = nova.Resposta
@@ -203,4 +204,26 @@ func escreverContrato() {
 	}
 	_ = os.MkdirAll(filepath.Dir(destino), 0o755)
 	_ = os.WriteFile(destino, append(bruto, '\n'), 0o644)
+}
+
+/*
+ * juntarTipos guarda os dois quando um campo aparece com tipos diferentes.
+ *
+ * ⚠️ O cliente manda `targetDate: null` numa jornada sem data e uma cadeia
+ * quando há data — as duas são válidas. Com o último a ganhar, o contrato
+ * ficava a dizer "é sempre texto", e os tipos gerados daí recusavam metade das
+ * chamadas que a app faz. `texto|nulo` é a verdade: o servidor aceita as duas.
+ */
+func juntarTipos(velho, novo string) string {
+	if velho == "" || velho == novo {
+		return novo
+	}
+	for _, t := range strings.Split(velho, "|") {
+		if t == novo {
+			return velho
+		}
+	}
+	partes := append(strings.Split(velho, "|"), novo)
+	sort.Strings(partes)
+	return strings.Join(partes, "|")
 }
