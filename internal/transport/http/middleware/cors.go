@@ -25,7 +25,11 @@ func CORS(allowed []string) func(http.Handler) http.Handler {
 		}
 	}
 
-	const headers = "Authorization, Content-Type, Idempotency-Key, X-Request-Id, X-Device-Id"
+	// `X-Airo-Client` é o que prova que o pedido veio de um `fetch` autorizado:
+	// um formulário de outro site não consegue pôr cabeçalhos, e um `fetch` com
+	// um cabeçalho fora da lista simples obriga o browser a pedir autorização
+	// prévia — que só as origens desta lista recebem. Ver `sessao_web.go`.
+	const headers = "Authorization, Content-Type, Idempotency-Key, X-Request-Id, X-Device-Id, X-Airo-Client"
 	// Sem isto o JS não consegue ler estes dois: o browser só deixa ver a
 	// lista segura, e `Retry-After` não está nela. O ecrã dizia "tenta daqui a
 	// pouco" sem saber quanto — e o contador ficava mudo.
@@ -52,6 +56,15 @@ func CORS(allowed []string) func(http.Handler) http.Handler {
 				w.Header().Set("Access-Control-Allow-Headers", headers)
 				w.Header().Set("Access-Control-Expose-Headers", exposed)
 				w.Header().Set("Access-Control-Max-Age", maxAge)
+				/*
+				 * Sem isto o browser não envia o cookie da sessão nem deixa ler
+				 * a resposta de um pedido com credenciais.
+				 *
+				 * É seguro porque a origem acima é **sempre uma da lista** e
+				 * nunca `*` — o browser recusa `*` com credenciais, e aqui nem
+				 * a hipótese existe.
+				 */
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
 			}
 
 			// O pedido prévio termina aqui: não passa aos handlers, e uma

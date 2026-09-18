@@ -44,6 +44,7 @@ type Config struct {
 	// CORSOrigins são as origens de browser autorizadas, separadas por vírgula
 	// em AIRO_CORS_ORIGINS. A app nativa não precisa de nenhuma; a versão web
 	// precisa da sua.
+	WebSessionCookie bool
 	CORSOrigins []string
 
 	/*
@@ -152,6 +153,16 @@ func Load() (Config, error) {
 			BaseURL:    get("AIRO_CLOUDINARY_BASE_URL", ""),
 		},
 		CORSOrigins: splitList(get("AIRO_CORS_ORIGINS", "")),
+		/*
+		 * O refresh em cookie `httpOnly` para a web.
+		 *
+		 * Desligado por omissão. Muda a autenticação, e a única forma de o
+		 * provar ponta a ponta é num browser a falar com a API a partir de
+		 * outro site — `app.airo.co.mz` contra `airo-api.savanapoint.com`. O
+		 * ensaio local é o mesmo site e não exercita esse caminho. Ligar é uma
+		 * decisão de quem consegue verificar. Ver D52.
+		 */
+		WebSessionCookie: get("AIRO_WEB_SESSION_COOKIE", "") == "1",
 		PexelsKey:   get("AIRO_PEXELS_API_KEY", ""),
 	}
 

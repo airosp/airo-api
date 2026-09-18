@@ -1254,13 +1254,13 @@
     },
     "resposta": {
       "pending": "número",
-      "photos.food:banana": "texto",
-      "photos.food:beans": "texto",
+      "photos.food:carrot": "texto",
+      "photos.food:cassava": "texto",
       "photos.food:couve": "texto",
       "photos.food:eggs": "texto",
       "photos.food:mango": "texto",
+      "photos.food:milk": "texto",
       "photos.food:oats": "texto",
-      "photos.food:okra": "texto",
       "photos.food:potato": "texto"
     }
   },

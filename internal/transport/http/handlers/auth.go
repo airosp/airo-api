@@ -18,6 +18,17 @@ import (
 type Auth struct {
 	Service *service.AuthService
 	Tokens  *auth.TokenIssuer
+	/*
+	 * CookieDeSessao liga o refresh em cookie `httpOnly` para a web.
+	 *
+	 * Desligado por omissão, e é deliberado: muda a autenticação, e a única
+	 * forma de o provar ponta a ponta é num browser a falar com a API a partir
+	 * de outro site — que é o que o ambiente de ensaio ainda não tem. Ligar é
+	 * uma decisão de quem consegue verificar. Ver `sessao_web.go` e D52.
+	 */
+	CookieDeSessao bool
+	/** Quanto tempo o cookie dura. O mesmo prazo do refresh que ele carrega. */
+	DuracaoDoRefresh time.Duration
 }
 
 func (h Auth) RequestOTP(w http.ResponseWriter, r *http.Request) {
@@ -106,12 +117,24 @@ func (h Auth) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		apierr.WriteInternal(w, r, err, "Não foi possível abrir a sessão.")
 		return
 	}
-	apierr.WriteJSON(w, http.StatusOK, dto.SessionResponse{
+	resposta := dto.SessionResponse{
 		AccessToken:  access,
 		RefreshToken: out.RefreshToken,
 		ExpiresIn:    int(time.Until(expires).Seconds()),
 		IsNewUser:    out.IsNewUser,
-	})
+	}
+	/*
+	 * Na web o refresh vai no cookie e **sai do corpo**.
+	 *
+	 * Deixá-lo nos dois sítios não ganhava nada: o ponto do cookie é o script
+	 * da página não lhe chegar, e um refresh que volta no JSON está ao alcance
+	 * de qualquer script que leia a resposta.
+	 */
+	if PorCookie(h.CookieDeSessao, r) {
+		PorCookieDeSessao(w, out.RefreshToken, h.DuracaoDoRefresh)
+		resposta.RefreshToken = ""
+	}
+	apierr.WriteJSON(w, http.StatusOK, resposta)
 }
 
 // Logout termina a sessão deste aparelho.
@@ -129,9 +152,14 @@ func (h Auth) Logout(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, apierr.ValidationFailed, "Corpo do pedido inválido.", "")
 		return
 	}
-	if err := h.Service.Logout(r.Context(), req.RefreshToken); err != nil {
+	if err := h.Service.Logout(r.Context(), RefreshDoPedido(req.RefreshToken, r)); err != nil {
 		apierr.WriteInternal(w, r, err, "Não foi possível terminar a sessão.")
 		return
+	}
+	// O cookie vai com a sessão. Sem isto, sair deixava-o no browser a apontar
+	// para um token revogado — e o ecrã seguinte tentava renovar com ele.
+	if h.CookieDeSessao {
+		LimparCookieDeSessao(w)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -143,7 +171,8 @@ func (h Auth) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out, err := h.Service.Refresh(r.Context(), req.RefreshToken, req.DeviceID)
+	// Do corpo ou do cookie: na web o corpo vem vazio de propósito.
+	out, err := h.Service.Refresh(r.Context(), RefreshDoPedido(req.RefreshToken, r), req.DeviceID)
 	switch {
 	case errors.Is(err, repo.ErrTokenReuse):
 		// A família caiu. A pessoa volta a entrar — e é dito porquê, porque uma
@@ -170,11 +199,18 @@ func (h Auth) Refresh(w http.ResponseWriter, r *http.Request) {
 		apierr.WriteInternal(w, r, err, "Não foi possível renovar a sessão.")
 		return
 	}
-	apierr.WriteJSON(w, http.StatusOK, dto.SessionResponse{
+	resposta := dto.SessionResponse{
 		AccessToken:  access,
 		RefreshToken: out.RefreshToken,
 		ExpiresIn:    int(time.Until(expires).Seconds()),
-	})
+	}
+	// A rotação também roda o cookie: o token anterior deixa de valer, e um
+	// cookie a apontar para ele era uma sessão que morria na renovação seguinte.
+	if PorCookie(h.CookieDeSessao, r) {
+		PorCookieDeSessao(w, out.RefreshToken, h.DuracaoDoRefresh)
+		resposta.RefreshToken = ""
+	}
+	apierr.WriteJSON(w, http.StatusOK, resposta)
 }
 
 // clientIPHash devolve o IP já reduzido a hash.

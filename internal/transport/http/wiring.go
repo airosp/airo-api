@@ -32,11 +32,13 @@ import (
 // Juntar o wiring num sítio só torna esse esquecimento impossível de repetir:
 // falta uma dependência, não compila.
 type Platform struct {
-	Log     *slog.Logger
-	Version string
-	Pool    *pgxpool.Pool
-	Redis   redis.UniversalClient
-	Clock   clock.Clock
+	Log *slog.Logger
+	/** Liga o refresh em cookie `httpOnly` para a web. Ver `sessao_web.go`. */
+	WebSessionCookie bool
+	Version          string
+	Pool             *pgxpool.Pool
+	Redis            redis.UniversalClient
+	Clock            clock.Clock
 
 	JWTSecret []byte
 	OTPPepper []byte
@@ -197,6 +199,13 @@ func Wire(p Platform) Deps {
 					repo.NewAuthRepo(tx), auth.NewRedisLimiter(p.Redis), p.Sender,
 					configuracaoDeAutenticacao(p.OTPPepper), p.Clock),
 				Tokens: tokens,
+				/*
+				 * O refresh em cookie para a web. Desligado por omissão —
+				 * `AIRO_WEB_SESSION_COOKIE=1` liga-o, e quem o ligar tem de o
+				 * verificar num browser a falar de outro site. Ver D52.
+				 */
+				CookieDeSessao:   p.WebSessionCookie,
+				DuracaoDoRefresh: configuracaoDeAutenticacao(p.OTPPepper).RefreshTTL,
 			}
 		} else {
 			p.Log.Warn("autenticação por telefone desligada: falta Redis, pepper ou canal de envio")

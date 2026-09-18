@@ -299,6 +299,7 @@ func main() {
 		Sender: sender, Images: images, MealImages: mealImages,
 		Stock:                 acervo,
 		WhatsAppWebhookSecret: cfg.WhatsApp.WebhookSecret,
+		WebSessionCookie:      cfg.WebSessionCookie,
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	deps.CORSOrigins = cfg.CORSOrigins
