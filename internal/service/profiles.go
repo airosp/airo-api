@@ -8,6 +8,7 @@ import (
 
 	"github.com/airosp/airo-api/internal/engine/nutrition"
 	"github.com/airosp/airo-api/internal/engine/training"
+	"github.com/airosp/airo-api/internal/platform/clock"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 )
 
@@ -34,6 +35,14 @@ type Profiles struct {
 	equipa   *repo.SpecialistRepo
 	repo     *repo.ProfileRepo
 	uploader Uploader
+	/*
+	 * planos escreve o treino planeado de cada dia, e o relógio diz qual é
+	 * hoje. Nulos nos arneses que não têm base de dados: aí o rótulo deriva-se
+	 * como sempre derivou.
+	 */
+	planos    *repo.TrainingPlanRepo
+	clk       clock.Clock
+	cfgTreino training.Config
 	// NutritionGoal por omissão até o objectivo existir.
 	defaultNutritionGoal string
 }
@@ -306,12 +315,24 @@ func (p *Profiles) TrainingProfile(ctx ctxLike, userID string, day time.Time) (T
 		return TodayInput{}, err
 	}
 
-	// O plano gravado manda, quando existe. Ainda não existe: nada escreve
-	// `planned_session`. Até escrever, o rótulo deriva-se dos dias de treino
-	// — a mesma conta que o telemóvel faz, agora feita aqui.
+	/*
+	 * O rótulo do dia: o que ficou escrito para os dias que já passaram, e a
+	 * derivação para hoje e para os que faltam.
+	 *
+	 * ⚠️ A divisão não é um detalhe. Derivar é uma conta sobre os dias de
+	 * treino **de agora** — aplicada a ontem, dá o plano que ontem teria se a
+	 * pessoa já treinasse assim. Quem mudasse de três dias para dois via o
+	 * histórico inteiro rodar por baixo dos treinos que fez.
+	 *
+	 * Ao contrário, ler o escrito para **hoje** prendia o dia: mudar os dias
+	 * de treino de manhã não se veria até à meia-noite. Hoje deriva-se sempre,
+	 * e o que se serviu fica escrito a seguir.
+	 */
 	label := training.PlanLabelOn(row.WorkoutDays, day)
-	if planned, ok := p.repo.PlanLabelOn(c, userID, day); ok {
-		label = planned
+	if p.diaPassado(day) {
+		if planned, ok := p.repo.PlanLabelOn(c, userID, day); ok {
+			label = planned
+		}
 	}
 	out := TodayInput{
 		PlanLabel:      label,
@@ -346,7 +367,39 @@ func (p *Profiles) TrainingProfile(ctx ctxLike, userID string, day time.Time) (T
 		out.Excluded = prefs.Excluded
 		out.Prescriptions = prefs.Prescriptions
 	}
+
+	/*
+	 * E fica escrito o que se planeou para hoje.
+	 *
+	 * Aqui e não no handler porque é aqui que o rótulo do dia se decide — e o
+	 * que se escreve tem de ser exactamente o que se serviu. Amanhã este dia é
+	 * passado, e é esta linha que o impede de ser recontado.
+	 *
+	 * Só hoje: escrever o futuro prendia um plano que ainda pode mudar, e
+	 * escrever o passado era inventar história. A falha não trava o treino —
+	 * um dia sem registo volta a derivar-se, que é o que fazia sempre.
+	 */
+	if p.planos != nil && p.hoje(day) {
+		foco := string(p.cfgTreino.FocusOf(label))
+		_ = p.planos.SavePlannedSession(c, userID, day, foco, label, row.WorkoutMinutes)
+	}
 	return out, nil
+}
+
+// diaPassado e hoje comparam o dia pedido com o relógio. Sem relógio nada é
+// passado nem é hoje: o serviço comporta-se como antes de isto existir.
+func (p *Profiles) diaPassado(dia time.Time) bool {
+	if p.clk == nil {
+		return false
+	}
+	return dia.UTC().Truncate(24 * time.Hour).Before(p.clk.Now().UTC().Truncate(24 * time.Hour))
+}
+
+func (p *Profiles) hoje(dia time.Time) bool {
+	if p.clk == nil {
+		return false
+	}
+	return dia.UTC().Truncate(24 * time.Hour).Equal(p.clk.Now().UTC().Truncate(24 * time.Hour))
 }
 
 // NutritionProfile dá ao serviço de nutrição o que o pedido não traz.
@@ -443,5 +496,16 @@ func tectoDeImpacto(v *string) *string {
  */
 func (p *Profiles) ComEquipa(e *repo.SpecialistRepo) *Profiles {
 	p.equipa = e
+	return p
+}
+
+/*
+ * ComPlanoDoDia liga o sítio onde o treino planeado fica escrito.
+ *
+ * Pela mesma razão que `ComEquipa`: quem monta este serviço num teste do motor
+ * não tem base de dados, e sem isto o comportamento é o de sempre.
+ */
+func (p *Profiles) ComPlanoDoDia(planos *repo.TrainingPlanRepo, clk clock.Clock, cfg training.Config) *Profiles {
+	p.planos, p.clk, p.cfgTreino = planos, clk, cfg
 	return p
 }

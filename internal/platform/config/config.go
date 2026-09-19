@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -40,6 +41,7 @@ type Config struct {
 	SMS      SMSConfig
 
 	Cloudinary CloudinaryConfig
+	Mux        MuxConfig
 
 	// CORSOrigins são as origens de browser autorizadas, separadas por vírgula
 	// em AIRO_CORS_ORIGINS. A app nativa não precisa de nenhuma; a versão web
@@ -84,6 +86,39 @@ type WhatsAppConfig struct {
  * muita gente não tem WhatsApp activo. Vazio deixa o canal desligado, e
  * diz-se em voz alta no arranque.
  */
+/*
+ * MuxConfig é onde vivem as aulas gravadas.
+ *
+ * ⚠️ São **duas** credenciais diferentes, e confundi-las dá erros que não se
+ * explicam: o par `TokenID`/`TokenSecret` abre a API — criar recursos, saber o
+ * estado de um — e a chave de assinatura só serve para deixar alguém ver um
+ * vídeo durante uma hora. A primeira nunca deve chegar a um telemóvel; a
+ * segunda produz tokens que chegam a todos.
+ *
+ * Sem chave de assinatura a reprodução é pública, e diz-se no arranque. Sem
+ * credenciais de API não se podem carregar aulas novas — as que já existem
+ * continuam a tocar.
+ */
+type MuxConfig struct {
+	TokenID     string
+	TokenSecret string
+
+	SigningKeyID     string
+	SigningKeyBase64 string
+
+	WebhookSecret string
+
+	// TTLSeconds é quanto tempo um endereço assinado serve. Uma hora por
+	// omissão: uma aula longa vista com pausas não pode morrer a meio.
+	TTLSeconds int
+	// ThumbnailTime é o segundo de onde sai a miniatura. Três e não zero: o
+	// primeiro fotograma de um vídeo é quase sempre preto.
+	ThumbnailTime int
+	// UploadOrigin é a origem do painel que envia os ficheiros, para o CORS do
+	// destino de upload.
+	UploadOrigin string
+}
+
 type SMSConfig struct {
 	Provider   string
 	AccountSID string
@@ -136,6 +171,16 @@ func Load() (Config, error) {
 			BaseURL:           get("AIRO_WHATSAPP_BASE_URL", ""),
 			GraphVersion:      get("AIRO_WHATSAPP_GRAPH_VERSION", ""),
 			WebhookSecret:     get("AIRO_WHATSAPP_WEBHOOK_SECRET", ""),
+		},
+		Mux: MuxConfig{
+			TokenID:          get("AIRO_MUX_TOKEN_ID", ""),
+			TokenSecret:      get("AIRO_MUX_TOKEN_SECRET", ""),
+			SigningKeyID:     get("AIRO_MUX_SIGNING_KEY_ID", ""),
+			SigningKeyBase64: get("AIRO_MUX_SIGNING_KEY", ""),
+			WebhookSecret:    get("AIRO_MUX_WEBHOOK_SECRET", ""),
+			TTLSeconds:       inteiro(get("AIRO_MUX_TTL_SECONDS", "3600"), 3600),
+			ThumbnailTime:    inteiro(get("AIRO_MUX_THUMBNAIL_TIME", "3"), 3),
+			UploadOrigin:     get("AIRO_MUX_UPLOAD_ORIGIN", ""),
 		},
 		SMS: SMSConfig{
 			Provider:   get("AIRO_SMS_PROVIDER", "twilio"),
@@ -236,4 +281,17 @@ func get(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// inteiro lê um número de uma variável de ambiente, com recurso.
+//
+// Um valor ilegível cai no recurso em vez de travar o arranque: um prazo mal
+// escrito não é razão para a API não subir, e o registo dirá que ficou no
+// valor por omissão.
+func inteiro(raw string, recurso int) int {
+	n, err := strconv.Atoi(strings.TrimSpace(raw))
+	if err != nil || n <= 0 {
+		return recurso
+	}
+	return n
 }

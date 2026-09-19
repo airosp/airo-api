@@ -56,7 +56,10 @@ func TestMigrationAppliesCleanly(t *testing.T) {
 		"goal", "journey", "phase", "cycle", "target", "plan",
 		"exercise", "workout_session", "exercise_prescription", "exercise_set",
 		"food", "nutrition_strategy", "daily_plan", "planned_meal", "nutrition_log",
-		"assessment", "risk", "adaptation", "journey_event",
+		// `risk` saiu na 0026: os riscos vivem inteiros em
+		// `assessment.snapshot`, e parti-los em duas metades era ter de as
+		// manter de acordo.
+		"assessment", "adaptation", "journey_event",
 		"otp_challenge", "device", "refresh_token", "auth_event",
 		"schema_migration",
 	} {

@@ -149,6 +149,9 @@ func routerCompleto(t *testing.T) http.Handler {
 		OTPPepper:             pepper,
 		Sender:                airohttp.NewLogSender(log),
 		WhatsAppWebhookSecret: "segredo-de-ensaio",
+		// Como o da Meta: sem segredo a rota não se regista, e a
+		// especificação passaria a falar de uma rota que este router não tem.
+		MuxWebhookSecret: "segredo-de-ensaio",
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	return airohttp.NewRouter(deps)

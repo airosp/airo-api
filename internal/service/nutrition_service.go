@@ -7,6 +7,7 @@ import (
 
 	"github.com/airosp/airo-api/internal/engine/goal"
 	"github.com/airosp/airo-api/internal/engine/nutrition"
+	"github.com/airosp/airo-api/internal/platform/clock"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 )
 
@@ -22,11 +23,27 @@ type StrategyReader interface {
 	CurrentStrategy(ctx context.Context, userID string, day time.Time) (repo.StrategyRow, error)
 }
 
+/*
+ * DayPlanStore guarda o plano que foi servido, e devolve-o.
+ *
+ * ⚠️ O dia era montado a cada pedido e nunca guardado — e um dia montado é
+ * função da estratégia **de agora** e do perfil **de agora**. Perguntar por
+ * ontem devolvia por isso um dia que nunca existiu: quem mudasse o objectivo
+ * na quarta via a terça reescrita com as calorias de hoje, ao lado de um
+ * diário que registava a terça a sério.
+ */
+type DayPlanStore interface {
+	SaveDay(ctx context.Context, userID, strategyID string, day time.Time, plan nutrition.DayPlan) error
+	Day(ctx context.Context, userID string, day time.Time) (repo.StoredDay, error)
+}
+
 type NutritionService struct {
 	strategies StrategyReader
 	meals      MealPreferences
 	logs       LogReader
 	weights    WeightReader
+	plans      DayPlanStore
+	clk        clock.Clock
 	nutCfg     nutrition.Config
 	goalCfg    goal.Config
 }
@@ -44,6 +61,18 @@ func NewNutritionService(s StrategyReader, meals MealPreferences, nutCfg nutriti
  */
 func (s *NutritionService) ComAvaliacao(logs LogReader, weights WeightReader) *NutritionService {
 	s.logs, s.weights = logs, weights
+	return s
+}
+
+/*
+ * ComPlanoGuardado liga o sítio onde o dia servido fica escrito.
+ *
+ * Separado do construtor pela mesma razão que a avaliação: quem monta este
+ * serviço num teste do motor não tem base de dados nenhuma, e sem armazém o
+ * comportamento é o de sempre — monta-se o dia e serve-se.
+ */
+func (s *NutritionService) ComPlanoGuardado(plans DayPlanStore, clk clock.Clock) *NutritionService {
+	s.plans, s.clk = plans, clk
 	return s
 }
 
@@ -155,11 +184,46 @@ func (s *NutritionService) ResetMeal(ctx context.Context, in NutritionTodayInput
 // ErrSemTrocas — o serviço foi montado sem onde guardar as trocas.
 var ErrSemTrocas = errors.New("trocas de refeição indisponíveis")
 
-// Today monta o plano alimentar do dia.
+/*
+ * Today monta o plano alimentar do dia — ou devolve o que foi servido, se o dia
+ * já passou.
+ *
+ * ⚠️ **Um dia passado não se remonta.** Montar é função da estratégia e do
+ * perfil de agora; aplicada a ontem, dá um plano que ninguém viu. O que a
+ * pessoa comeu está no diário e não muda — o plano ao lado dele também não
+ * pode mudar, senão o histórico passa a comparar o registo de ontem com a
+ * intenção de hoje.
+ *
+ * Hoje e os dias por vir montam-se sempre: é aí que uma estratégia adaptada,
+ * um perfil corrigido ou uma exclusão nova têm de aparecer. E o que se serviu
+ * fica escrito, para amanhã este mesmo dia já ser passado.
+ */
 func (s *NutritionService) Today(ctx context.Context, in NutritionTodayInput) (NutritionToday, error) {
-	strategy, stored, err := s.strategyFor(ctx, in)
+	strategy, stored, strategyID, err := s.estrategiaEID(ctx, in)
 	if err != nil {
 		return NutritionToday{}, err
+	}
+
+	if guardado, ok := s.diaGuardado(ctx, in); ok {
+		trocadas, err := s.meals.Read(ctx, in.UserID, in.LocalDay)
+		if err != nil {
+			return NutritionToday{}, err
+		}
+		marcadas := map[string]bool{}
+		for slot, n := range trocadas {
+			if n > 0 {
+				marcadas[slot] = true
+			}
+		}
+		return NutritionToday{
+			Strategy: strategy, Day: guardado, FromStoredStrategy: stored,
+			Swapped: marcadas,
+			HydrationMl: nutrition.HydrationTarget(s.nutCfg, nutrition.HydrationInput{
+				BodyWeightKg:   in.WeightKg,
+				TrainsToday:    in.TrainsToday,
+				SessionMinutes: in.SessionMinutes,
+			}),
+		}, nil
 	}
 
 	day, err := nutrition.BuildDayPlan(s.nutCfg, nutrition.BuildDayPlanInput{
@@ -184,10 +248,65 @@ func (s *NutritionService) Today(ctx context.Context, in NutritionTodayInput) (N
 		TrainsToday:    in.TrainsToday,
 		SessionMinutes: in.SessionMinutes,
 	})
+
+	/*
+	 * Guardar o que se serviu — e não falhar o pedido se a gravação falhar.
+	 *
+	 * O dia já está montado e é o correcto; recusá-lo porque a escrita não
+	 * passou seria trocar um histórico imperfeito por um ecrã vazio. Só se
+	 * guarda com estratégia gravada: `daily_plan.strategy_id` aponta para
+	 * `nutrition_strategy`, e uma estratégia calculada na hora não tem linha
+	 * nenhuma para onde apontar.
+	 */
+	if s.plans != nil && stored && strategyID != "" && !s.diaPassado(in.LocalDay) {
+		_ = s.plans.SaveDay(ctx, in.UserID, strategyID, in.LocalDay, day)
+	}
+
 	return NutritionToday{
 		Strategy: strategy, Day: day, FromStoredStrategy: stored,
 		Swapped: trocadas, HydrationMl: agua,
 	}, nil
+}
+
+/*
+ * diaGuardado devolve o plano escrito, quando o dia pedido já passou.
+ *
+ * Só para o passado. Hoje monta-se sempre — é o dia que ainda pode mudar, e
+ * uma troca ou uma adaptação têm de se ver sem esperar pela meia-noite.
+ *
+ * Sem armazém, sem relógio, ou sem nada escrito para aquele dia, devolve
+ * `false` e o caminho é o de sempre: montar. É também o que acontece a todos
+ * os dias anteriores a esta funcionalidade existir, que nunca foram escritos.
+ */
+func (s *NutritionService) diaGuardado(ctx context.Context, in NutritionTodayInput) (nutrition.DayPlan, bool) {
+	if s.plans == nil || !s.diaPassado(in.LocalDay) {
+		return nutrition.DayPlan{}, false
+	}
+	guardado, err := s.plans.Day(ctx, in.UserID, in.LocalDay)
+	if err != nil {
+		return nutrition.DayPlan{}, false
+	}
+	return guardado.Plan, true
+}
+
+/*
+ * diaPassado diz se o dia pedido já acabou.
+ *
+ * Decide as duas metades: um dia passado lê-se do que ficou escrito, e **não**
+ * se escreve. Remontar ontem para o guardar era inventar história — passaria a
+ * ser para sempre "o plano de ontem" um plano que ninguém viu naquele dia.
+ * Fica-se pelo que se sabe: os dias que esta funcionalidade não apanhou
+ * continuam a ser montados, e a dizê-lo por não estarem guardados.
+ *
+ * Sem relógio não se pode decidir, e então nada é passado: é o comportamento
+ * de sempre, que é o certo para quem monta este serviço sem base de dados.
+ */
+func (s *NutritionService) diaPassado(dia time.Time) bool {
+	if s.clk == nil {
+		return false
+	}
+	hoje := s.clk.Now().UTC().Truncate(24 * time.Hour)
+	return dia.UTC().Truncate(24 * time.Hour).Before(hoje)
 }
 
 // strategyFor prefere a decisão gravada e só calcula quando não há nenhuma.
@@ -195,6 +314,15 @@ func (s *NutritionService) Today(ctx context.Context, in NutritionTodayInput) (N
 // Quem ainda não criou objectivo não fica sem plano — fica com um de manutenção,
 // que é a leitura honesta de "ainda não disseste o que queres".
 func (s *NutritionService) strategyFor(ctx context.Context, in NutritionTodayInput) (nutrition.Strategy2, bool, error) {
+	e, gravada, _, err := s.estrategiaEID(ctx, in)
+	return e, gravada, err
+}
+
+// estrategiaEID é o `strategyFor` com o identificador da linha, que é o que o
+// plano guardado precisa: `daily_plan.strategy_id` diz qual foi a estratégia
+// que produziu aquele dia, e é por ela que se sabe que o dia guardado ainda
+// descreve o alvo em vigor.
+func (s *NutritionService) estrategiaEID(ctx context.Context, in NutritionTodayInput) (nutrition.Strategy2, bool, string, error) {
 	row, err := s.strategies.CurrentStrategy(ctx, in.UserID, in.LocalDay)
 	switch {
 	case err == nil:
@@ -208,9 +336,9 @@ func (s *NutritionService) strategyFor(ctx context.Context, in NutritionTodayInp
 			EnergyAdjustment: row.CalorieTarget - row.TDEEEstimated,
 			BasisTDEE:        row.TDEEEstimated,
 			BasisSource:      "estimated",
-		}, true, nil
+		}, true, row.ID, nil
 	case !errors.Is(err, repo.ErrNotFound):
-		return nutrition.Strategy2{}, false, err
+		return nutrition.Strategy2{}, false, "", err
 	}
 
 	// Sem estratégia gravada: o gasto sai do motor de objectivos, que é quem
@@ -232,7 +360,7 @@ func (s *NutritionService) strategyFor(ctx context.Context, in NutritionTodayInp
 		GoalType:     nutrition.Maintain,
 		BodyWeightKg: in.WeightKg,
 		Diet:         in.Diet,
-	}), false, nil
+	}), false, "", nil
 }
 
 func sexoDe(s *string) *goal.Sex {

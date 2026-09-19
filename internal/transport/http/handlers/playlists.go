@@ -39,6 +39,8 @@ type PlaylistGoalReader interface {
 type Playlists struct {
 	Store PlaylistStore
 	Goals PlaylistGoalReader
+	// Video monta o endereço de cada aula da lista, a cada pedido.
+	Video VideoSource
 }
 
 func (h Playlists) quem(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -86,7 +88,7 @@ func (h Playlists) List(w http.ResponseWriter, r *http.Request) {
 			apierr.Write(w, apierr.Internal, "Não foi possível ler as playlists.", "")
 			return
 		}
-		saida = append(saida, paraPlaylist(p, itens, estados, objetivo, false))
+		saida = append(saida, paraPlaylist(p, itens, estados, objetivo, false, h.Video))
 	}
 
 	// A que serve o objetivo da pessoa vem primeiro. É ordenação, não filtro:
@@ -144,7 +146,7 @@ func (h Playlists) Get(w http.ResponseWriter, r *http.Request) {
 			objetivo = g
 		}
 	}
-	apierr.WriteJSON(w, http.StatusOK, paraPlaylist(p, itens, estados, objetivo, true))
+	apierr.WriteJSON(w, http.StatusOK, paraPlaylist(p, itens, estados, objetivo, true, h.Video))
 }
 
 // posicao lê a posição do caminho, ou responde e devolve falso.
@@ -297,7 +299,7 @@ func (h Playlists) responderComEstado(w http.ResponseWriter, r *http.Request, us
 			objetivo = g
 		}
 	}
-	saida := paraPlaylist(p, itens, estados, objetivo, true)
+	saida := paraPlaylist(p, itens, estados, objetivo, true, h.Video)
 	saida["counted"] = contou
 	apierr.WriteJSON(w, http.StatusOK, saida)
 }

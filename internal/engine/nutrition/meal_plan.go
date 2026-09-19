@@ -548,3 +548,24 @@ func OpcoesDeRefeicao(c Config, in RebuildMealInput, quantas int) ([]PlannedMeal
 	}
 	return out, nil
 }
+
+/*
+ * ItemFromFood remonta um item a partir do alimento e dos gramas.
+ *
+ * Existe porque o plano guardado só precisa de guardar **o que foi decidido**
+ * — que alimento e quantos gramas. O nome, as calorias e os macros são
+ * consequência disso e do catálogo, e recalculam-se aqui pela mesma conta que
+ * o motor faz ao montar a refeição. Guardá-los na base era criar uma segunda
+ * verdade sobre o que são 120 g de frango, para as duas discordarem no dia em
+ * que o catálogo for corrigido.
+ *
+ * Devolve `false` para um alimento que saiu do catálogo: quem lê decide se
+ * salta o item ou se recusa a refeição.
+ */
+func ItemFromFood(slug string, grams float64) (MealItem, bool) {
+	food, ok := GetFood(slug)
+	if !ok {
+		return MealItem{}, false
+	}
+	return toItem(food, grams), true
+}

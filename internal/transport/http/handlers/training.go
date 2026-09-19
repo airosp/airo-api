@@ -49,6 +49,8 @@ type Training struct {
 	Classes ClassStore
 	// Training traduz o rótulo do dia no foco, para escolher a aula certa.
 	Training training.Config
+	// Video monta o endereço da aula quando o dia é uma aula.
+	Video VideoSource
 }
 
 // seedDoDia — os últimos quatro dígitos da data, como no resto do sistema.
@@ -106,7 +108,7 @@ func (h Training) Today(w http.ResponseWriter, r *http.Request) {
 		aula, err := h.Classes.ForDay(r.Context(), focus, in.Experience, in.Equipment, seedDoDia(day))
 		if err == nil {
 			apierr.WriteJSON(w, http.StatusOK, map[string]any{
-				"kind": "class", "class": paraAula(aula),
+				"kind": "class", "class": paraAula(aula, h.Video),
 			})
 			return
 		}

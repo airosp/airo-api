@@ -32,6 +32,22 @@ type Class struct {
 	DurationSeconds int `json:"durationSeconds"`
 	Kcal            int `json:"kcal"`
 
+	/*
+	 * Onde está o vídeo.
+	 *
+	 * ⚠️ **O sítio é o Mux.** `MuxPlaybackID` é o identificador de reprodução
+	 * — não um endereço: com política assinada o endereço leva um token que
+	 * expira, e monta-se a cada pedido. `VideoURL` é o que sobrou do tempo em
+	 * que uma aula era um MP4 de stock, e continua a servir as que ainda não
+	 * mudaram de casa. Uma aula precisa de **um** dos dois.
+	 */
+	MuxPlaybackID string `json:"muxPlaybackId,omitempty"`
+	MuxAssetID    string `json:"muxAssetId,omitempty"`
+	// MuxPolicy é "signed" ou "public", e tem de ser a mesma com que o recurso
+	// foi criado no Mux. Vazio conta como assinada: o valor por omissão é o
+	// que fecha.
+	MuxPolicy string `json:"muxPolicy,omitempty"`
+
 	VideoURL     string `json:"videoUrl"`
 	ThumbnailURL string `json:"thumbnailUrl"`
 

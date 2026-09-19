@@ -20,6 +20,9 @@ func paraPlaylist(
 	estados map[int]repo.PlaylistStateRow,
 	objetivoDaPessoa string,
 	comItens bool,
+	// v monta o endereço de cada aula da lista. Nulo serve as aulas antigas,
+	// as que ainda guardam o endereço do ficheiro.
+	v VideoSource,
 ) map[string]any {
 	feitos, saltados, segundos, treinados := 0, 0, 0, 0
 	// A próxima é a primeira sem marca nenhuma. Uma saltada não é a próxima:
@@ -45,7 +48,7 @@ func paraPlaylist(
 			}
 		}
 		if comItens {
-			linha := paraAula(it.Class)
+			linha := paraAula(it.Class, v)
 			linha["position"] = it.Position
 			// O papel da aula nesta lista, escrito por quem a curou.
 			linha["subtitle"] = it.Subtitle

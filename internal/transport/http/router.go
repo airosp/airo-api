@@ -37,13 +37,16 @@ type Deps struct {
 	Shopping     *handlers.Shopping
 	FoodPhotos   *handlers.FoodPhotos
 	WhatsApp     *handlers.WhatsAppWebhook
-	Pantry       *handlers.Pantry
-	Media        *handlers.Media
-	Specialists  *handlers.Specialists
-	Sessions     *handlers.Sessions
-	Classes      *handlers.Classes
-	Playlists    *handlers.Playlists
-	Idempotency  middleware.Store
+	// Mux recebe as notificações das aulas gravadas. Nil quando não há
+	// segredo configurado: a rota não chega a existir.
+	Mux         *handlers.MuxWebhook
+	Pantry      *handlers.Pantry
+	Media       *handlers.Media
+	Specialists *handlers.Specialists
+	Sessions    *handlers.Sessions
+	Classes     *handlers.Classes
+	Playlists   *handlers.Playlists
+	Idempotency middleware.Store
 
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
 	// app nativa não precisa de nenhuma.
@@ -77,6 +80,11 @@ func NewRouter(d Deps) http.Handler {
 		// uma sessão. Quem chama é a Meta, que não tem conta nenhuma aqui.
 		mux.HandleFunc("GET /v1/webhooks/whatsapp", d.WhatsApp.Verify)
 		mux.HandleFunc("POST /v1/webhooks/whatsapp", d.WhatsApp.Receive)
+	}
+	if d.Mux != nil {
+		// Também público, e pela mesma razão: quem chama é um servidor do Mux,
+		// e quem o autentica é a assinatura do corpo.
+		mux.HandleFunc("POST /v1/webhooks/mux", d.Mux.Receive)
 	}
 
 	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Measurements != nil || d.Hydration != nil || d.SessionEdits != nil || d.Shopping != nil || d.FoodPhotos != nil || d.Pantry != nil || d.Media != nil || d.Specialists != nil || d.Sessions != nil || d.Classes != nil || d.Playlists != nil) {

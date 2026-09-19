@@ -11,6 +11,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +22,7 @@ import (
 	"github.com/airosp/airo-api/internal/platform/cloudinary"
 	"github.com/airosp/airo-api/internal/platform/config"
 	"github.com/airosp/airo-api/internal/platform/logger"
+	"github.com/airosp/airo-api/internal/platform/mux"
 	"github.com/airosp/airo-api/internal/platform/pexels"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
 	"github.com/airosp/airo-api/internal/platform/sms"
@@ -66,33 +68,10 @@ func main() {
 				log.Error("migrar", "error", err)
 				os.Exit(1)
 			}
-			// O catálogo vem a seguir: é idempotente pelo slug, e um esquema
-			// sem exercícios não serve para montar treino nenhum.
-			if n, err := seedCatalog(ctx, pool); err != nil {
-				log.Error("carregar catálogo", "error", err)
+			// Os catálogos vêm a seguir: são idempotentes pela chave natural,
+			// e um esquema sem eles não serve para montar treino nem refeição.
+			if err := carregarCatalogos(ctx, pool, log); err != nil {
 				os.Exit(1)
-			} else {
-				log.Info("catálogo carregado", "exercicios", n)
-			}
-			// Antes das aulas: uma aula aponta para um especialista por chave
-			// estrangeira, e ao contrário a primeira não teria onde encaixar.
-			if n, err := seedSpecialists(ctx, pool); err != nil {
-				log.Error("carregar especialistas", "error", err)
-				os.Exit(1)
-			} else {
-				log.Info("especialistas carregados", "especialistas", n)
-			}
-			if n, err := seedClasses(ctx, pool); err != nil {
-				log.Error("carregar aulas", "error", err)
-				os.Exit(1)
-			} else {
-				log.Info("aulas carregadas", "aulas", n)
-			}
-			if n, err := seedPlaylists(ctx, pool); err != nil {
-				log.Error("carregar playlists", "error", err)
-				os.Exit(1)
-			} else {
-				log.Info("playlists carregadas", "playlists", n)
 			}
 		case "down":
 			if err := airopg.Down(ctx, pool, migs, log); err != nil {
@@ -140,29 +119,8 @@ func main() {
 			log.Error("migrar no arranque", "error", err)
 			os.Exit(1)
 		}
-		if n, err := seedCatalog(ctx, pool); err != nil {
-			log.Error("carregar catálogo", "error", err)
+		if err := carregarCatalogos(ctx, pool, log); err != nil {
 			os.Exit(1)
-		} else {
-			log.Info("catálogo carregado", "exercicios", n)
-		}
-		if n, err := seedSpecialists(ctx, pool); err != nil {
-			log.Error("carregar especialistas", "error", err)
-			os.Exit(1)
-		} else {
-			log.Info("especialistas carregados", "especialistas", n)
-		}
-		if n, err := seedClasses(ctx, pool); err != nil {
-			log.Error("carregar aulas", "error", err)
-			os.Exit(1)
-		} else {
-			log.Info("aulas carregadas", "aulas", n)
-		}
-		if n, err := seedPlaylists(ctx, pool); err != nil {
-			log.Error("carregar playlists", "error", err)
-			os.Exit(1)
-		} else {
-			log.Info("playlists carregadas", "playlists", n)
 		}
 	}
 
@@ -293,12 +251,44 @@ func main() {
 		log.Warn("sem AIRO_PEXELS_API_KEY: os vídeos e fotografias do acervo ficam indisponíveis")
 	}
 
+	/*
+	 * O Mux — onde vivem as aulas dos profissionais.
+	 *
+	 * Uma chave ilegível trava o arranque de propósito: sem ela nenhuma aula
+	 * toca, e descobrir isso ao primeiro `play` de uma pessoa é pior do que
+	 * descobri-lo aqui. Sem configuração nenhuma a API sobe na mesma e diz-se
+	 * — as aulas antigas, as do endereço directo, continuam a servir.
+	 */
+	var video *mux.Client
+	if cfg.Mux.TokenID != "" || cfg.Mux.SigningKeyBase64 != "" {
+		v, err := mux.New(mux.Config{
+			TokenID: cfg.Mux.TokenID, TokenSecret: cfg.Mux.TokenSecret,
+			SigningKeyID: cfg.Mux.SigningKeyID, SigningKeyBase64: cfg.Mux.SigningKeyBase64,
+			WebhookSecret: cfg.Mux.WebhookSecret,
+			TTL:           time.Duration(cfg.Mux.TTLSeconds) * time.Second,
+			ThumbnailTime: cfg.Mux.ThumbnailTime,
+		})
+		if err != nil {
+			log.Error("mux: configuração inválida", "error", err)
+			os.Exit(1)
+		}
+		video = v
+		log.Info("mux ligado", "assina", v.Assina(), "ttl_s", cfg.Mux.TTLSeconds)
+		if !v.Assina() {
+			log.Warn("mux: sem chave de assinatura — as aulas só tocam com política pública")
+		}
+	} else {
+		log.Warn("mux: sem configuração — só servem as aulas com endereço directo")
+	}
+
 	deps := airohttp.Wire(airohttp.Platform{
 		Log: log, Version: version, Pool: pool, Redis: rdb, Clock: clock.System{},
 		JWTSecret: cfg.JWTSecret, OTPPepper: cfg.OTPPepper,
 		Sender: sender, Images: images, MealImages: mealImages,
 		Stock:                 acervo,
 		WhatsAppWebhookSecret: cfg.WhatsApp.WebhookSecret,
+		Video:                 video,
+		MuxWebhookSecret:      cfg.Mux.WebhookSecret,
 		WebSessionCookie:      cfg.WebSessionCookie,
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
@@ -344,6 +334,56 @@ func main() {
 		log.Error("encerramento forçado", "error", err)
 	}
 	log.Info("encerrado")
+}
+
+/*
+ * carregarCatalogos põe na base tudo o que vem dos JSON embutidos.
+ *
+ * A ordem é uma dependência, não uma preferência: os especialistas antes das
+ * aulas, as aulas antes das playlists, e os alimentos antes das receitas —
+ * cada um destes pares está ligado por chave estrangeira, e ao contrário a
+ * primeira instalação falha numa referência que ainda não existe.
+ *
+ * Era esta sequência escrita duas vezes, no `migrate up` e no arranque com
+ * `AIRO_MIGRATE_ON_START`. Duas cópias querem dizer que o próximo catálogo
+ * entra numa e não na outra — e o que falta só se vê em produção.
+ */
+func carregarCatalogos(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error {
+	passos := []struct {
+		nome    string
+		unidade string
+		carrega func(context.Context, *pgxpool.Pool) (int, error)
+	}{
+		{"catálogo", "exercicios", seedCatalog},
+		{"alimentos", "alimentos", seedFoods},
+		{"receitas", "receitas", seedRecipes},
+		{"especialistas", "especialistas", seedSpecialists},
+		{"aulas", "aulas", seedClasses},
+		{"playlists", "playlists", seedPlaylists},
+	}
+	for _, passo := range passos {
+		n, err := passo.carrega(ctx, pool)
+		if err != nil {
+			log.Error("carregar "+passo.nome, "error", err)
+			return err
+		}
+		log.Info(passo.nome+" carregado", passo.unidade, n)
+	}
+	return nil
+}
+
+// seedFoods carrega a base de alimentos do JSON embutido. Sem ela, `meal_item`
+// não tem para onde apontar e nenhum plano alimentar pode ser guardado.
+func seedFoods(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	tx := repo.NewTxManager(pool)
+	return repo.NewNutritionCatalogRepo(tx).SeedFoods(ctx)
+}
+
+// seedRecipes carrega as receitas. Corre **depois** dos alimentos: cada
+// ingrediente aponta para um por chave estrangeira.
+func seedRecipes(ctx context.Context, pool *pgxpool.Pool) (int, error) {
+	tx := repo.NewTxManager(pool)
+	return repo.NewNutritionCatalogRepo(tx).SeedRecipes(ctx)
 }
 
 // seedCatalog carrega os exercícios do JSON embutido. Idempotente pelo slug:

@@ -13,6 +13,7 @@ import (
 	"github.com/airosp/airo-api/internal/engine/training"
 	"github.com/airosp/airo-api/internal/platform/clock"
 	"github.com/airosp/airo-api/internal/platform/cloudinary"
+	"github.com/airosp/airo-api/internal/platform/mux"
 	"github.com/airosp/airo-api/internal/platform/pexels"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
@@ -62,6 +63,18 @@ type Platform struct {
 	// Stock é o acervo de vídeos e fotografias. Nil, ou sem chave, deixa a app
 	// com os gradientes por categoria — que é o que ela já faz sem rede.
 	Stock *pexels.Client
+
+	/*
+	 * Video é onde vivem as aulas gravadas: o Mux.
+	 *
+	 * Nil serve as aulas antigas — as que ainda guardam o endereço de um
+	 * ficheiro — e deixa as do Mux sem vídeo. É a diferença entre uma app que
+	 * degrada e uma que não arranca.
+	 */
+	Video *mux.Client
+	// MuxWebhookSecret assina as notificações do Mux. Vazio não regista a
+	// rota, pela mesma razão que a da Meta.
+	MuxWebhookSecret string
 }
 
 func Wire(p Platform) Deps {
@@ -98,13 +111,17 @@ func Wire(p Platform) Deps {
 	prefs := repo.NewPreferenceRepo(tx)
 	// A equipa entra aqui: o treinador escolhido muda o treino que o motor
 	// monta — ver `training/metodo.go`.
+	// E o treino planeado de cada dia fica escrito: é o que faz o histórico
+	// parar de rodar quando alguém muda os dias em que treina.
 	profiles := service.NewProfiles(repo.NewProfileRepo(tx), uploader, prefs).
-		ComEquipa(repo.NewSpecialistRepo(tx))
+		ComEquipa(repo.NewSpecialistRepo(tx)).
+		ComPlanoDoDia(repo.NewTrainingPlanRepo(tx), p.Clock, trainingCfg)
 	deps.Goals = &handlers.Goals{Service: goalSvc, Profiles: profiles, Reader: goals, Editor: goals}
 	deps.Training = &handlers.Training{
 		Service: trainingSvc, Profiles: profiles, Sessions: sessions,
 		Classes:  repo.NewClassRepo(tx),
 		Training: trainingCfg,
+		Video:    fonteDeVideo(p.Video),
 	}
 	deps.Profile = &handlers.Profile{Profiles: profiles, Clock: p.Clock}
 	// A rota existe sempre; o que muda é a resposta. Sem Cloudinary, diz que
@@ -117,8 +134,12 @@ func Wire(p Platform) Deps {
 	}
 	// A avaliação do ciclo lê os registos e a série do peso: é do que foi
 	// comido com o que o corpo fez que sai a proposta de mudar o alvo.
+	//
+	// E o plano servido fica escrito: é o que faz um dia passado continuar a
+	// ser o dia que foi, em vez de ser remontado com a estratégia de hoje.
 	nutritionSvc := service.NewNutritionService(goals, repo.NewMealPrefRepo(tx), configs.Nutrition, configs.Goal).
-		ComAvaliacao(repo.NewNutritionRepo(tx), repo.NewProgressRepo(tx))
+		ComAvaliacao(repo.NewNutritionRepo(tx), repo.NewProgressRepo(tx)).
+		ComPlanoGuardado(repo.NewNutritionPlanRepo(tx), p.Clock)
 	deps.Nutrition = &handlers.Nutrition{
 		Photos: refeicoes, Logs: repo.NewNutritionRepo(tx),
 		Plans: nutritionSvc, Profiles: profiles, Cycles: nutritionSvc,
@@ -130,10 +151,21 @@ func Wire(p Platform) Deps {
 	if p.Images != nil {
 		apagaImagens = avatarUploader{c: p.Images}
 	}
-	deps.Classes = &handlers.Classes{Store: repo.NewClassRepo(tx), Profiles: profiles}
+	deps.Classes = &handlers.Classes{
+		Store: repo.NewClassRepo(tx), Profiles: profiles, Video: fonteDeVideo(p.Video),
+	}
 	// As playlists lêem o objetivo activo para pôr à frente a que serve quem
 	// pergunta — por isso partilham o repositório dos objetivos.
-	deps.Playlists = &handlers.Playlists{Store: repo.NewPlaylistRepo(tx), Goals: goals}
+	deps.Playlists = &handlers.Playlists{
+		Store: repo.NewPlaylistRepo(tx), Goals: goals, Video: fonteDeVideo(p.Video),
+	}
+
+	if p.MuxWebhookSecret != "" {
+		deps.Mux = &handlers.MuxWebhook{
+			Store: repo.NewClassRepo(tx), Secret: p.MuxWebhookSecret,
+			Log: p.Log, Clock: p.Clock,
+		}
+	}
 	deps.Calendar = &handlers.Calendar{Marks: repo.NewCalendarRepo(tx)}
 	// A série do corpo sai do mesmo repositório que o progresso: é a mesma
 	// tabela, lida de duas maneiras — aqui ponto a ponto, lá como tendência.
@@ -277,4 +309,19 @@ func configuracaoDeAutenticacao(pepper []byte) service.AuthConfig {
 		}
 	}
 	return cfg
+}
+
+/*
+ * fonteDeVideo evita o clássico "interface não-nula com ponteiro nulo".
+ *
+ * ⚠️ Um `*mux.Client` nulo metido numa interface **não** é `nil` quando se
+ * compara — a interface leva o tipo. Quem escrevesse `Video: p.Video` com o
+ * Mux desligado passava nos `if v != nil` todos e ia chamar um método num
+ * ponteiro nulo, no primeiro pedido de uma aula.
+ */
+func fonteDeVideo(c *mux.Client) handlers.VideoSource {
+	if c == nil {
+		return nil
+	}
+	return c
 }

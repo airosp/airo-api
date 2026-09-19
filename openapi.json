@@ -2986,6 +2986,16 @@
         ]
       }
     },
+    "/v1/webhooks/mux": {
+      "post": {
+        "operationId": "postWebhooksMux",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          }
+        }
+      }
+    },
     "/v1/webhooks/whatsapp": {
       "get": {
         "operationId": "getWebhooksWhatsapp",

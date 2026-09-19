@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/airosp/airo-api/internal/platform/mux"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/transport/http/apierr"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
@@ -32,6 +34,38 @@ type ClassProfileReader interface {
 type Classes struct {
 	Store    ClassStore
 	Profiles ClassProfileReader
+	/*
+	 * Video monta o endereço de reprodução a cada pedido.
+	 *
+	 * ⚠️ Não é um campo guardado. Com política assinada o endereço leva um
+	 * token que expira dentro de uma hora, e guardá-lo era guardar uma coisa
+	 * que amanhã não abre. Nulo serve as aulas antigas, as do tempo em que um
+	 * vídeo era um endereço de ficheiro.
+	 */
+	Video VideoSource
+}
+
+// VideoSource monta o endereço de uma aula a partir do identificador.
+type VideoSource interface {
+	Playback(playbackID string, assinado bool) (mux.Playback, error)
+}
+
+/*
+ * enderecoDe devolve o vídeo e a miniatura de uma aula, e quando expiram.
+ *
+ * A aula do Mux manda quando existe; o endereço guardado é o recurso das que
+ * ainda não mudaram de casa. Uma falha a assinar **não** deita a aula abaixo:
+ * devolve-se a ficha sem vídeo, que é honesto, em vez de um erro que esconde a
+ * lista inteira por causa de um token.
+ */
+func enderecoDe(c repo.ClassRow, v VideoSource) (video, thumb string, expira time.Time) {
+	if c.MuxPlaybackID != "" && c.MuxReady && v != nil {
+		p, err := v.Playback(c.MuxPlaybackID, c.MuxSigned)
+		if err == nil {
+			return p.VideoURL, p.ThumbnailURL, p.ExpiresAt
+		}
+	}
+	return c.VideoURL, c.ThumbnailURL, time.Time{}
 }
 
 // List devolve as aulas, filtradas pelo que a pessoa tem e consegue.
@@ -75,7 +109,7 @@ func (h Classes) List(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]map[string]any, 0, len(aulas))
 	for _, c := range aulas {
-		out = append(out, paraAula(c))
+		out = append(out, paraAula(c, h.Video))
 	}
 	apierr.WriteJSON(w, http.StatusOK, map[string]any{"classes": out, "total": len(out)})
 }
@@ -96,15 +130,16 @@ func (h Classes) Get(w http.ResponseWriter, r *http.Request) {
 		apierr.Write(w, apierr.NotFound, "Essa aula não existe.", "id")
 		return
 	}
-	apierr.WriteJSON(w, http.StatusOK, paraAula(c))
+	apierr.WriteJSON(w, http.StatusOK, paraAula(c, h.Video))
 }
 
-func paraAula(c repo.ClassRow) map[string]any {
+func paraAula(c repo.ClassRow, v VideoSource) map[string]any {
+	video, thumb, expira := enderecoDe(c, v)
 	out := map[string]any{
 		"id": c.ID, "title": c.Title, "specialist": c.Specialist,
 		"focus": c.Focus, "level": c.Level,
 		"durationSeconds": c.DurationSeconds, "kcal": c.Kcal,
-		"videoUrl":  c.VideoURL,
+		"videoUrl":  video,
 		"summary":   c.Summary,
 		"muscles":   nonNilStrings(c.Muscles),
 		"equipment": nonNilStrings(c.Equipment),
@@ -123,8 +158,20 @@ func paraAula(c repo.ClassRow) map[string]any {
 		"focusLabel": focoPorExtenso(c.Focus),
 		"levelLabel": nivelPorExtenso(c.Level),
 	}
-	if c.ThumbnailURL != "" {
-		out["thumbnailUrl"] = c.ThumbnailURL
+	if thumb != "" {
+		out["thumbnailUrl"] = thumb
+	}
+	/*
+	 * Até quando o endereço serve.
+	 *
+	 * ⚠️ Um endereço assinado morre à hora marcada, e o leitor que o guardou
+	 * fica com um vídeo que deixa de carregar a meio de uma sessão — sem nada
+	 * no ecrã a explicar porquê. Dizer o prazo é o que permite ao cliente
+	 * pedir a ficha outra vez **antes** de ele passar. Ausente quer dizer que
+	 * não expira.
+	 */
+	if !expira.IsZero() {
+		out["videoExpiresAt"] = expira.UTC().Format(time.RFC3339)
 	}
 	// As medidas do vídeo, quando existem. Servem para o cliente reservar o
 	// espaço certo antes de carregar — omitidas, ele descobre ao carregar, que
