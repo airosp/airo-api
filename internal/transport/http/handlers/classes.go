@@ -233,7 +233,6 @@ func plural(n int) string {
 	return string(b)
 }
 
-
 // duracaoEmRelogio escreve "m:ss" — "0:54", "1:28", "12:03".
 func duracaoEmRelogio(segundos int) string {
 	if segundos < 0 {

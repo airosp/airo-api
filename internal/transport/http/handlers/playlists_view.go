@@ -96,7 +96,7 @@ func paraPlaylist(
 			// Uma linha para quem está a meio. Vem daqui e não do cliente pela
 			// mesma razão que o resto: é uma frase sobre o estado, e o estado
 			// é decidido deste lado.
-			"encouragement": incentivo(feitos, saltados, total, terminada),
+			"encouragement":  incentivo(feitos, saltados, total, terminada),
 			"trainedSeconds": treinados,
 			// Vazio quando ainda não se treinou nada. `duracaoPorExtenso` tem
 			// um piso de um segundo — pensado para uma aula, que nunca dura
@@ -183,7 +183,6 @@ func serveObjetivo(objetivos []string, meu string) bool {
 	return false
 }
 
-
 /*
  * Uma linha para quem está a meio.
  *
@@ -228,7 +227,6 @@ func objetivoPorExtenso(objetivos []string) string {
 	}
 	return ""
 }
-
 
 func tempoTreinado(segundos int) string {
 	if segundos <= 0 {

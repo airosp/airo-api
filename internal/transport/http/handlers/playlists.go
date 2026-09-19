@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/airosp/airo-api/internal/service"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
+	"github.com/airosp/airo-api/internal/service"
 	"github.com/airosp/airo-api/internal/transport/http/apierr"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
 )

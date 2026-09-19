@@ -45,7 +45,7 @@ type Config struct {
 	// em AIRO_CORS_ORIGINS. A app nativa não precisa de nenhuma; a versão web
 	// precisa da sua.
 	WebSessionCookie bool
-	CORSOrigins []string
+	CORSOrigins      []string
 
 	/*
 	 * PexelsKey é a chave do acervo de imagens.
@@ -163,7 +163,7 @@ func Load() (Config, error) {
 		 * decisão de quem consegue verificar. Ver D52.
 		 */
 		WebSessionCookie: get("AIRO_WEB_SESSION_COOKIE", "") == "1",
-		PexelsKey:   get("AIRO_PEXELS_API_KEY", ""),
+		PexelsKey:        get("AIRO_PEXELS_API_KEY", ""),
 	}
 
 	// Em desenvolvimento, as origens do Expo entram sozinhas: obrigar a

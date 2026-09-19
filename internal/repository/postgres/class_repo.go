@@ -31,11 +31,11 @@ type ClassRow struct {
 	VideoURL        string
 	ThumbnailURL    string
 	// Zero quer dizer "não medido" — ver a migração 0015.
-	Width  int
-	Height int
-	Summary         string
-	Muscles         []string
-	Equipment       []string
+	Width     int
+	Height    int
+	Summary   string
+	Muscles   []string
+	Equipment []string
 }
 
 type ClassFilter struct {
@@ -214,7 +214,6 @@ func (r *ClassRepo) Seed(ctx context.Context) (int, error) {
 	}
 	return len(aulas), nil
 }
-
 
 // nuloSeZero manda `NULL` em vez de `0`.
 //
