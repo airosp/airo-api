@@ -96,6 +96,8 @@ type Platform struct {
 	Mail painel.Mailer
 	// SpecialistImages guarda as fotografias dos especialistas.
 	SpecialistImages *cloudinary.Client
+	// PlaylistImages guarda as capas das playlists.
+	PlaylistImages *cloudinary.Client
 	// WhatsAppOn diz se os códigos da app saem por WhatsApp — só para o
 	// estado dos serviços no painel.
 	WhatsAppOn bool
@@ -315,7 +317,7 @@ func Wire(p Platform) Deps {
 			Content: repo.NewAdminContentRepo(tx), Models: repo.NewAdminModelsRepo(tx),
 			Users: repo.NewAdminUsersRepo(tx), Pepper: p.OTPPepper,
 			Progress: deps.Progress.Service, Profiles: perfisDoPainel{profiles},
-			Video: p.Video, Photos: p.SpecialistImages, AIConfig: aiCfg, PanelURL: p.PanelURL,
+			Video: p.Video, Photos: p.SpecialistImages, Covers: p.PlaylistImages, AIConfig: aiCfg, PanelURL: p.PanelURL,
 			Services: painel.Services{
 				DB: p.Pool, Mux: p.Video != nil, WhatsApp: p.WhatsAppOn,
 				Cloudinary: p.Images != nil, AI: p.AIProvider != nil,

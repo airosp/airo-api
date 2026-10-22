@@ -235,7 +235,7 @@ func main() {
 	// um 404 silencioso e passa a ser um erro de compilação.
 	// As fotografias de perfil. Sem conta configurada, a API sobe e o envio
 	// responde que está indisponível — em vez de o arranque falhar por um avatar.
-	var images, mealImages, specialistImages *cloudinary.Client
+	var images, mealImages, specialistImages, playlistImages *cloudinary.Client
 	if cfg.Cloudinary.Configured() {
 		images, err = cloudinary.New(cloudinary.Config{
 			CloudName: cfg.Cloudinary.CloudName,
@@ -272,6 +272,18 @@ func main() {
 		})
 		if err != nil {
 			log.Error("cloudinary (especialistas)", "error", err)
+			os.Exit(1)
+		}
+		// E as capas das playlists.
+		playlistImages, err = cloudinary.New(cloudinary.Config{
+			CloudName: cfg.Cloudinary.CloudName,
+			APIKey:    cfg.Cloudinary.APIKey,
+			APISecret: cfg.Cloudinary.APISecret,
+			Folder:    "airo/playlists",
+			BaseURL:   cfg.Cloudinary.BaseURL,
+		})
+		if err != nil {
+			log.Error("cloudinary (playlists)", "error", err)
 			os.Exit(1)
 		}
 		log.Info("fotografias", "conta", cfg.Cloudinary.CloudName,
@@ -393,6 +405,7 @@ func main() {
 		PanelURL:              painelURL,
 		Mail:                  painelMail,
 		SpecialistImages:      specialistImages,
+		PlaylistImages:        playlistImages,
 		WhatsAppOn:            cfg.WhatsApp.Token != "" && cfg.WhatsApp.PhoneNumberID != "",
 	})
 	if deps.ReloadCatalog != nil {

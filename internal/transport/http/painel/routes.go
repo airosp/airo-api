@@ -39,6 +39,7 @@ func (a *API) Register(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /v1/admin/playlists", a.can(admin.AreaClasses, V, a.PlaylistsList))
 	mux.HandleFunc("POST /v1/admin/playlists", a.can(admin.AreaClasses, E, a.PlaylistCreate))
+	mux.HandleFunc("POST /v1/admin/playlists/covers", a.can(admin.AreaClasses, E, a.PlaylistCover))
 	mux.HandleFunc("PUT /v1/admin/playlists/{id}", a.can(admin.AreaClasses, E, a.PlaylistUpdate))
 	mux.HandleFunc("DELETE /v1/admin/playlists/{id}", a.can(admin.AreaClasses, E, a.PlaylistDelete))
 

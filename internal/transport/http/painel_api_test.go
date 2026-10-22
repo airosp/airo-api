@@ -387,6 +387,9 @@ func TestPainelDePontaAPonta(t *testing.T) {
 		t.Fatal("o CORS tem de aceitar X-Admin-Reason")
 	}
 
+	// Sem Cloudinary, a capa diz que está desligada em vez de falhar.
+	p.must(503, "POST", "/v1/admin/playlists/covers", "")
+
 	// Sair fecha a sessão.
 	p.must(204, "POST", "/v1/admin/auth/logout", "")
 	p.must(401, "GET", "/v1/admin/me", "")

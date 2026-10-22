@@ -182,7 +182,7 @@ var actionLabels = map[string]string{
 	"specialist_photo": "mudou a fotografia de", "class_saved": "gravou a aula",
 	"class_upload": "enviou o vídeo da aula", "class_published": "publicou a aula",
 	"class_unpublished": "despublicou a aula", "class_deleted": "apagou a aula",
-	"playlist_saved": "gravou a playlist", "playlist_deleted": "apagou a playlist",
+	"playlist_saved": "gravou a playlist", "playlist_cover": "enviou uma capa de playlist", "playlist_deleted": "apagou a playlist",
 	"exercise_saved": "gravou o exercício", "food_saved": "gravou o alimento",
 	"recipe_saved": "gravou o prato", "recipe_validated": "aprovou o prato",
 	"template_saved": "gravou o modelo de treino", "template_deleted": "apagou o modelo de treino",

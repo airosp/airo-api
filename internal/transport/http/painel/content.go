@@ -469,6 +469,54 @@ func (a *API) ClassDelete(w http.ResponseWriter, r *http.Request) {
 
 // ── Playlists ────────────────────────────────────────────────────────────────
 
+// PlaylistCover envia a capa para o Cloudinary e devolve o endereço. Não grava
+// na playlist: o editor põe o endereço no formulário, e é o "Guardar" que o
+// grava — também na criação, quando a playlist ainda não existe.
+func (a *API) PlaylistCover(w http.ResponseWriter, r *http.Request) {
+	if a.Covers == nil {
+		apierr.Write(w, apierr.Unavailable, "O envio de imagens está desligado nesta instalação.", "")
+		return
+	}
+	if m, _ := memberOf(r.Context()); m.role() == admin.RoleSpecialist {
+		apierr.Write(w, apierr.Forbidden, "As playlists são da equipa de conteúdo.", "")
+		return
+	}
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		invalid(w, "A capa tem de ter menos de 10 MB.", "file")
+		return
+	}
+	f, _, err := r.FormFile("file")
+	if err != nil {
+		invalid(w, "Falta a imagem.", "file")
+		return
+	}
+	defer f.Close()
+	img, err := io.ReadAll(io.LimitReader(f, 10<<20))
+	if err != nil {
+		invalid(w, "Não foi possível ler a imagem.", "file")
+		return
+	}
+	if !oneOf(http.DetectContentType(img), "image/jpeg", "image/png", "image/webp") {
+		invalid(w, "Usa uma imagem JPG, PNG ou WebP.", "file")
+		return
+	}
+	token, _, err := admin.NewToken()
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível guardar a capa.")
+		return
+	}
+	up, err := a.Covers.Upload(r.Context(), img, "capa_"+strings.ToLower(token[:12]))
+	if err != nil {
+		apierr.WriteInternal(w, r, err, "Não foi possível guardar a capa.")
+		return
+	}
+	// 3:2, que é o enquadramento do cartão na app; o Cloudinary escolhe o
+	// centro de interesse ao cortar.
+	url := a.Covers.URL(up, "c_fill,g_auto,w_1200,h_800,q_auto,f_auto")
+	a.audit(r, "playlist_cover", up.PublicID, "")
+	created(w, map[string]any{"coverUrl": url})
+}
+
 func (a *API) viewPlaylist(p repo.AdminPlaylistRow) map[string]any {
 	items := []map[string]any{}
 	total := 0

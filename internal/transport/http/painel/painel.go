@@ -73,7 +73,9 @@ type API struct {
 	// Video cria os envios para o Mux. Nil: as aulas gravam-se, os vídeos não.
 	Video *mux.Client
 	// Photos guarda as fotografias dos especialistas. Nil desliga-as.
-	Photos   *cloudinary.Client
+	Photos *cloudinary.Client
+	// Covers guarda as capas das playlists. Nil desliga o envio.
+	Covers   *cloudinary.Client
 	AIConfig ai.Config
 	Services Services
 	// PanelURL é a origem do painel: vai no email a quem é adicionado e é a origem
