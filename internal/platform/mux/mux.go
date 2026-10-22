@@ -196,6 +196,39 @@ func (c *Client) Playback(playbackID string, assinado bool) (Playback, error) {
 	}, nil
 }
 
+// PlayerTokens são os tokens que o Mux Player pede para uma aula assinada: o
+// do vídeo, o da miniatura e o do storyboard (as miniaturas da barra de tempo).
+type PlayerTokens struct {
+	Playback   string `json:"playback"`
+	Thumbnail  string `json:"thumbnail"`
+	Storyboard string `json:"storyboard"`
+}
+
+// Tokens assina os três para o leitor. Uma aula pública não precisa de nenhum.
+func (c *Client) Tokens(playbackID string) (PlayerTokens, time.Time, error) {
+	if playbackID == "" {
+		return PlayerTokens{}, time.Time{}, ErrSemPlayback
+	}
+	if !c.Assina() {
+		return PlayerTokens{}, time.Time{}, ErrSemChave
+	}
+	expira := c.agora().Add(c.cfg.TTL)
+	var t PlayerTokens
+	var err error
+	if t.Playback, err = c.token(playbackID, "v", expira, nil); err != nil {
+		return t, expira, err
+	}
+	if t.Thumbnail, err = c.token(playbackID, "t", expira, map[string]any{
+		"time": strconv.Itoa(c.cfg.ThumbnailTime),
+	}); err != nil {
+		return t, expira, err
+	}
+	if t.Storyboard, err = c.token(playbackID, "s", expira, nil); err != nil {
+		return t, expira, err
+	}
+	return t, expira, nil
+}
+
 func (c *Client) token(playbackID, audiencia string, expira time.Time, extra map[string]any) (string, error) {
 	claims := jwt.MapClaims{
 		"sub": playbackID,

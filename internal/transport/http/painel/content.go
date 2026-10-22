@@ -231,9 +231,16 @@ func (a *API) viewClass(c repo.AdminClassRow) map[string]any {
 			}
 		}
 	}
-	var playback any
+	var playback, tokens, expires any
 	if c.MuxPlaybackID != "" {
 		playback = c.MuxPlaybackID
+	}
+	// O Mux Player toca a partir do playbackId; numa aula assinada leva também
+	// os tokens.
+	if status == "ready" && c.MuxSigned && a.Video != nil {
+		if t, exp, err := a.Video.Tokens(c.MuxPlaybackID); err == nil {
+			tokens, expires = t, exp.UTC().Format(time.RFC3339)
+		}
 	}
 	return map[string]any{
 		"id": c.ID, "title": c.Title, "specialistId": c.Specialist, "specialistName": c.SpecialistName,
@@ -241,7 +248,8 @@ func (a *API) viewClass(c repo.AdminClassRow) map[string]any {
 		"summary": c.Summary, "muscles": c.Muscles, "equipment": c.Equipment, "published": c.Published,
 		"thumbnailUrl": thumb, "createdAt": c.CreatedAt.UTC().Format(time.RFC3339),
 		"playlists": c.Playlists, "views": c.Views,
-		"video": map[string]any{"status": status, "policy": policy, "playbackId": playback, "previewUrl": preview},
+		"video": map[string]any{"status": status, "policy": policy, "playbackId": playback, "previewUrl": preview,
+			"tokens": tokens, "tokensExpireAt": expires},
 	}
 }
 

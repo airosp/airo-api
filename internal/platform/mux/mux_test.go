@@ -90,6 +90,17 @@ func TestEnderecoAssinadoLevaTokenVerificavel(t *testing.T) {
 	if claimsThumb["time"] != "3" {
 		t.Errorf("o tempo da miniatura devia viajar no token, veio %v", claimsThumb["time"])
 	}
+
+	// Os três tokens do Mux Player, cada um com a sua audiência.
+	tk, exp, err := c.Tokens("abc123")
+	if err != nil || !exp.Equal(agora.Add(time.Hour)) {
+		t.Fatalf("tokens do leitor: %v %v", err, exp)
+	}
+	verificar(tk.Playback, "v")
+	if verificar(tk.Thumbnail, "t")["time"] != "3" {
+		t.Error("o token da miniatura leva o tempo")
+	}
+	verificar(tk.Storyboard, "s")
 }
 
 // Sem chave, o endereço é público e não leva token nenhum.
