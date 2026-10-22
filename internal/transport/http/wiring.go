@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/airosp/airo-api/internal/admin"
 	"github.com/airosp/airo-api/internal/auth"
 	"github.com/airosp/airo-api/internal/engine/goal"
 	"github.com/airosp/airo-api/internal/engine/journey"
@@ -90,9 +89,11 @@ type Platform struct {
 	AIProvider core.Provider
 	AIConfig   ai.Config
 
-	// PanelURL é a origem do painel da equipa: os links de convite e a origem
+	// PanelURL é a origem do painel da equipa: o link nos emails e a origem
 	// que o Mux aceita nos envios pelo browser. Vazio não regista o painel.
 	PanelURL string
+	// Mail entrega os emails do painel. Nil: ninguém recebe o código.
+	Mail painel.Mailer
 	// SpecialistImages guarda as fotografias dos especialistas.
 	SpecialistImages *cloudinary.Client
 	// WhatsAppOn diz se os códigos da app saem por WhatsApp — só para o
@@ -308,31 +309,31 @@ func Wire(p Platform) Deps {
 	adminCatalog := repo.NewAdminCatalogRepo(tx)
 	deps.ReloadCatalog = func(ctx context.Context) error { return recarregarCatalogo(ctx, adminCatalog) }
 
-	if p.PanelURL != "" && len(p.JWTSecret) >= 32 {
-		sealer, err := admin.NewSealer(p.JWTSecret)
-		if err != nil {
-			p.Log.Error("painel: segredo", "error", err)
-		} else {
-			api := &painel.API{
-				Log: p.Log, Clock: p.Clock, Team: repo.NewAdminRepo(tx), Catalog: adminCatalog,
-				Content: repo.NewAdminContentRepo(tx), Models: repo.NewAdminModelsRepo(tx),
-				Users: repo.NewAdminUsersRepo(tx), Sealer: sealer,
-				Progress: deps.Progress.Service, Profiles: perfisDoPainel{profiles},
-				Video: p.Video, Photos: p.SpecialistImages, AIConfig: aiCfg, PanelURL: p.PanelURL,
-				Services: painel.Services{
-					DB: p.Pool, Mux: p.Video != nil, WhatsApp: p.WhatsAppOn,
-					Cloudinary: p.Images != nil, AI: p.AIProvider != nil,
-				},
-				ReloadCatalog: deps.ReloadCatalog,
-			}
-			if p.Redis != nil {
-				api.Services.Cache = redisPinger{c: p.Redis}
-				api.Limiter = auth.NewRedisLimiter(p.Redis)
-			}
-			deps.Painel = api
+	if p.PanelURL != "" && len(p.OTPPepper) >= auth.MinPepperBytes {
+		api := &painel.API{
+			Log: p.Log, Clock: p.Clock, Team: repo.NewAdminRepo(tx), Catalog: adminCatalog,
+			Content: repo.NewAdminContentRepo(tx), Models: repo.NewAdminModelsRepo(tx),
+			Users: repo.NewAdminUsersRepo(tx), Pepper: p.OTPPepper,
+			Progress: deps.Progress.Service, Profiles: perfisDoPainel{profiles},
+			Video: p.Video, Photos: p.SpecialistImages, AIConfig: aiCfg, PanelURL: p.PanelURL,
+			Services: painel.Services{
+				DB: p.Pool, Mux: p.Video != nil, WhatsApp: p.WhatsAppOn,
+				Cloudinary: p.Images != nil, AI: p.AIProvider != nil,
+			},
+			ReloadCatalog: deps.ReloadCatalog,
 		}
+		if p.Mail != nil {
+			api.Mail = p.Mail
+		} else {
+			p.Log.Warn("painel da equipa sem email: ninguém recebe o código de entrada (falta METIGAN_APIKEY)")
+		}
+		if p.Redis != nil {
+			api.Services.Cache = redisPinger{c: p.Redis}
+			api.Limiter = auth.NewRedisLimiter(p.Redis)
+		}
+		deps.Painel = api
 	} else {
-		p.Log.Warn("painel da equipa desligado: falta AIRO_ADMIN_PANEL_URL ou AIRO_JWT_SECRET")
+		p.Log.Warn("painel da equipa desligado: falta AIRO_ADMIN_PANEL_URL ou AIRO_OTP_PEPPER")
 	}
 
 	deps.Idempotency = middleware.NewMemoryStore(24 * time.Hour)

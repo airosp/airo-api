@@ -14,8 +14,6 @@ func (a *API) Register(mux *http.ServeMux) {
 	// Públicas: quem ainda não entrou não tem sessão para mostrar.
 	mux.HandleFunc("POST /v1/admin/auth/login", a.Login)
 	mux.HandleFunc("POST /v1/admin/auth/verify", a.Verify)
-	mux.HandleFunc("GET /v1/admin/invites/{token}", a.Invite)
-	mux.HandleFunc("POST /v1/admin/invites/{token}/accept", a.AcceptInvite)
 
 	mux.HandleFunc("POST /v1/admin/auth/logout", a.authed(a.Logout))
 	mux.HandleFunc("GET /v1/admin/me", a.authed(a.Me))
@@ -71,7 +69,7 @@ func (a *API) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/admin/team", a.can(admin.AreaTeam, V, a.TeamList))
 	mux.HandleFunc("POST /v1/admin/team/invites", a.can(admin.AreaTeam, E, a.TeamInvite))
 	mux.HandleFunc("PATCH /v1/admin/team/{id}", a.can(admin.AreaTeam, E, a.TeamUpdate))
-	mux.HandleFunc("POST /v1/admin/team/{id}/reset", a.can(admin.AreaTeam, E, a.TeamReset))
+	mux.HandleFunc("POST /v1/admin/team/{id}/signout", a.can(admin.AreaTeam, E, a.TeamSignOut))
 	mux.HandleFunc("GET /v1/admin/audit", a.can(admin.AreaTeam, V, a.AuditLog))
 }
 

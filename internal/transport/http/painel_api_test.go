@@ -3,18 +3,17 @@ package http_test
 import (
 	"bytes"
 	"context"
-	"encoding/base32"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/airosp/airo-api/internal/admin"
 	"github.com/airosp/airo-api/internal/engine/training"
 	"github.com/airosp/airo-api/internal/platform/clock"
+	"github.com/airosp/airo-api/internal/platform/email"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
 	"github.com/airosp/airo-api/internal/platform/postgres/pgtest"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
@@ -30,6 +29,48 @@ type painelEnsaio struct {
 	token  string
 	userID string
 	now    time.Time
+	mail   *caixaDeCorreio
+}
+
+// caixaDeCorreio guarda os emails que o painel enviaria.
+type caixaDeCorreio struct {
+	mu  sync.Mutex
+	out []email.Message
+}
+
+func (c *caixaDeCorreio) Send(_ context.Context, m email.Message) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.out = append(c.out, m)
+	return nil
+}
+
+// ultimo devolve o último email para `to`.
+func (c *caixaDeCorreio) ultimo(to string) (email.Message, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for i := len(c.out) - 1; i >= 0; i-- {
+		if c.out[i].To == to {
+			return c.out[i], true
+		}
+	}
+	return email.Message{}, false
+}
+
+// entrar faz os dois passos e devolve o token da sessão.
+func (p *painelEnsaio) entrar(addr string) string {
+	p.t.Helper()
+	ch := p.must(200, "POST", "/v1/admin/auth/login", `{"email":"`+addr+`"}`)
+	m, ok := p.mail.ultimo(strings.ToLower(addr))
+	if !ok {
+		p.t.Fatalf("nenhum código para %s", addr)
+	}
+	code := strings.Fields(m.Subject)[0]
+	if !strings.Contains(m.HTML, code) {
+		p.t.Fatal("o código vai no corpo do email")
+	}
+	ses := p.must(200, "POST", "/v1/admin/auth/verify", `{"challenge":"`+ch["challenge"].(string)+`","code":"`+code+`"}`)
+	return ses["token"].(string)
 }
 
 func (p *painelEnsaio) do(method, path, body string, headers ...string) (int, map[string]any) {
@@ -126,10 +167,11 @@ func painelPronto(t *testing.T) *painelEnsaio {
 	}
 	now := time.Now().UTC()
 	log := quietLogger()
+	mail := &caixaDeCorreio{}
 	deps := airohttp.Wire(airohttp.Platform{
 		Log: log, Version: "test", Pool: pool, Redis: rdb, Clock: clock.NewFixed(now),
 		JWTSecret: secret, OTPPepper: pepper, Sender: airohttp.NewLogSender(log),
-		PanelURL: "https://painel.exemplo",
+		PanelURL: "https://painel.exemplo", Mail: mail,
 	})
 	deps.CORSOrigins = []string{"https://painel.exemplo"}
 	deps.Auth = fakeAuth{userID: userID}
@@ -148,40 +190,35 @@ func painelPronto(t *testing.T) *painelEnsaio {
 	  "targets":[{"metric":"body_weight","value":75,"unit":"kg","direction":"decrease"}]}`)
 	p.token = ""
 
-	// O primeiro convite, como o subcomando o faz.
-	token, hash, _ := admin.NewToken()
-	if _, err := repo.NewAdminRepo(tx).Invite(ctx, "ana@airo.test", "Ana Matos", "admin", nil, hash, now.Add(time.Hour)); err != nil {
+	// A primeira conta, como o subcomando a cria.
+	if _, err := repo.NewAdminRepo(tx).AddMember(ctx, "ana@airo.test", "Ana Matos", "admin", nil); err != nil {
 		t.Fatal(err)
 	}
-	inv := p.must(200, "GET", "/v1/admin/invites/"+token, "")
-	again := p.must(200, "GET", "/v1/admin/invites/"+token, "")
-	if inv["secret"] != again["secret"] {
-		t.Fatal("abrir o convite duas vezes não pode trocar o segredo")
-	}
-	u, _ := url.Parse(inv["otpauthUri"].(string))
-	raw, err := b32decode(u.Query().Get("secret"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	code := admin.TOTPCode(raw, now)
-	p.must(422, "POST", "/v1/admin/invites/"+token+"/accept", `{"name":"Ana Matos","password":"curta","code":"`+code+`"}`)
-	acc := p.must(200, "POST", "/v1/admin/invites/"+token+"/accept", `{"name":"Ana Matos","password":"uma frase comprida","code":"`+code+`"}`)
-	p.must(404, "GET", "/v1/admin/invites/"+token, "")
+	p.mail = mail
 
-	// Entrar de novo, pelos dois passos.
-	p.must(401, "POST", "/v1/admin/auth/login", `{"email":"ana@airo.test","password":"errada errada"}`)
-	ch := p.must(200, "POST", "/v1/admin/auth/login", `{"email":"ANA@airo.test","password":"uma frase comprida"}`)
-	p.must(401, "POST", "/v1/admin/auth/verify", `{"challenge":"`+ch["challenge"].(string)+`","code":"000000"}`)
+	// Um email que não é da equipa recebe a mesma resposta, e nenhum email.
+	fora := p.must(200, "POST", "/v1/admin/auth/login", `{"email":"intruso@airo.test"}`)
+	if _, sent := mail.ultimo("intruso@airo.test"); sent || fora["challenge"] == nil {
+		t.Fatal("um email de fora não recebe código, mas a resposta é igual")
+	}
+	p.must(401, "POST", "/v1/admin/auth/verify", `{"challenge":"`+fora["challenge"].(string)+`","code":"123456"}`)
+
+	// Um código errado não entra; o certo sim, e só uma vez.
+	ch := p.must(200, "POST", "/v1/admin/auth/login", `{"email":"ANA@airo.test"}`)
+	m, _ := mail.ultimo("ana@airo.test")
+	code := strings.Fields(m.Subject)[0]
+	wrong := "000000"
+	if code == wrong {
+		wrong = "111111"
+	}
+	p.must(401, "POST", "/v1/admin/auth/verify", `{"challenge":"`+ch["challenge"].(string)+`","code":"`+wrong+`"}`)
 	ses := p.must(200, "POST", "/v1/admin/auth/verify", `{"challenge":"`+ch["challenge"].(string)+`","code":"`+code+`"}`)
-	if ses["token"] == acc["token"] {
+	p.must(401, "POST", "/v1/admin/auth/verify", `{"challenge":"`+ch["challenge"].(string)+`","code":"`+code+`"}`)
+	if again := p.entrar("ana@airo.test"); again == ses["token"] {
 		t.Fatal("cada entrada é uma sessão nova")
 	}
 	p.token = ses["token"].(string)
 	return p
-}
-
-func b32decode(s string) ([]byte, error) {
-	return base32NoPad.DecodeString(strings.ToUpper(s))
 }
 
 func TestPainelDePontaAPonta(t *testing.T) {
@@ -235,8 +272,8 @@ func TestPainelDePontaAPonta(t *testing.T) {
 	}
 	p.must(200, "PUT", "/v1/admin/specialists/carla_vieira", `{"name":"Carla Vieira","role":"nutritionist","headline":"Nutrição clínica","maxClients":40}`)
 	inv := p.must(201, "POST", "/v1/admin/specialists/carla_vieira/invite", `{"email":"carla@exemplo.pt"}`)
-	if !strings.HasPrefix(inv["inviteUrl"].(string), "https://painel.exemplo/convite/") {
-		t.Fatalf("link: %v", inv)
+	if inv["emailSent"] != true || inv["member"].(map[string]any)["role"] != "specialist" {
+		t.Fatalf("acesso do especialista: %v", inv)
 	}
 
 	// Aulas: publicar sem vídeo é recusado; o envio sem Mux diz que não há.
@@ -359,22 +396,25 @@ func TestPainelDePontaAPonta(t *testing.T) {
 func TestPainelPermissoes(t *testing.T) {
 	p := painelPronto(t)
 	nv := p.must(201, "POST", "/v1/admin/team/invites", `{"email":"rui@airo.test","name":"Rui","role":"content"}`)
-	tok := strings.TrimPrefix(nv["inviteUrl"].(string), "https://painel.exemplo/convite/")
+	if nv["emailSent"] != true {
+		t.Fatal("quem é adicionado recebe um aviso por email")
+	}
+	if w, _ := p.mail.ultimo("rui@airo.test"); !strings.Contains(w.HTML, "https://painel.exemplo/entrar") {
+		t.Fatal("o aviso leva o link do painel")
+	}
 	admin := p.token
-	p.token = ""
-	inv := p.must(200, "GET", "/v1/admin/invites/"+tok, "")
-	u, _ := url.Parse(inv["otpauthUri"].(string))
-	raw, _ := b32decode(u.Query().Get("secret"))
-	ses := p.must(200, "POST", "/v1/admin/invites/"+tok+"/accept", `{"password":"outra frase longa","code":"`+admin2(raw, p.now)+`"}`)
-	p.token = ses["token"].(string)
+	p.token = p.entrar("rui@airo.test")
 	p.must(403, "GET", "/v1/admin/users/"+p.userID, "", "X-Admin-Reason", "Curiosidade a mais")
 	p.must(403, "GET", "/v1/admin/team", "")
 	p.must(200, "GET", "/v1/admin/classes", "")
 	p.must(403, "POST", "/v1/admin/recipes/matapa_com_xima/validate", "")
 	p.token = admin
 	p.must(200, "GET", "/v1/admin/team", "")
+
+	// Terminar as sessões de alguém deixa-o de fora até pedir outro código.
+	rui := nv["member"].(map[string]any)["id"].(string)
+	tokRui := p.entrar("rui@airo.test")
+	p.must(200, "POST", "/v1/admin/team/"+rui+"/signout", "")
+	p.token = tokRui
+	p.must(401, "GET", "/v1/admin/me", "")
 }
-
-func admin2(secret []byte, at time.Time) string { return admin.TOTPCode(secret, at) }
-
-var base32NoPad = base32.StdEncoding.WithPadding(base32.NoPadding)

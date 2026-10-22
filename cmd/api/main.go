@@ -12,7 +12,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/airosp/airo-api/internal/admin"
 	"log/slog"
 	"net/http"
 	"os"
@@ -26,6 +25,7 @@ import (
 	"github.com/airosp/airo-api/internal/platform/clock"
 	"github.com/airosp/airo-api/internal/platform/cloudinary"
 	"github.com/airosp/airo-api/internal/platform/config"
+	"github.com/airosp/airo-api/internal/platform/email"
 	"github.com/airosp/airo-api/internal/platform/logger"
 	"github.com/airosp/airo-api/internal/platform/mux"
 	"github.com/airosp/airo-api/internal/platform/openai"
@@ -38,6 +38,7 @@ import (
 	aisvc "github.com/airosp/airo-api/internal/service/intelligence"
 	airohttp "github.com/airosp/airo-api/internal/transport/http"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
+	"github.com/airosp/airo-api/internal/transport/http/painel"
 	"github.com/airosp/airo-api/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -70,34 +71,23 @@ func main() {
 	}
 
 	/*
-	 * `airo-api admin invite <email> [nome]` — o primeiro convite.
+	 * `airo-api admin add <email> [nome]` — a primeira conta de administração.
 	 *
-	 * O painel só convida quem já lá está; alguém tem de ser o primeiro. Isto
-	 * cria (ou repõe) uma conta de administração e escreve o link no stdout,
-	 * para quem tem acesso à base de dados o entregar à pessoa.
+	 * O painel só dá acesso a quem já lá está; alguém tem de ser o primeiro.
+	 * Isto cria (ou reactiva) a conta. A partir daí entra-se com o email: o
+	 * código chega por email.
 	 */
-	if len(os.Args) > 3 && os.Args[1] == "admin" && os.Args[2] == "invite" {
-		painel := strings.TrimRight(strings.TrimSpace(os.Getenv("AIRO_ADMIN_PANEL_URL")), "/")
-		if painel == "" {
-			log.Error("falta AIRO_ADMIN_PANEL_URL")
-			os.Exit(2)
-		}
+	if len(os.Args) > 3 && os.Args[1] == "admin" && os.Args[2] == "add" {
 		email := strings.ToLower(strings.TrimSpace(os.Args[3]))
 		nome := strings.Split(email, "@")[0]
 		if len(os.Args) > 4 {
 			nome = strings.Join(os.Args[4:], " ")
 		}
-		token, hash, err := admin.NewToken()
-		if err != nil {
-			log.Error("gerar convite", "error", err)
+		if _, err := repo.NewAdminRepo(repo.NewTxManager(pool)).AddMember(ctx, email, nome, "admin", nil); err != nil {
+			log.Error("gravar membro", "error", err)
 			os.Exit(1)
 		}
-		if _, err := repo.NewAdminRepo(repo.NewTxManager(pool)).Invite(ctx, email, nome, "admin", nil,
-			hash, time.Now().Add(7*24*time.Hour)); err != nil {
-			log.Error("gravar convite", "error", err)
-			os.Exit(1)
-		}
-		fmt.Println(painel + "/convite/" + token)
+		fmt.Println("conta de administração pronta:", email)
 		return
 	}
 
@@ -347,6 +337,11 @@ func main() {
 	if painelURL == "" {
 		painelURL = strings.TrimRight(cfg.Mux.UploadOrigin, "/")
 	}
+	var painelMail painel.Mailer
+	if c := email.New(email.Config{APIKey: cfg.Email.APIKey, From: cfg.Email.From, BaseURL: cfg.Email.BaseURL}); c.Configured() {
+		painelMail = c
+		log.Info("email: metigan", "remetente", cfg.Email.From)
+	}
 
 	var provider intelligence.Provider
 	aiCfg := aisvc.Config{
@@ -396,6 +391,7 @@ func main() {
 		AIProvider:            provider,
 		AIConfig:              aiCfg,
 		PanelURL:              painelURL,
+		Mail:                  painelMail,
 		SpecialistImages:      specialistImages,
 		WhatsAppOn:            cfg.WhatsApp.Token != "" && cfg.WhatsApp.PhoneNumberID != "",
 	})

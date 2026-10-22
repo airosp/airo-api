@@ -40,6 +40,7 @@ type Config struct {
 
 	WhatsApp WhatsAppConfig
 	SMS      SMSConfig
+	Email    EmailConfig
 
 	Cloudinary CloudinaryConfig
 	Mux        MuxConfig
@@ -170,6 +171,13 @@ type MuxConfig struct {
 	UploadOrigin string
 }
 
+// EmailConfig é a Metigan. Hoje só o painel da equipa envia emails.
+type EmailConfig struct {
+	APIKey  string
+	From    string
+	BaseURL string
+}
+
 type SMSConfig struct {
 	Provider   string
 	AccountSID string
@@ -232,6 +240,11 @@ func Load() (Config, error) {
 			TTLSeconds:       inteiro(get("AIRO_MUX_TTL_SECONDS", "3600"), 3600),
 			ThumbnailTime:    inteiro(get("AIRO_MUX_THUMBNAIL_TIME", "3"), 3),
 			UploadOrigin:     get("AIRO_MUX_UPLOAD_ORIGIN", ""),
+		},
+		Email: EmailConfig{
+			APIKey:  get("METIGAN_APIKEY", ""),
+			From:    get("AIRO_EMAIL_FROM", "Airo <noreply@savanapoint.com>"),
+			BaseURL: get("METIGAN_BASE_URL", ""),
 		},
 		SMS: SMSConfig{
 			Provider:   get("AIRO_SMS_PROVIDER", "twilio"),

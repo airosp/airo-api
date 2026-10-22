@@ -32,27 +32,25 @@ type MemberRow struct {
 	Name           string
 	Role           string
 	SpecialistID   *string
-	PasswordHash   string
-	TOTPSecret     []byte
-	TOTPEnabled    bool
 	Active         bool
 	FailedAttempts int
 	LockedUntil    *time.Time
-	InviteExpires  *time.Time
 	CreatedAt      time.Time
 	LastSeenAt     *time.Time
 }
 
 // Sempre com o alias `m`, para servir também nas junções.
-const memberCols = `m.id, m.email::text, m.name, m.role::text, m.specialist_id, coalesce(m.password_hash, ''),
-	m.totp_secret, m.totp_enabled, m.active, m.failed_attempts, m.locked_until, m.invite_expires,
-	m.created_at, m.last_seen_at`
+const memberCols = `m.id, m.email::text, m.name, m.role::text, m.specialist_id, m.active,
+	m.failed_attempts, m.locked_until, m.created_at, m.last_seen_at`
+
+func memberDest(m *MemberRow) []any {
+	return []any{&m.ID, &m.Email, &m.Name, &m.Role, &m.SpecialistID, &m.Active,
+		&m.FailedAttempts, &m.LockedUntil, &m.CreatedAt, &m.LastSeenAt}
+}
 
 func scanMember(row pgx.Row) (MemberRow, error) {
 	var m MemberRow
-	err := row.Scan(&m.ID, &m.Email, &m.Name, &m.Role, &m.SpecialistID, &m.PasswordHash,
-		&m.TOTPSecret, &m.TOTPEnabled, &m.Active, &m.FailedAttempts, &m.LockedUntil,
-		&m.InviteExpires, &m.CreatedAt, &m.LastSeenAt)
+	err := row.Scan(memberDest(&m)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return m, ErrNotFound
 	}
@@ -67,12 +65,6 @@ func (r *AdminRepo) MemberByEmail(ctx context.Context, email string) (MemberRow,
 func (r *AdminRepo) MemberByID(ctx context.Context, id string) (MemberRow, error) {
 	return scanMember(r.tx.Q(ctx).QueryRow(ctx,
 		`SELECT `+memberCols+` FROM admin_member m WHERE id = $1`, id))
-}
-
-func (r *AdminRepo) MemberByInvite(ctx context.Context, hash []byte, now time.Time) (MemberRow, error) {
-	return scanMember(r.tx.Q(ctx).QueryRow(ctx,
-		`SELECT `+memberCols+` FROM admin_member m
-		  WHERE invite_hash = $1 AND invite_expires > $2 AND active`, hash, now))
 }
 
 func (r *AdminRepo) Members(ctx context.Context) ([]MemberRow, error) {
@@ -100,56 +92,25 @@ func (r *AdminRepo) CountAdmins(ctx context.Context) (int, error) {
 	return n, err
 }
 
-// Invite cria o membro, ou repõe o convite de um que já exista com o mesmo
-// email. Repor apaga a palavra-passe e a app autenticadora: é o caminho para
-// quem perdeu o telemóvel.
-func (r *AdminRepo) Invite(ctx context.Context, email, name, role string, specialistID *string,
-	inviteHash []byte, expires time.Time) (MemberRow, error) {
+// AddMember cria o membro, ou actualiza (e reactiva) um que já exista com o
+// mesmo email. Não há credenciais a guardar: quem é membro activo pede o
+// código com o seu email.
+func (r *AdminRepo) AddMember(ctx context.Context, email, name, role string, specialistID *string) (MemberRow, error) {
 	return scanMember(r.tx.Q(ctx).QueryRow(ctx,
-		`INSERT INTO admin_member AS m (email, name, role, specialist_id, invite_hash, invite_expires)
-		 VALUES ($1, $2, $3::admin_role, $4, $5, $6)
+		`INSERT INTO admin_member AS m (email, name, role, specialist_id)
+		 VALUES ($1, $2, $3::admin_role, $4)
 		 ON CONFLICT (email) DO UPDATE SET
 		   name = EXCLUDED.name, role = EXCLUDED.role, specialist_id = EXCLUDED.specialist_id,
-		   invite_hash = EXCLUDED.invite_hash, invite_expires = EXCLUDED.invite_expires,
-		   password_hash = NULL, totp_secret = NULL, totp_enabled = false,
 		   failed_attempts = 0, locked_until = NULL, active = true
 		 RETURNING `+memberCols,
-		email, name, role, specialistID, inviteHash, expires))
+		email, name, role, specialistID))
 }
 
-// ResetInvite volta a pôr o membro por activar, com um link novo.
-func (r *AdminRepo) ResetInvite(ctx context.Context, id string, inviteHash []byte, expires time.Time) error {
-	return r.tx.Do(ctx, func(ctx context.Context) error {
-		tag, err := r.tx.Q(ctx).Exec(ctx,
-			`UPDATE admin_member SET invite_hash = $2, invite_expires = $3, password_hash = NULL,
-			        totp_secret = NULL, totp_enabled = false, failed_attempts = 0, locked_until = NULL
-			  WHERE id = $1`, id, inviteHash, expires)
-		if err != nil {
-			return err
-		}
-		if tag.RowsAffected() == 0 {
-			return ErrNotFound
-		}
-		_, err = r.tx.Q(ctx).Exec(ctx,
-			`UPDATE admin_session SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL`, id)
-		return err
-	})
-}
-
-// SetPendingTOTP guarda o segredo que o convite mostra, antes de confirmado.
-func (r *AdminRepo) SetPendingTOTP(ctx context.Context, id string, sealed []byte) error {
-	_, err := r.tx.Q(ctx).Exec(ctx,
-		`UPDATE admin_member SET totp_secret = $2 WHERE id = $1 AND NOT totp_enabled`, id, sealed)
-	return err
-}
-
-// Activate fecha o convite: palavra-passe e app autenticadora confirmadas.
-func (r *AdminRepo) Activate(ctx context.Context, id, name, passwordHash string) error {
-	_, err := r.tx.Q(ctx).Exec(ctx,
-		`UPDATE admin_member SET name = $2, password_hash = $3, totp_enabled = true,
-		        invite_hash = NULL, invite_expires = NULL, failed_attempts = 0, locked_until = NULL
-		  WHERE id = $1`, id, name, passwordHash)
-	return err
+// EndSessions fecha todas as sessões abertas de um membro.
+func (r *AdminRepo) EndSessions(ctx context.Context, id string) (int64, error) {
+	tag, err := r.tx.Q(ctx).Exec(ctx,
+		`UPDATE admin_session SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL`, id)
+	return tag.RowsAffected(), err
 }
 
 // LoginFailed conta uma falha e tranca à quinta.
@@ -187,23 +148,31 @@ func (r *AdminRepo) UpdateMember(ctx context.Context, id string, role *string, a
 
 // ── Os dois passos ───────────────────────────────────────────────────────────
 
-func (r *AdminRepo) NewChallenge(ctx context.Context, hash []byte, memberID string, expires time.Time) error {
-	_, err := r.tx.Q(ctx).Exec(ctx,
-		`INSERT INTO admin_challenge (hash, member_id, expires_at) VALUES ($1, $2, $3)`,
-		hash, memberID, expires)
-	return err
+// NewChallenge guarda o pedido de código. Um pedido novo apaga os anteriores
+// do mesmo membro: só o último email enviado vale.
+func (r *AdminRepo) NewChallenge(ctx context.Context, hash, codeHash []byte, memberID string, expires time.Time) error {
+	return r.tx.Do(ctx, func(ctx context.Context) error {
+		if _, err := r.tx.Q(ctx).Exec(ctx,
+			`DELETE FROM admin_challenge WHERE member_id = $1 OR expires_at < now()`, memberID); err != nil {
+			return err
+		}
+		_, err := r.tx.Q(ctx).Exec(ctx,
+			`INSERT INTO admin_challenge (hash, code_hash, member_id, expires_at) VALUES ($1, $2, $3, $4)`,
+			hash, codeHash, memberID, expires)
+		return err
+	})
 }
 
 // Challenge conta a tentativa ao ler: cinco códigos errados gastam o desafio.
-func (r *AdminRepo) Challenge(ctx context.Context, hash []byte, now time.Time) (memberID string, attempts int, err error) {
+func (r *AdminRepo) Challenge(ctx context.Context, hash []byte, now time.Time) (memberID string, codeHash []byte, attempts int, err error) {
 	err = r.tx.Q(ctx).QueryRow(ctx,
 		`UPDATE admin_challenge SET attempts = attempts + 1
-		  WHERE hash = $1 AND expires_at > $2 RETURNING member_id, attempts`, hash, now).
-		Scan(&memberID, &attempts)
+		  WHERE hash = $1 AND expires_at > $2 RETURNING member_id, code_hash, attempts`, hash, now).
+		Scan(&memberID, &codeHash, &attempts)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", 0, ErrNotFound
+		return "", nil, 0, ErrNotFound
 	}
-	return memberID, attempts, err
+	return memberID, codeHash, attempts, err
 }
 
 func (r *AdminRepo) DropChallenge(ctx context.Context, hash []byte) error {
@@ -228,10 +197,8 @@ func (r *AdminRepo) SessionMember(ctx context.Context, hash []byte, now time.Tim
 	err := r.tx.Q(ctx).QueryRow(ctx,
 		`SELECT s.expires_at, `+memberCols+`
 		   FROM admin_session s JOIN admin_member m ON m.id = s.member_id
-		  WHERE s.hash = $1 AND s.revoked_at IS NULL AND s.expires_at > $2 AND m.active AND m.totp_enabled`,
-		hash, now).Scan(&expires, &m.ID, &m.Email, &m.Name, &m.Role, &m.SpecialistID, &m.PasswordHash,
-		&m.TOTPSecret, &m.TOTPEnabled, &m.Active, &m.FailedAttempts, &m.LockedUntil,
-		&m.InviteExpires, &m.CreatedAt, &m.LastSeenAt)
+		  WHERE s.hash = $1 AND s.revoked_at IS NULL AND s.expires_at > $2 AND m.active`,
+		hash, now).Scan(append([]any{&expires}, memberDest(&m)...)...)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return m, expires, ErrNotFound
 	}

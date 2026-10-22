@@ -45,7 +45,7 @@ func (r *AdminContentRepo) Specialists(ctx context.Context, id string) ([]AdminS
 		        (SELECT count(*) FROM user_specialist u JOIN app_user a ON a.id = u.user_id
 		          WHERE u.specialist_id = s.id AND a.deleted_at IS NULL),
 		        (SELECT count(*) FROM workout_class c WHERE c.specialist = s.id),
-		        m.id::text, m.email::text, m.totp_enabled
+		        m.id::text, m.email::text, m.last_seen_at IS NOT NULL
 		   FROM specialist s
 		   LEFT JOIN LATERAL (SELECT * FROM admin_member m WHERE m.specialist_id = s.id AND m.active
 		                       ORDER BY m.created_at DESC LIMIT 1) m ON true

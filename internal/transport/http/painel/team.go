@@ -1,6 +1,7 @@
 package painel
 
 import (
+	"fmt"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -33,9 +34,8 @@ func (a *API) TeamList(w http.ResponseWriter, r *http.Request) {
 	ok(w, map[string]any{"members": out, "matrix": map[string]any{"roles": roles, "areas": admin.Matrix}})
 }
 
-// invite cria (ou repõe) um membro e devolve o link. O painel não manda
-// emails: quem convida copia o link e envia-o pelo canal que já usa com a
-// pessoa.
+// invite adiciona (ou reactiva) um membro e avisa-o por email. Não há link
+// nem palavra-passe: a partir daqui ele entra com o email e um código.
 func (a *API) invite(w http.ResponseWriter, r *http.Request, email, name, role string, specialistID *string) {
 	addr, err := mail.ParseAddress(strings.TrimSpace(email))
 	if err != nil {
@@ -57,18 +57,24 @@ func (a *API) invite(w http.ResponseWriter, r *http.Request, email, name, role s
 	if strings.TrimSpace(name) == "" {
 		name = strings.Split(email, "@")[0]
 	}
-	token, hash, err := admin.NewToken()
-	if err != nil {
-		apierr.WriteInternal(w, r, err, "Não foi possível criar o convite.")
-		return
-	}
-	m, err := a.Team.Invite(r.Context(), email, strings.TrimSpace(name), role, specialistID, hash, a.now().Add(inviteTTL))
+	m, err := a.Team.AddMember(r.Context(), email, strings.TrimSpace(name), role, specialistID)
 	if err != nil {
 		writeRepoErr(w, r, err, "o membro")
 		return
 	}
+	me, _ := memberOf(r.Context())
+	sent := false
+	if a.Mail != nil {
+		if err := a.Mail.Send(r.Context(), welcomeEmail(m, me.Name, roleLabels[admin.Role(role)], a.PanelURL)); err != nil {
+			if a.Log != nil {
+				a.Log.Error("painel: aviso de acesso", "error", err)
+			}
+		} else {
+			sent = true
+		}
+	}
 	a.audit(r, "member_invited", email, "Função: "+roleLabels[admin.Role(role)])
-	created(w, map[string]any{"inviteUrl": a.inviteURL(token), "member": viewMember(m)})
+	created(w, map[string]any{"member": viewMember(m), "emailSent": sent, "loginUrl": strings.TrimRight(a.PanelURL, "/") + "/entrar"})
 }
 
 func (a *API) TeamInvite(w http.ResponseWriter, r *http.Request) {
@@ -82,8 +88,8 @@ func (a *API) TeamInvite(w http.ResponseWriter, r *http.Request) {
 		invalid(w, "Pedido inválido.", "")
 		return
 	}
-	if existing, err := a.Team.MemberByEmail(r.Context(), strings.ToLower(strings.TrimSpace(in.Email))); err == nil && existing.TOTPEnabled {
-		apierr.Write(w, apierr.Conflict, "Esta pessoa já tem conta. Usa \"Repor acesso\" se perdeu a app autenticadora.", "email")
+	if existing, err := a.Team.MemberByEmail(r.Context(), strings.ToLower(strings.TrimSpace(in.Email))); err == nil && existing.Active {
+		apierr.Write(w, apierr.Conflict, "Esta pessoa já faz parte da equipa.", "email")
 		return
 	}
 	a.invite(w, r, in.Email, in.Name, in.Role, in.SpecialistID)
@@ -110,7 +116,7 @@ func (a *API) TeamUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if in.Role != nil && *in.Role == string(admin.RoleSpecialist) && target.SpecialistID == nil {
-		invalid(w, "Para ser especialista, convida-o a partir da ficha do especialista.", "role")
+		invalid(w, "Para ser especialista, dá-lhe acesso a partir da ficha do especialista.", "role")
 		return
 	}
 	// Ninguém se tranca fora sozinho, e a equipa nunca fica sem administração.
@@ -150,32 +156,28 @@ func (a *API) TeamUpdate(w http.ResponseWriter, r *http.Request) {
 	ok(w, viewMember(m))
 }
 
-// TeamReset repõe a palavra-passe e a app autenticadora de alguém que as
-// perdeu. As sessões abertas caem no mesmo instante.
-func (a *API) TeamReset(w http.ResponseWriter, r *http.Request) {
+// TeamSignOut termina as sessões abertas de alguém — um portátil perdido, um
+// browser partilhado. Para entrar outra vez basta o email.
+func (a *API) TeamSignOut(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	m, err := a.Team.MemberByID(r.Context(), id)
 	if err != nil {
 		writeRepoErr(w, r, err, "o membro")
 		return
 	}
-	token, hash, err := admin.NewToken()
+	n, err := a.Team.EndSessions(r.Context(), id)
 	if err != nil {
-		apierr.WriteInternal(w, r, err, "Não foi possível repor o acesso.")
+		apierr.WriteInternal(w, r, err, "Não foi possível terminar as sessões.")
 		return
 	}
-	if err := a.Team.ResetInvite(r.Context(), id, hash, a.now().Add(inviteTTL)); err != nil {
-		writeRepoErr(w, r, err, "o membro")
-		return
-	}
-	a.audit(r, "member_reset", m.Email, "Palavra-passe e app autenticadora repostas")
-	ok(w, map[string]any{"inviteUrl": a.inviteURL(token)})
+	a.audit(r, "member_signout", m.Email, fmt.Sprintf("%d sessões terminadas", n))
+	ok(w, map[string]any{"ended": n})
 }
 
 var actionLabels = map[string]string{
-	"login": "entrou no painel", "logout": "saiu do painel", "login_failed": "falhou a palavra-passe",
-	"login_blocked": "ficou trancado", "invite_accepted": "aceitou o convite",
-	"member_invited": "convidou", "member_updated": "alterou o acesso de", "member_reset": "repôs o acesso de",
+	"login": "entrou no painel", "logout": "saiu do painel", "code_sent": "pediu um código de entrada",
+	"login_blocked": "ficou trancado", "member_invited": "deu acesso a",
+	"member_updated": "alterou o acesso de", "member_signout": "terminou as sessões de",
 	"user_record_opened": "abriu a ficha de", "specialist_saved": "gravou o especialista",
 	"specialist_photo": "mudou a fotografia de", "class_saved": "gravou a aula",
 	"class_upload": "enviou o vídeo da aula", "class_published": "publicou a aula",

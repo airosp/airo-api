@@ -56,14 +56,17 @@ type Services struct {
 }
 
 type API struct {
-	Log      *slog.Logger
-	Clock    clock.Clock
-	Team     *repo.AdminRepo
-	Catalog  *repo.AdminCatalogRepo
-	Content  *repo.AdminContentRepo
-	Models   *repo.AdminModelsRepo
-	Users    *repo.AdminUsersRepo
-	Sealer   *admin.Sealer
+	Log     *slog.Logger
+	Clock   clock.Clock
+	Team    *repo.AdminRepo
+	Catalog *repo.AdminCatalogRepo
+	Content *repo.AdminContentRepo
+	Models  *repo.AdminModelsRepo
+	Users   *repo.AdminUsersRepo
+	// Mail entrega o código de entrada e o aviso a quem é adicionado.
+	Mail Mailer
+	// Pepper tempera o hash dos códigos, como na entrada da app.
+	Pepper   []byte
 	Limiter  auth.Limiter
 	Progress Snapshotter
 	Profiles ProfileReader
@@ -73,7 +76,7 @@ type API struct {
 	Photos   *cloudinary.Client
 	AIConfig ai.Config
 	Services Services
-	// PanelURL é a origem do painel: monta os links de convite e é a origem
+	// PanelURL é a origem do painel: vai no email a quem é adicionado e é a origem
 	// que o Mux aceita no envio pelo browser.
 	PanelURL string
 	// ReloadCatalog volta a entregar o catálogo gravado ao motor.
