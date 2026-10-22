@@ -29,7 +29,7 @@ func CORS(allowed []string) func(http.Handler) http.Handler {
 	// um formulário de outro site não consegue pôr cabeçalhos, e um `fetch` com
 	// um cabeçalho fora da lista simples obriga o browser a pedir autorização
 	// prévia — que só as origens desta lista recebem. Ver `sessao_web.go`.
-	const headers = "Authorization, Content-Type, Idempotency-Key, X-Request-Id, X-Device-Id, X-Airo-Client"
+	const headers = "Authorization, Content-Type, Idempotency-Key, X-Request-Id, X-Device-Id, X-Airo-Client, X-Admin-Reason"
 	// Sem isto o JS não consegue ler estes dois: o browser só deixa ver a
 	// lista segura, e `Retry-After` não está nela. O ecrã dizia "tenta daqui a
 	// pouco" sem saber quanto — e o contador ficava mudo.

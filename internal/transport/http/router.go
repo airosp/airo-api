@@ -2,12 +2,14 @@
 package http
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/airosp/airo-api/internal/transport/http/handlers"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
+	"github.com/airosp/airo-api/internal/transport/http/painel"
 )
 
 type Deps struct {
@@ -51,6 +53,11 @@ type Deps struct {
 	Intelligence *handlers.Intelligence
 	Idempotency  middleware.Store
 
+	// Painel é a API do painel da equipa. Nil quando não está configurado.
+	Painel *painel.API
+	// ReloadCatalog entrega ao motor o catálogo gravado.
+	ReloadCatalog func(ctx context.Context) error
+
 	// CORSOrigins são as origens do browser autorizadas. Vazio = nenhuma, e a
 	// app nativa não precisa de nenhuma.
 	CORSOrigins []string
@@ -88,6 +95,10 @@ func NewRouter(d Deps) http.Handler {
 		// Também público, e pela mesma razão: quem chama é um servidor do Mux,
 		// e quem o autentica é a assinatura do corpo.
 		mux.HandleFunc("POST /v1/webhooks/mux", d.Mux.Receive)
+	}
+
+	if d.Painel != nil {
+		d.Painel.Register(mux)
 	}
 
 	if d.Auth != nil && (d.Goals != nil || d.Training != nil || d.Profile != nil || d.Nutrition != nil || d.Progress != nil || d.Account != nil || d.Catalog != nil || d.Calendar != nil || d.Measurements != nil || d.Hydration != nil || d.SessionEdits != nil || d.Shopping != nil || d.FoodPhotos != nil || d.Pantry != nil || d.Media != nil || d.Specialists != nil || d.Sessions != nil || d.Classes != nil || d.Playlists != nil || d.Intelligence != nil) {

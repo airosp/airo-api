@@ -2,7 +2,9 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/airosp/airo-api/internal/engine/nutrition"
 )
@@ -29,13 +31,13 @@ func NewNutritionCatalogRepo(tx *TxManager) *NutritionCatalogRepo {
 // SeedFoods carrega a base de alimentos. Idempotente pelo slug: correr duas
 // vezes actualiza, não duplica.
 func (r *NutritionCatalogRepo) SeedFoods(ctx context.Context) (int, error) {
-	lista, err := nutrition.Foods()
+	lista, err := nutrition.EmbeddedFoods()
 	if err != nil {
 		return 0, err
 	}
 	q := r.tx.Q(ctx)
 
-	for _, f := range lista {
+	for i, f := range lista {
 		// `region` é texto anulável no esquema e vazio no catálogo quando o
 		// alimento não é de sítio nenhum. Guardar `''` fingiria uma região
 		// chamada "nada"; o `NULL` diz o que se passa.
@@ -46,18 +48,19 @@ func (r *NutritionCatalogRepo) SeedFoods(ctx context.Context) (int, error) {
 		}
 		_, err := q.Exec(ctx,
 			`INSERT INTO food (slug, name, category, kcal, protein_g, carbs_g, fat_g,
-			                   serving_g, styles, budget, good_for, region)
-			 VALUES ($1,$2,$3::food_category,$4,$5,$6,$7,$8,$9,$10::budget,$11,$12)
+			                   serving_g, styles, budget, good_for, region, position)
+			 VALUES ($1,$2,$3::food_category,$4,$5,$6,$7,$8,$9,$10::budget,$11,$12,$13)
 			 ON CONFLICT (slug) DO UPDATE SET
 			   name = EXCLUDED.name, category = EXCLUDED.category, kcal = EXCLUDED.kcal,
 			   protein_g = EXCLUDED.protein_g, carbs_g = EXCLUDED.carbs_g,
 			   fat_g = EXCLUDED.fat_g, serving_g = EXCLUDED.serving_g,
 			   styles = EXCLUDED.styles, budget = EXCLUDED.budget,
 			   good_for = EXCLUDED.good_for, region = EXCLUDED.region,
-			   active = true`,
+			   active = true, position = EXCLUDED.position
+			 WHERE food.admin_edited_at IS NULL`,
 			f.ID, f.Name, string(f.Category), f.Kcal,
 			f.Macros.Protein, f.Macros.Carbs, f.Macros.Fat, int(f.Serving),
-			estilosDe(f.Styles), string(f.Budget), slotsDe(f.GoodFor), regiao)
+			estilosDe(f.Styles), string(f.Budget), slotsDe(f.GoodFor), regiao, i+1)
 		if err != nil {
 			return 0, fmt.Errorf("carregar alimento %q: %w", f.ID, err)
 		}
@@ -77,22 +80,29 @@ func (r *NutritionCatalogRepo) SeedFoods(ctx context.Context) (int, error) {
  * ser uma receita diferente da que o motor cozinha.
  */
 func (r *NutritionCatalogRepo) SeedRecipes(ctx context.Context) (int, error) {
-	lista, err := nutrition.Recipes()
+	lista, err := nutrition.EmbeddedRecipes()
 	if err != nil {
 		return 0, err
 	}
 	q := r.tx.Q(ctx)
 
-	for _, rec := range lista {
+	for i, rec := range lista {
 		var id string
 		err := q.QueryRow(ctx,
-			`INSERT INTO recipe (slug, name, slots, styles, serves)
-			 VALUES ($1,$2,$3,$4,$5)
+			`INSERT INTO recipe (slug, name, slots, styles, serves, position)
+			 VALUES ($1,$2,$3,$4,$5,$6)
 			 ON CONFLICT (slug) DO UPDATE SET
 			   name = EXCLUDED.name, slots = EXCLUDED.slots,
-			   styles = EXCLUDED.styles, serves = EXCLUDED.serves, active = true
+			   styles = EXCLUDED.styles, serves = EXCLUDED.serves, active = true,
+			   position = EXCLUDED.position
+			 WHERE recipe.admin_edited_at IS NULL
 			 RETURNING id`,
-			rec.ID, rec.Name, slotsDe(rec.Slots), estilosDe(rec.Styles), rec.Serves).Scan(&id)
+			rec.ID, rec.Name, slotsDe(rec.Slots), estilosDe(rec.Styles), rec.Serves, i+1).Scan(&id)
+		// Sem linha devolvida: a receita foi editada no painel, e os
+		// ingredientes que lá estão são os dela.
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
 		if err != nil {
 			return 0, fmt.Errorf("carregar receita %q: %w", rec.ID, err)
 		}
@@ -101,11 +111,11 @@ func (r *NutritionCatalogRepo) SeedRecipes(ctx context.Context) (int, error) {
 			return 0, fmt.Errorf("limpar ingredientes de %q: %w", rec.ID, err)
 		}
 
-		for _, ing := range rec.Ingredients {
+		for pos, ing := range rec.Ingredients {
 			_, err := q.Exec(ctx,
-				`INSERT INTO recipe_ingredient (recipe_id, food_id, grams)
-				 SELECT $1, f.id, $3 FROM food f WHERE f.slug = $2`,
-				id, ing.FoodID, int(ing.Grams))
+				`INSERT INTO recipe_ingredient (recipe_id, food_id, grams, position)
+				 SELECT $1, f.id, $3, $4 FROM food f WHERE f.slug = $2`,
+				id, ing.FoodID, int(ing.Grams), pos+1)
 			if err != nil {
 				return 0, fmt.Errorf("ingrediente %q de %q: %w", ing.FoodID, rec.ID, err)
 			}

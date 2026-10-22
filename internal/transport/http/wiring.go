@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/airosp/airo-api/internal/admin"
 	"github.com/airosp/airo-api/internal/auth"
 	"github.com/airosp/airo-api/internal/engine/goal"
 	"github.com/airosp/airo-api/internal/engine/journey"
@@ -21,6 +22,7 @@ import (
 	ai "github.com/airosp/airo-api/internal/service/intelligence"
 	"github.com/airosp/airo-api/internal/transport/http/handlers"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
+	"github.com/airosp/airo-api/internal/transport/http/painel"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
@@ -87,6 +89,15 @@ type Platform struct {
 	 */
 	AIProvider core.Provider
 	AIConfig   ai.Config
+
+	// PanelURL é a origem do painel da equipa: os links de convite e a origem
+	// que o Mux aceita nos envios pelo browser. Vazio não regista o painel.
+	PanelURL string
+	// SpecialistImages guarda as fotografias dos especialistas.
+	SpecialistImages *cloudinary.Client
+	// WhatsAppOn diz se os códigos da app saem por WhatsApp — só para o
+	// estado dos serviços no painel.
+	WhatsAppOn bool
 }
 
 func Wire(p Platform) Deps {
@@ -289,8 +300,73 @@ func Wire(p Platform) Deps {
 		deps.Intelligence = &handlers.Intelligence{Service: svc}
 	}
 
+	/*
+	 * O catálogo do motor passa a ser o gravado. É o que faz uma correcção da
+	 * nutricionista no painel chegar ao plano de amanhã. Recarrega-se no
+	 * arranque, depois de cada edição, e periodicamente — ver o `main`.
+	 */
+	adminCatalog := repo.NewAdminCatalogRepo(tx)
+	deps.ReloadCatalog = func(ctx context.Context) error { return recarregarCatalogo(ctx, adminCatalog) }
+
+	if p.PanelURL != "" && len(p.JWTSecret) >= 32 {
+		sealer, err := admin.NewSealer(p.JWTSecret)
+		if err != nil {
+			p.Log.Error("painel: segredo", "error", err)
+		} else {
+			api := &painel.API{
+				Log: p.Log, Clock: p.Clock, Team: repo.NewAdminRepo(tx), Catalog: adminCatalog,
+				Content: repo.NewAdminContentRepo(tx), Models: repo.NewAdminModelsRepo(tx),
+				Users: repo.NewAdminUsersRepo(tx), Sealer: sealer,
+				Progress: deps.Progress.Service, Profiles: perfisDoPainel{profiles},
+				Video: p.Video, Photos: p.SpecialistImages, AIConfig: aiCfg, PanelURL: p.PanelURL,
+				Services: painel.Services{
+					DB: p.Pool, Mux: p.Video != nil, WhatsApp: p.WhatsAppOn,
+					Cloudinary: p.Images != nil, AI: p.AIProvider != nil,
+				},
+				ReloadCatalog: deps.ReloadCatalog,
+			}
+			if p.Redis != nil {
+				api.Services.Cache = redisPinger{c: p.Redis}
+				api.Limiter = auth.NewRedisLimiter(p.Redis)
+			}
+			deps.Painel = api
+		}
+	} else {
+		p.Log.Warn("painel da equipa desligado: falta AIRO_ADMIN_PANEL_URL ou AIRO_JWT_SECRET")
+	}
+
 	deps.Idempotency = middleware.NewMemoryStore(24 * time.Hour)
 	return deps
+}
+
+// perfisDoPainel adapta os perfis à interface do painel.
+type perfisDoPainel struct{ p *service.Profiles }
+
+func (a perfisDoPainel) Profile(ctx context.Context, userID string) (service.CreateGoalInput, error) {
+	return a.p.Profile(ctx, userID)
+}
+
+func (a perfisDoPainel) TrainingDaysOf(ctx context.Context, userID string) ([]int, error) {
+	return a.p.TrainingDaysOf(ctx, userID)
+}
+
+// recarregarCatalogo lê o catálogo gravado e entrega-o ao motor. Uma base
+// ainda por carregar fica com o JSON embutido — é o mesmo catálogo.
+func recarregarCatalogo(ctx context.Context, r *repo.AdminCatalogRepo) error {
+	exs, foods, recs, err := r.EngineCatalog(ctx)
+	if err != nil {
+		return err
+	}
+	if len(exs) == 0 || len(foods) == 0 {
+		return nil
+	}
+	if err := training.ReplaceLibrary(exs); err != nil {
+		return err
+	}
+	if err := nutrition.ReplaceFoods(foods); err != nil {
+		return err
+	}
+	return nutrition.ReplaceRecipes(recs)
 }
 
 // mergeAIDefaults completa a configuração da IA com os prazos por omissão,

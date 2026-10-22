@@ -250,9 +250,9 @@ func (r *ClassRepo) Seed(ctx context.Context) (int, error) {
 			`INSERT INTO workout_class (id, title, specialist, focus, level,
 			                            duration_seconds, kcal, video_url, thumbnail_url,
 			                            summary, muscles, equipment, video_width, video_height, published,
-			                            mux_playback_id, mux_asset_id, mux_policy, mux_ready)
+			                            mux_playback_id, mux_asset_id, mux_policy, mux_ready, video_status)
 			 VALUES ($1,$2,$3,$4::session_focus,$5::experience,$6,$7,$8,$9,$10,$11,$12,$13,$14,true,
-			         $15,$16,$17,$18)
+			         $15,$16,$17,$18, CASE WHEN $18 THEN 'ready' ELSE 'none' END)
 			 ON CONFLICT (id) DO UPDATE SET
 			   title = EXCLUDED.title, specialist = EXCLUDED.specialist,
 			   focus = EXCLUDED.focus, level = EXCLUDED.level,
@@ -266,7 +266,10 @@ func (r *ClassRepo) Seed(ctx context.Context) (int, error) {
 			   mux_playback_id = COALESCE(EXCLUDED.mux_playback_id, workout_class.mux_playback_id),
 			   mux_asset_id = COALESCE(EXCLUDED.mux_asset_id, workout_class.mux_asset_id),
 			   mux_policy = EXCLUDED.mux_policy,
-			   mux_ready = workout_class.mux_ready OR EXCLUDED.mux_ready`,
+			   mux_ready = workout_class.mux_ready OR EXCLUDED.mux_ready,
+			   video_status = CASE WHEN workout_class.mux_ready OR EXCLUDED.mux_ready THEN 'ready'
+			                       ELSE workout_class.video_status END
+			 WHERE workout_class.admin_edited_at IS NULL`,
 			c.ID, c.Title, c.Specialist, string(c.Focus), string(c.Level),
 			c.DurationSeconds, c.Kcal, c.VideoURL, thumb,
 			c.Summary, musculos, equipamento,
@@ -318,7 +321,7 @@ func (r *ClassRepo) MuxPronto(
 	}
 	tag, err := r.tx.Q(ctx).Exec(ctx,
 		`UPDATE workout_class SET
-		   mux_asset_id = $2, mux_playback_id = $3, mux_policy = $4, mux_ready = true,
+		   mux_asset_id = $2, mux_playback_id = $3, mux_policy = $4, mux_ready = true, video_status = 'ready',
 		   -- As medidas, ao contrário da duração, são do ficheiro e de mais
 		   -- ninguém: entram quando a ficha não as tem.
 		   video_width = COALESCE(video_width, NULLIF($5, 0)),
@@ -340,7 +343,7 @@ func (r *ClassRepo) MuxPronto(
  */
 func (r *ClassRepo) MuxFalhou(ctx context.Context, aulaID string) (bool, error) {
 	tag, err := r.tx.Q(ctx).Exec(ctx,
-		`UPDATE workout_class SET mux_ready = false, published = false WHERE id = $1`, aulaID)
+		`UPDATE workout_class SET mux_ready = false, published = false, video_status = 'failed' WHERE id = $1`, aulaID)
 	if err != nil {
 		return false, fmt.Errorf("despublicar aula %q: %w", aulaID, err)
 	}

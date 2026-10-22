@@ -62,13 +62,13 @@ func mechanicsOf(p training.MovementPattern) string {
 // SeedExercises carrega o catálogo. Idempotente: correr duas vezes actualiza,
 // não duplica — o `slug` é a chave natural.
 func (r *CatalogRepo) SeedExercises(ctx context.Context) (int, error) {
-	lib, err := training.Library()
+	lib, err := training.EmbeddedLibrary()
 	if err != nil {
 		return 0, err
 	}
 	q := r.tx.Q(ctx)
 
-	for _, e := range lib {
+	for i, e := range lib {
 		intensity := "moderate"
 		if e.Pattern == training.Cardio {
 			intensity = "high"
@@ -79,17 +79,22 @@ func (r *CatalogRepo) SeedExercises(ctx context.Context) (int, error) {
 			`INSERT INTO exercise (slug, name, category, movement_patterns, goals, primary_muscles,
 			                       equipment, difficulty, technical_difficulty, physical_difficulty,
 			                       intensity, impact_level, mechanics, measure,
-			                       is_warmup, is_cooldown, cue, demo_query)
-			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+			                       is_warmup, is_cooldown, cue, demo_query, demo_url, pattern, position)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$8,$8,$9,$10,$11,$12,$13,$14,$15,$16,NULLIF($17,''),$18,$19)
 			 ON CONFLICT (slug) DO UPDATE SET
 			   name = EXCLUDED.name, primary_muscles = EXCLUDED.primary_muscles,
 			   movement_patterns = EXCLUDED.movement_patterns, goals = EXCLUDED.goals,
 			   impact_level = EXCLUDED.impact_level,
 			   equipment = EXCLUDED.equipment, cue = EXCLUDED.cue,
-			   is_warmup = EXCLUDED.is_warmup, is_cooldown = EXCLUDED.is_cooldown`,
-			e.ID, e.Name, categoryOf(e.Pattern), padroesDe(e), training.ObjectivosDe(e), e.Muscles,
-			e.Equipment, string(e.Level), intensity, string(training.ImpactoDe(e)), mechanicsOf(e.Pattern),
-			string(e.Measure), e.Warmup, e.Cooldown, e.Cue, e.DemoQuery)
+			   is_warmup = EXCLUDED.is_warmup, is_cooldown = EXCLUDED.is_cooldown,
+			   difficulty = EXCLUDED.difficulty, measure = EXCLUDED.measure,
+			   demo_query = EXCLUDED.demo_query, demo_url = EXCLUDED.demo_url,
+			   pattern = EXCLUDED.pattern, position = EXCLUDED.position
+			 -- O que a equipa editou no painel já não é do JSON.
+			 WHERE exercise.admin_edited_at IS NULL`,
+			e.ID, e.Name, categoryOf(e.Pattern), padroesDe(e), training.ObjectivosDe(e), listaOuVazia(e.Muscles),
+			listaOuVazia(e.Equipment), string(e.Level), intensity, string(training.ImpactoDe(e)), mechanicsOf(e.Pattern),
+			string(e.Measure), e.Warmup, e.Cooldown, e.Cue, e.DemoQuery, e.DemoURL, string(e.Pattern), i+1)
 		if err != nil {
 			return 0, fmt.Errorf("carregar exercício %q: %w", e.ID, err)
 		}

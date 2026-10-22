@@ -212,15 +212,21 @@ func (r *PlaylistRepo) Seed(ctx context.Context) (int, error) {
 			capa = p.CoverURL
 		}
 
-		if _, err := q.Exec(ctx,
+		tag, err := q.Exec(ctx,
 			`INSERT INTO playlist (id, title, summary, cover_url, goals, zones, level, published)
 			 VALUES ($1,$2,$3,$4,$5,$6,$7::experience,true)
 			 ON CONFLICT (id) DO UPDATE SET
 			   title = EXCLUDED.title, summary = EXCLUDED.summary,
 			   cover_url = EXCLUDED.cover_url, goals = EXCLUDED.goals,
-			   zones = EXCLUDED.zones, level = EXCLUDED.level`,
-			p.ID, p.Title, p.Summary, capa, objetivos, zonas, string(p.Level)); err != nil {
+			   zones = EXCLUDED.zones, level = EXCLUDED.level
+			 WHERE playlist.admin_edited_at IS NULL`,
+			p.ID, p.Title, p.Summary, capa, objetivos, zonas, string(p.Level))
+		if err != nil {
 			return 0, fmt.Errorf("playlist %q: %w", p.ID, err)
+		}
+		// Editada no painel: a ordem das aulas é a de quem a editou.
+		if tag.RowsAffected() == 0 {
+			continue
 		}
 
 		if _, err := q.Exec(ctx,

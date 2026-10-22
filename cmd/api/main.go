@@ -11,10 +11,13 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/airosp/airo-api/internal/admin"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -64,6 +67,38 @@ func main() {
 	if err != nil {
 		log.Error("migrações ilegíveis", "error", err)
 		os.Exit(1)
+	}
+
+	/*
+	 * `airo-api admin invite <email> [nome]` — o primeiro convite.
+	 *
+	 * O painel só convida quem já lá está; alguém tem de ser o primeiro. Isto
+	 * cria (ou repõe) uma conta de administração e escreve o link no stdout,
+	 * para quem tem acesso à base de dados o entregar à pessoa.
+	 */
+	if len(os.Args) > 3 && os.Args[1] == "admin" && os.Args[2] == "invite" {
+		painel := strings.TrimRight(strings.TrimSpace(os.Getenv("AIRO_ADMIN_PANEL_URL")), "/")
+		if painel == "" {
+			log.Error("falta AIRO_ADMIN_PANEL_URL")
+			os.Exit(2)
+		}
+		email := strings.ToLower(strings.TrimSpace(os.Args[3]))
+		nome := strings.Split(email, "@")[0]
+		if len(os.Args) > 4 {
+			nome = strings.Join(os.Args[4:], " ")
+		}
+		token, hash, err := admin.NewToken()
+		if err != nil {
+			log.Error("gerar convite", "error", err)
+			os.Exit(1)
+		}
+		if _, err := repo.NewAdminRepo(repo.NewTxManager(pool)).Invite(ctx, email, nome, "admin", nil,
+			hash, time.Now().Add(7*24*time.Hour)); err != nil {
+			log.Error("gravar convite", "error", err)
+			os.Exit(1)
+		}
+		fmt.Println(painel + "/convite/" + token)
+		return
 	}
 
 	if len(os.Args) > 2 && os.Args[1] == "migrate" {
@@ -210,7 +245,7 @@ func main() {
 	// um 404 silencioso e passa a ser um erro de compilação.
 	// As fotografias de perfil. Sem conta configurada, a API sobe e o envio
 	// responde que está indisponível — em vez de o arranque falhar por um avatar.
-	var images, mealImages *cloudinary.Client
+	var images, mealImages, specialistImages *cloudinary.Client
 	if cfg.Cloudinary.Configured() {
 		images, err = cloudinary.New(cloudinary.Config{
 			CloudName: cfg.Cloudinary.CloudName,
@@ -235,6 +270,18 @@ func main() {
 		})
 		if err != nil {
 			log.Error("cloudinary (refeições)", "error", err)
+			os.Exit(1)
+		}
+		// E as dos especialistas, para o painel.
+		specialistImages, err = cloudinary.New(cloudinary.Config{
+			CloudName: cfg.Cloudinary.CloudName,
+			APIKey:    cfg.Cloudinary.APIKey,
+			APISecret: cfg.Cloudinary.APISecret,
+			Folder:    "airo/specialists",
+			BaseURL:   cfg.Cloudinary.BaseURL,
+		})
+		if err != nil {
+			log.Error("cloudinary (especialistas)", "error", err)
 			os.Exit(1)
 		}
 		log.Info("fotografias", "conta", cfg.Cloudinary.CloudName,
@@ -292,6 +339,15 @@ func main() {
 	 * Faltando alguma coisa, a API sobe na mesma e diz o que falta: a app fica
 	 * com o registo manual, que é o que ela já fazia.
 	 */
+	/*
+	 * O painel da equipa. A origem diz onde ele vive: monta os links de
+	 * convite, entra no CORS e é a origem que o Mux aceita nos envios.
+	 */
+	painelURL := strings.TrimRight(strings.TrimSpace(os.Getenv("AIRO_ADMIN_PANEL_URL")), "/")
+	if painelURL == "" {
+		painelURL = strings.TrimRight(cfg.Mux.UploadOrigin, "/")
+	}
+
 	var provider intelligence.Provider
 	aiCfg := aisvc.Config{
 		Features: policy.Features{MealPhoto: cfg.AI.MealPhoto, MealText: cfg.AI.MealText},
@@ -339,9 +395,26 @@ func main() {
 		WebSessionCookie:      cfg.WebSessionCookie,
 		AIProvider:            provider,
 		AIConfig:              aiCfg,
+		PanelURL:              painelURL,
+		SpecialistImages:      specialistImages,
+		WhatsAppOn:            cfg.WhatsApp.Token != "" && cfg.WhatsApp.PhoneNumberID != "",
 	})
+	if deps.ReloadCatalog != nil {
+		c, cancel := context.WithTimeout(ctx, 15*time.Second)
+		if err := deps.ReloadCatalog(c); err != nil {
+			log.Warn("catálogo gravado ilegível — o motor fica com o embutido", "error", err)
+		} else {
+			log.Info("motor com o catálogo gravado")
+		}
+		cancel()
+	}
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	deps.CORSOrigins = cfg.CORSOrigins
+	// O painel fala com a API pelo browser: a sua origem entra sozinha.
+	if painelURL != "" && !contem(deps.CORSOrigins, painelURL) {
+		deps.CORSOrigins = append(deps.CORSOrigins, painelURL)
+		cfg.CORSOrigins = deps.CORSOrigins
+	}
 	if len(cfg.CORSOrigins) > 0 {
 		log.Info("origens de browser autorizadas", "origens", cfg.CORSOrigins)
 	}
@@ -371,6 +444,27 @@ func main() {
 			deps.Intelligence.Service.Run(aiCtx, cfg.AI.MaxConcurrent, 2*time.Second)
 		}
 	}()
+
+	// O catálogo gravado, de cinco em cinco minutos: com mais de uma réplica,
+	// a edição feita numa chega às outras sem reinício.
+	if deps.ReloadCatalog != nil {
+		go func() {
+			t := time.NewTicker(5 * time.Minute)
+			defer t.Stop()
+			for {
+				select {
+				case <-aiCtx.Done():
+					return
+				case <-t.C:
+					c, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+					if err := deps.ReloadCatalog(c); err != nil {
+						log.Warn("recarregar catálogo", "error", err)
+					}
+					cancel()
+				}
+			}
+		}()
+	}
 
 	go func() {
 		log.Info("a servir", "addr", cfg.HTTPAddr, "env", string(cfg.Env), "version", version)
@@ -479,4 +573,13 @@ func seedSpecialists(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 func seedPlaylists(ctx context.Context, pool *pgxpool.Pool) (int, error) {
 	tx := repo.NewTxManager(pool)
 	return repo.NewPlaylistRepo(tx).Seed(ctx)
+}
+
+func contem(l []string, v string) bool {
+	for _, x := range l {
+		if strings.TrimRight(x, "/") == v {
+			return true
+		}
+	}
+	return false
 }

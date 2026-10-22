@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 // A base de alimentos, por 100 g.
@@ -94,7 +95,55 @@ func loadFoods() {
 	})
 }
 
+// A base gravada, quando o há — ver `training.ReplaceLibrary`.
+type foodsState struct {
+	list []Food
+	byID map[string]Food
+}
+
+var foodsGravados atomic.Pointer[foodsState]
+
+// ReplaceFoods troca a base de alimentos pela gravada, inteira ou nada.
+func ReplaceFoods(list []Food) error {
+	if len(list) == 0 {
+		return fmt.Errorf("base de alimentos vazia")
+	}
+	idx := make(map[string]Food, len(list))
+	for _, f := range list {
+		if f.ID == "" {
+			return fmt.Errorf("alimento sem id na base gravada")
+		}
+		if _, dup := idx[f.ID]; dup {
+			return fmt.Errorf("alimento repetido na base gravada: %q", f.ID)
+		}
+		idx[f.ID] = f
+	}
+	copia := make([]Food, len(list))
+	copy(copia, list)
+	foodsGravados.Store(&foodsState{list: copia, byID: idx})
+	return nil
+}
+
+// ResetFoods volta ao JSON embutido. Só os testes o usam.
+func ResetFoods() { foodsGravados.Store(nil) }
+
+// EmbeddedFoods é o JSON embutido — o que o seed grava.
+func EmbeddedFoods() ([]Food, error) {
+	loadFoods()
+	if foodsErr != nil {
+		return nil, foodsErr
+	}
+	out := make([]Food, len(foods))
+	copy(out, foods)
+	return out, nil
+}
+
 func Foods() ([]Food, error) {
+	if g := foodsGravados.Load(); g != nil {
+		out := make([]Food, len(g.list))
+		copy(out, g.list)
+		return out, nil
+	}
 	loadFoods()
 	if foodsErr != nil {
 		return nil, foodsErr
@@ -105,6 +154,10 @@ func Foods() ([]Food, error) {
 }
 
 func GetFood(id string) (Food, bool) {
+	if g := foodsGravados.Load(); g != nil {
+		f, ok := g.byID[id]
+		return f, ok
+	}
 	loadFoods()
 	if foodsErr != nil {
 		return Food{}, false

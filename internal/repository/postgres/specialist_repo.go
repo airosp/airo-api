@@ -51,7 +51,8 @@ func (r *SpecialistRepo) Seed(ctx context.Context) (int, error) {
 			   tags = EXCLUDED.tags, rating = EXCLUDED.rating,
 			   clients = EXCLUDED.clients, response_time = EXCLUDED.response_time,
 			   initials = EXCLUDED.initials, gradient = EXCLUDED.gradient,
-			   recommended_for = EXCLUDED.recommended_for`,
+			   recommended_for = EXCLUDED.recommended_for
+			 WHERE specialist.admin_edited_at IS NULL`,
 			s.ID, s.Name, string(s.Role), s.Headline, s.Bio, listaOuVazia(s.Tags),
 			s.Rating, s.Clients, s.ResponseTime, s.Initials,
 			listaOuVazia(s.Gradient), listaOuVazia(s.RecommendedFor))

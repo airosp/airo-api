@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/airosp/airo-api/internal/engine/portable"
 )
@@ -62,7 +63,47 @@ func loadRecipes() {
 	})
 }
 
+var receitasGravadas atomic.Pointer[[]Recipe]
+
+// ReplaceRecipes troca as receitas pelas gravadas. Uma lista vazia é válida —
+// o motor monta refeições com alimentos soltos —, mas repetidas não.
+func ReplaceRecipes(list []Recipe) error {
+	visto := make(map[string]bool, len(list))
+	for _, r := range list {
+		if r.ID == "" {
+			return fmt.Errorf("receita sem id na base gravada")
+		}
+		if visto[r.ID] {
+			return fmt.Errorf("receita repetida na base gravada: %q", r.ID)
+		}
+		visto[r.ID] = true
+	}
+	copia := make([]Recipe, len(list))
+	copy(copia, list)
+	receitasGravadas.Store(&copia)
+	return nil
+}
+
+// ResetRecipes volta ao JSON embutido. Só os testes o usam.
+func ResetRecipes() { receitasGravadas.Store(nil) }
+
+// EmbeddedRecipes é o JSON embutido — o que o seed grava.
+func EmbeddedRecipes() ([]Recipe, error) {
+	loadRecipes()
+	if recipesErr != nil {
+		return nil, recipesErr
+	}
+	out := make([]Recipe, len(recipes))
+	copy(out, recipes)
+	return out, nil
+}
+
 func Recipes() ([]Recipe, error) {
+	if g := receitasGravadas.Load(); g != nil {
+		out := make([]Recipe, len(*g))
+		copy(out, *g)
+		return out, nil
+	}
 	loadRecipes()
 	if recipesErr != nil {
 		return nil, recipesErr

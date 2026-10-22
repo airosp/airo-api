@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 // A biblioteca vive num JSON embutido e não em código Go.
@@ -40,9 +41,66 @@ func loadLibrary() {
 	})
 }
 
+/*
+ * O catálogo gravado, quando o há.
+ *
+ * O JSON embutido é o ponto de partida; a partir do momento em que a equipa
+ * edita um exercício no painel, a verdade passa a ser a base de dados. A API
+ * carrega-a no arranque e depois de cada edição, e troca-a aqui de uma vez —
+ * o motor continua sem I/O: recebe uma lista, não vai buscá-la.
+ */
+type libraryState struct {
+	list []Exercise
+	byID map[string]Exercise
+}
+
+var gravada atomic.Pointer[libraryState]
+
+// ReplaceLibrary troca o catálogo pelo gravado. Recusa-o inteiro se houver
+// ids vazios ou repetidos: meio catálogo é pior do que o anterior.
+func ReplaceLibrary(list []Exercise) error {
+	if len(list) == 0 {
+		return fmt.Errorf("catálogo de exercícios vazio")
+	}
+	idx := make(map[string]Exercise, len(list))
+	for _, e := range list {
+		if e.ID == "" {
+			return fmt.Errorf("exercício sem id no catálogo gravado")
+		}
+		if _, dup := idx[e.ID]; dup {
+			return fmt.Errorf("exercício repetido no catálogo gravado: %q", e.ID)
+		}
+		idx[e.ID] = e
+	}
+	copia := make([]Exercise, len(list))
+	copy(copia, list)
+	gravada.Store(&libraryState{list: copia, byID: idx})
+	return nil
+}
+
+// ResetLibrary volta ao JSON embutido. Só os testes o usam.
+func ResetLibrary() { gravada.Store(nil) }
+
+// EmbeddedLibrary é o JSON embutido, venha o que vier da base de dados. É o
+// que o seed grava.
+func EmbeddedLibrary() ([]Exercise, error) {
+	loadLibrary()
+	if libraryErr != nil {
+		return nil, libraryErr
+	}
+	out := make([]Exercise, len(library))
+	copy(out, library)
+	return out, nil
+}
+
 // Library devolve o catálogo. A ordem é a do ficheiro, e importa: a escolha por
 // semente indexa sobre ela.
 func Library() ([]Exercise, error) {
+	if g := gravada.Load(); g != nil {
+		out := make([]Exercise, len(g.list))
+		copy(out, g.list)
+		return out, nil
+	}
 	loadLibrary()
 	if libraryErr != nil {
 		return nil, libraryErr
@@ -53,6 +111,10 @@ func Library() ([]Exercise, error) {
 }
 
 func GetExercise(id string) (Exercise, bool) {
+	if g := gravada.Load(); g != nil {
+		e, ok := g.byID[id]
+		return e, ok
+	}
 	loadLibrary()
 	if libraryErr != nil {
 		return Exercise{}, false

@@ -102,3 +102,30 @@ func init() {
 	status[TokenReuseDetected] = http.StatusUnauthorized
 	status[ReauthRequired] = http.StatusUnauthorized
 }
+
+// Códigos do painel da equipa.
+const (
+	Forbidden      Code = "forbidden"
+	Locked         Code = "locked"
+	Conflict       Code = "conflict"
+	ReasonRequired Code = "reason_required"
+	Unavailable    Code = "unavailable"
+	VideoNotReady  Code = "video_not_ready"
+	InPlaylist     Code = "in_playlist"
+	// InvalidCode é o código da app autenticadora errado.
+	InvalidCode Code = "invalid_code"
+	// ChallengeExpired: o primeiro passo da entrada passou do prazo.
+	ChallengeExpired Code = "challenge_expired"
+)
+
+func init() {
+	status[Forbidden] = http.StatusForbidden
+	status[Locked] = http.StatusLocked
+	status[Conflict] = http.StatusConflict
+	status[ReasonRequired] = http.StatusForbidden
+	status[Unavailable] = http.StatusServiceUnavailable
+	status[VideoNotReady] = http.StatusConflict
+	status[InPlaylist] = http.StatusConflict
+	status[InvalidCode] = http.StatusUnauthorized
+	status[ChallengeExpired] = http.StatusGone
+}
