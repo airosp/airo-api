@@ -960,6 +960,482 @@
         ]
       }
     },
+    "/v1/intelligence/capabilities": {
+      "get": {
+        "operationId": "getIntelligenceCapabilities",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "explanations": {
+                      "type": "boolean"
+                    },
+                    "mealPhoto": {
+                      "type": "object"
+                    },
+                    "mealText": {
+                      "type": "object"
+                    },
+                    "progressInsights": {
+                      "type": "boolean"
+                    },
+                    "specialistInsights": {
+                      "type": "boolean"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/intelligence/consent": {
+      "get": {
+        "operationId": "getIntelligenceConsent",
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putIntelligenceConsent",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "granted": {
+                    "type": "boolean"
+                  },
+                  "policyVersion": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "current": {
+                      "type": "boolean"
+                    },
+                    "granted": {
+                      "type": "boolean"
+                    },
+                    "grantedAt": {
+                      "type": "string"
+                    },
+                    "policyVersion": {
+                      "type": "string"
+                    },
+                    "purpose": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/intelligence/jobs/{id}": {
+      "get": {
+        "operationId": "getIntelligenceJobsId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "errorCode": {
+                      "type": "string"
+                    },
+                    "jobId": {
+                      "type": "string"
+                    },
+                    "pollAfterMs": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/intelligence/meals/parse": {
+      "post": {
+        "operationId": "postIntelligenceMealsParse",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "localDay": {
+                    "type": "string"
+                  },
+                  "slot": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "jobId": {
+                      "type": "string"
+                    },
+                    "pollAfterMs": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/intelligence/meals/recognize": {
+      "post": {
+        "operationId": "postIntelligenceMealsRecognize",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "localDay": {
+                    "type": "string"
+                  },
+                  "photoThumbUrl": {
+                    "type": "string"
+                  },
+                  "photoUrl": {
+                    "type": "string"
+                  },
+                  "slot": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "jobId": {
+                      "type": "string"
+                    },
+                    "pollAfterMs": {
+                      "type": "number"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/intelligence/proposals/{id}": {
+      "get": {
+        "operationId": "getIntelligenceProposalsId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "draft": {
+                      "type": "array"
+                    },
+                    "expiresAt": {
+                      "type": "string"
+                    },
+                    "jobId": {
+                      "type": "string"
+                    },
+                    "proposalId": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "number"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/intelligence/proposals/{id}/apply": {
+      "post": {
+        "operationId": "postIntelligenceProposalsIdApply",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "items": {
+                    "type": "array"
+                  },
+                  "localDay": {
+                    "type": "string"
+                  },
+                  "logId": {
+                    "type": "string"
+                  },
+                  "recordedAt": {
+                    "type": "string"
+                  },
+                  "slot": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "number"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "alreadyApplied": {
+                      "type": "boolean"
+                    },
+                    "items": {
+                      "type": "array"
+                    },
+                    "kcal": {
+                      "type": "number"
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "localDay": {
+                      "type": "string"
+                    },
+                    "logId": {
+                      "type": "string"
+                    },
+                    "macros": {
+                      "type": "object"
+                    },
+                    "portionLabel": {
+                      "type": "string"
+                    },
+                    "recordedAt": {
+                      "type": "string"
+                    },
+                    "slot": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
+    "/v1/intelligence/proposals/{id}/dismiss": {
+      "post": {
+        "operationId": "postIntelligenceProposalsIdDismiss",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feito."
+          },
+          "401": {
+            "description": "Sessão inválida ou expirada."
+          }
+        },
+        "security": [
+          {
+            "sessao": []
+          }
+        ]
+      }
+    },
     "/v1/journey": {
       "get": {
         "operationId": "getJourney",

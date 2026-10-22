@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS ai_audit_event;
+DROP TABLE IF EXISTS ai_usage;
+DROP TABLE IF EXISTS ai_proposal;
+DROP TABLE IF EXISTS ai_job;
+DROP TABLE IF EXISTS ai_consent;

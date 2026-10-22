@@ -288,6 +288,66 @@
   },
   {
     "metodo": "GET",
+    "caminho": "/v1/intelligence/capabilities",
+    "status": 200,
+    "resposta": {
+      "enabled": "booleano",
+      "explanations": "booleano",
+      "mealPhoto.available": "booleano",
+      "mealPhoto.consented": "booleano",
+      "mealPhoto.policyVersion": "texto",
+      "mealText.available": "booleano",
+      "mealText.consented": "booleano",
+      "mealText.policyVersion": "texto",
+      "progressInsights": "booleano",
+      "specialistInsights": "booleano"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/intelligence/jobs/00000000-0000-4000-8000-000000000001",
+    "status": 200,
+    "resposta": {
+      "errorCode": "texto",
+      "jobId": "texto",
+      "pollAfterMs": "número",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "GET",
+    "caminho": "/v1/intelligence/proposals/00000000-0000-4000-8000-000000000001",
+    "status": 200,
+    "resposta": {
+      "draft.items[].foodId": "texto",
+      "draft.items[].foodName": "texto",
+      "draft.items[].fromRecipe": "texto",
+      "draft.items[].grams": "número",
+      "draft.items[].gramsSource": "texto",
+      "draft.items[].label": "texto",
+      "draft.items[].per100g.carbs": "número",
+      "draft.items[].per100g.fat": "número",
+      "draft.items[].per100g.kcal": "número",
+      "draft.items[].per100g.protein": "número",
+      "draft.items[].portionUncertain": "booleano",
+      "draft.items[].suggestedGrams": "número",
+      "draft.localDay": "texto",
+      "draft.photoThumbUrl": "texto",
+      "draft.photoUrl": "texto",
+      "draft.schemaVersion": "texto",
+      "draft.slot": "texto",
+      "draft.source": "texto",
+      "draft.unknownItems[].label": "texto",
+      "draft.warnings[]": "texto",
+      "expiresAt": "texto",
+      "jobId": "texto",
+      "proposalId": "texto",
+      "status": "texto",
+      "version": "número"
+    }
+  },
+  {
+    "metodo": "GET",
     "caminho": "/v1/journey",
     "status": 200,
     "resposta": {
@@ -1225,6 +1285,70 @@
   },
   {
     "metodo": "POST",
+    "caminho": "/v1/intelligence/meals/parse",
+    "status": 202,
+    "pedido": {
+      "localDay": "texto",
+      "slot": "texto",
+      "text": "texto"
+    },
+    "resposta": {
+      "jobId": "texto",
+      "pollAfterMs": "número",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "POST",
+    "caminho": "/v1/intelligence/meals/recognize",
+    "status": 202,
+    "pedido": {
+      "localDay": "texto",
+      "photoThumbUrl": "texto",
+      "photoUrl": "texto",
+      "slot": "texto"
+    },
+    "resposta": {
+      "jobId": "texto",
+      "pollAfterMs": "número",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "POST",
+    "caminho": "/v1/intelligence/proposals/00000000-0000-4000-8000-000000000001/apply",
+    "status": 200,
+    "pedido": {
+      "items[].foodId": "texto",
+      "items[].grams": "número",
+      "localDay": "texto",
+      "logId": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "version": "número"
+    },
+    "resposta": {
+      "alreadyApplied": "booleano",
+      "items[].foodId": "texto",
+      "items[].grams": "número",
+      "items[].kcal": "número",
+      "items[].name": "texto",
+      "kcal": "número",
+      "label": "texto",
+      "localDay": "texto",
+      "logId": "texto",
+      "macros.carbs": "número",
+      "macros.fat": "número",
+      "macros.protein": "número",
+      "portionLabel": "texto",
+      "recordedAt": "texto",
+      "slot": "texto",
+      "source": "texto",
+      "status": "texto"
+    }
+  },
+  {
+    "metodo": "POST",
     "caminho": "/v1/measurements",
     "status": 201,
     "pedido": {
@@ -1357,6 +1481,23 @@
       "error.code": "texto",
       "error.field": "texto",
       "error.message": "texto"
+    }
+  },
+  {
+    "metodo": "PUT",
+    "caminho": "/v1/intelligence/consent",
+    "status": 200,
+    "pedido": {
+      "granted": "booleano",
+      "policyVersion": "texto",
+      "purpose": "texto"
+    },
+    "resposta": {
+      "current": "booleano",
+      "granted": "booleano",
+      "grantedAt": "texto",
+      "policyVersion": "texto",
+      "purpose": "texto"
     }
   },
   {

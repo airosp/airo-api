@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -154,7 +155,19 @@ func Metrics(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "# HELP airo_desde_segundos Há quanto tempo este processo está de pé.")
 	fmt.Fprintln(w, "# TYPE airo_desde_segundos gauge")
 	fmt.Fprintf(w, "airo_desde_segundos %d\n", int64(time.Since(registo.desde).Seconds()))
+
+	for _, extra := range extras {
+		extra(w)
+	}
 }
+
+// extras são outras famílias de números que querem estar no mesmo `/metrics`
+// — as da inteligência, por exemplo. Registam-se no arranque, antes de haver
+// pedidos, e por isso não precisam de cadeado.
+var extras []func(io.Writer)
+
+// RegisterMetrics junta uma família de números ao `/metrics`.
+func RegisterMetrics(f func(io.Writer)) { extras = append(extras, f) }
 
 func ordenadas(m map[string]map[int]int64) []string {
 	out := make([]string, 0, len(m))

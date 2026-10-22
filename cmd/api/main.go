@@ -18,18 +18,23 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/airosp/airo-api/internal/intelligence"
+	"github.com/airosp/airo-api/internal/intelligence/policy"
 	"github.com/airosp/airo-api/internal/platform/clock"
 	"github.com/airosp/airo-api/internal/platform/cloudinary"
 	"github.com/airosp/airo-api/internal/platform/config"
 	"github.com/airosp/airo-api/internal/platform/logger"
 	"github.com/airosp/airo-api/internal/platform/mux"
+	"github.com/airosp/airo-api/internal/platform/openai"
 	"github.com/airosp/airo-api/internal/platform/pexels"
 	airopg "github.com/airosp/airo-api/internal/platform/postgres"
 	"github.com/airosp/airo-api/internal/platform/sms"
 	"github.com/airosp/airo-api/internal/platform/whatsapp"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
+	aisvc "github.com/airosp/airo-api/internal/service/intelligence"
 	airohttp "github.com/airosp/airo-api/internal/transport/http"
+	"github.com/airosp/airo-api/internal/transport/http/middleware"
 	"github.com/airosp/airo-api/migrations"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -281,6 +286,48 @@ func main() {
 		log.Warn("mux: sem configuração — só servem as aulas com endereço directo")
 	}
 
+	/*
+	 * A inteligência. Desligada por omissão — e ligada só com tudo o que a
+	 * torna segura de correr: chave, modelo escolhido, tecto do mês e preços.
+	 * Faltando alguma coisa, a API sobe na mesma e diz o que falta: a app fica
+	 * com o registo manual, que é o que ela já fazia.
+	 */
+	var provider intelligence.Provider
+	aiCfg := aisvc.Config{
+		Features: policy.Features{MealPhoto: cfg.AI.MealPhoto, MealText: cfg.AI.MealText},
+		Prices: policy.Prices{
+			InputPerMTokUSD: cfg.AI.PriceInputPerMTokUSD, OutputPerMTokUSD: cfg.AI.PriceOutputPerMTokUSD,
+		},
+		Budget: policy.Budget{
+			MonthlyMicroUSD: int64(cfg.AI.MonthlyBudgetUSD * 1e6),
+			DailyPerUser:    cfg.AI.DailyUserLimit,
+		},
+	}
+	switch missing := cfg.AI.Missing(); {
+	case !cfg.AI.Enabled:
+		log.Info("inteligência: desligada (AIRO_AI_ENABLED)")
+	case len(missing) > 0:
+		log.Warn("inteligência: pedida mas desligada — falta configuração", "em_falta", missing)
+	default:
+		c, err := openai.New(openai.Config{
+			APIKey: cfg.AI.APIKey, Model: cfg.AI.Model, BaseURL: cfg.AI.BaseURL,
+			Timeout: cfg.AI.Timeout, MaxRetries: 2,
+		})
+		if err != nil {
+			log.Error("inteligência: fornecedor", "error", err)
+			os.Exit(1)
+		}
+		provider = c
+		aiCfg.Features.Enabled = true
+		log.Info("inteligência: ligada", "modelo", c.Model(),
+			"fotografia", cfg.AI.MealPhoto, "texto", cfg.AI.MealText,
+			"tecto_mes_usd", cfg.AI.MonthlyBudgetUSD, "limite_dia", cfg.AI.DailyUserLimit)
+		if cfg.AI.MealPhoto && mealImages == nil {
+			log.Warn("inteligência: fotografia pedida mas sem Cloudinary — só o texto fica disponível")
+		}
+	}
+	middleware.RegisterMetrics(aisvc.WriteMetrics)
+
 	deps := airohttp.Wire(airohttp.Platform{
 		Log: log, Version: version, Pool: pool, Redis: rdb, Clock: clock.System{},
 		JWTSecret: cfg.JWTSecret, OTPPepper: cfg.OTPPepper,
@@ -290,6 +337,8 @@ func main() {
 		Video:                 video,
 		MuxWebhookSecret:      cfg.Mux.WebhookSecret,
 		WebSessionCookie:      cfg.WebSessionCookie,
+		AIProvider:            provider,
+		AIConfig:              aiCfg,
 	})
 	deps.Schema = airohttp.SchemaState{Migrations: migs, Pool: pool}
 	deps.CORSOrigins = cfg.CORSOrigins
@@ -313,6 +362,16 @@ func main() {
 		IdleTimeout:       90 * time.Second,
 	}
 
+	// O executor da inteligência corre ao lado do servidor e pára com ele.
+	aiCtx, aiStop := context.WithCancel(context.Background())
+	aiDone := make(chan struct{})
+	go func() {
+		defer close(aiDone)
+		if deps.Intelligence != nil {
+			deps.Intelligence.Service.Run(aiCtx, cfg.AI.MaxConcurrent, 2*time.Second)
+		}
+	}()
+
 	go func() {
 		log.Info("a servir", "addr", cfg.HTTPAddr, "env", string(cfg.Env), "version", version)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -332,6 +391,13 @@ func main() {
 	defer cancel()
 	if err := srv.Shutdown(shutCtx); err != nil {
 		log.Error("encerramento forçado", "error", err)
+	}
+	// Uma análise a meio fica reservada até o prazo passar, e outra réplica —
+	// ou este processo, ao voltar — retoma-a. Não se perde; atrasa.
+	aiStop()
+	select {
+	case <-aiDone:
+	case <-shutCtx.Done():
 	}
 	log.Info("encerrado")
 }

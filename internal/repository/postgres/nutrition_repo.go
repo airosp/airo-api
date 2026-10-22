@@ -111,3 +111,18 @@ func (r *NutritionRepo) DeleteLog(ctx context.Context, userID, clientID string) 
 	}
 	return tag.RowsAffected() > 0, nil
 }
+
+// LogExists diz se já há um registo com este identificador.
+//
+// Existe para a confirmação de um rascunho não gravar por cima de outro
+// registo: `SaveLog` actualiza quando o identificador já existe, e é isso que
+// se quer num reenvio — não num identificador que, por azar, já era de outro.
+func (r *NutritionRepo) LogExists(ctx context.Context, userID, clientID string) (bool, error) {
+	var ok bool
+	if err := r.tx.Q(ctx).QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM nutrition_log WHERE user_id = $1 AND client_id = $2)`,
+		userID, clientID).Scan(&ok); err != nil {
+		return false, fmt.Errorf("procurar registo: %w", err)
+	}
+	return ok, nil
+}

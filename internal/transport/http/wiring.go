@@ -11,12 +11,14 @@ import (
 	"github.com/airosp/airo-api/internal/engine/journey"
 	"github.com/airosp/airo-api/internal/engine/nutrition"
 	"github.com/airosp/airo-api/internal/engine/training"
+	core "github.com/airosp/airo-api/internal/intelligence"
 	"github.com/airosp/airo-api/internal/platform/clock"
 	"github.com/airosp/airo-api/internal/platform/cloudinary"
 	"github.com/airosp/airo-api/internal/platform/mux"
 	"github.com/airosp/airo-api/internal/platform/pexels"
 	repo "github.com/airosp/airo-api/internal/repository/postgres"
 	"github.com/airosp/airo-api/internal/service"
+	ai "github.com/airosp/airo-api/internal/service/intelligence"
 	"github.com/airosp/airo-api/internal/transport/http/handlers"
 	"github.com/airosp/airo-api/internal/transport/http/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -75,6 +77,16 @@ type Platform struct {
 	// MuxWebhookSecret assina as notificações do Mux. Vazio não regista a
 	// rota, pela mesma razão que a da Meta.
 	MuxWebhookSecret string
+
+	/*
+	 * AI é o fornecedor de modelos e as regras de uso.
+	 *
+	 * Provider nil é a IA desligada: as rotas existem e dizem que não está
+	 * disponível, e a app fica com o registo manual. Nunca é uma dependência
+	 * dos motores — só do serviço de inteligência.
+	 */
+	AIProvider core.Provider
+	AIConfig   ai.Config
 }
 
 func Wire(p Platform) Deps {
@@ -258,8 +270,48 @@ func Wire(p Platform) Deps {
 		p.Log.Warn("sem AIRO_JWT_SECRET: as rotas privadas não são registadas")
 	}
 
+	/*
+	 * A inteligência regista-se sempre — ligada ou não, as capacidades
+	 * respondem. As fotografias de refeições são a mesma conta e a mesma
+	 * pasta que o envio já usa: é dela que o reconhecimento lê, e só dela.
+	 */
+	var fotosRefeicoes ai.Photos
+	if p.MealImages != nil {
+		fotosRefeicoes = p.MealImages
+	}
+	aiCfg := p.AIConfig
+	if aiCfg.JobTTL == 0 {
+		aiCfg = mergeAIDefaults(aiCfg)
+	}
+	if svc, err := ai.New(repo.NewAIRepo(tx), repo.NewNutritionRepo(tx), fotosRefeicoes, p.AIProvider, p.Clock, p.Log, aiCfg); err != nil {
+		p.Log.Error("inteligência: catálogo ilegível — rotas não registadas", "error", err)
+	} else {
+		deps.Intelligence = &handlers.Intelligence{Service: svc}
+	}
+
 	deps.Idempotency = middleware.NewMemoryStore(24 * time.Hour)
 	return deps
+}
+
+// mergeAIDefaults completa a configuração da IA com os prazos por omissão,
+// mantendo o que veio de fora.
+func mergeAIDefaults(c ai.Config) ai.Config {
+	d := ai.DefaultConfig()
+	d.Features, d.Prices = c.Features, c.Prices
+	d.Budget.MonthlyMicroUSD = c.Budget.MonthlyMicroUSD
+	if c.Budget.DailyPerUser > 0 {
+		d.Budget.DailyPerUser = c.Budget.DailyPerUser
+	}
+	if c.Budget.AlertRatio > 0 {
+		d.Budget.AlertRatio = c.Budget.AlertRatio
+	}
+	if c.MaxAttempts > 0 {
+		d.MaxAttempts = c.MaxAttempts
+	}
+	if c.ProposalTTL > 0 {
+		d.ProposalTTL = c.ProposalTTL
+	}
+	return d
 }
 
 // logSender escreve o código no registo em vez de o enviar.

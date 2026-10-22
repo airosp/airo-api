@@ -31,6 +31,7 @@ var forbidden = map[string]bool{
 	"code": true, "otp": true, "otp_code": true, "code_hash": true,
 	"password": true, "token": true, "access_token": true, "refresh_token": true,
 	"authorization": true, "pepper": true, "secret": true,
+	"api_key": true, "apikey": true,
 }
 
 func scrub(_ []string, a slog.Attr) slog.Attr {

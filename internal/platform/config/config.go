@@ -16,6 +16,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Env string
@@ -60,6 +61,56 @@ type Config struct {
 	 * que uma fotografia e mais do que um serviço em baixo.
 	 */
 	PexelsKey string
+
+	AI AIConfig
+}
+
+/*
+ * AIConfig liga a camada de inteligência.
+ *
+ * ⚠️ **Desligada por omissão**, e ligar exige quatro coisas além do
+ * interruptor: a chave, o modelo, o tecto do mês e os preços. Sem tecto não há
+ * orçamento a cumprir; sem preços não há como saber quanto se gastou; sem
+ * modelo escolhido não há qualidade medida. Faltando uma, a API sobe na mesma
+ * — com a IA desligada e a dizer porquê.
+ */
+type AIConfig struct {
+	Enabled   bool
+	MealPhoto bool
+	MealText  bool
+
+	APIKey  string
+	Model   string
+	BaseURL string
+	Timeout time.Duration
+
+	MonthlyBudgetUSD float64
+	DailyUserLimit   int
+	MaxConcurrent    int
+
+	PriceInputPerMTokUSD  float64
+	PriceOutputPerMTokUSD float64
+}
+
+// Missing diz o que falta para a IA poder ligar. Vazio é "pode".
+func (a AIConfig) Missing() []string {
+	var out []string
+	if strings.TrimSpace(a.APIKey) == "" {
+		out = append(out, "AIRO_OPENAI_API_KEY")
+	}
+	if strings.TrimSpace(a.Model) == "" {
+		out = append(out, "AIRO_OPENAI_MODEL")
+	}
+	if a.MonthlyBudgetUSD <= 0 {
+		out = append(out, "AIRO_AI_MONTHLY_BUDGET_USD")
+	}
+	if a.PriceInputPerMTokUSD <= 0 {
+		out = append(out, "AIRO_OPENAI_PRICE_INPUT_PER_MTOK_USD")
+	}
+	if a.PriceOutputPerMTokUSD <= 0 {
+		out = append(out, "AIRO_OPENAI_PRICE_OUTPUT_PER_MTOK_USD")
+	}
+	return out
 }
 
 type WhatsAppConfig struct {
@@ -209,6 +260,23 @@ func Load() (Config, error) {
 		 */
 		WebSessionCookie: get("AIRO_WEB_SESSION_COOKIE", "") == "1",
 		PexelsKey:        get("AIRO_PEXELS_API_KEY", ""),
+		AI: AIConfig{
+			Enabled:   ligado(get("AIRO_AI_ENABLED", "")),
+			MealPhoto: ligado(get("AIRO_AI_MEAL_VISION_ENABLED", "")),
+			MealText:  ligado(get("AIRO_AI_MEAL_TEXT_ENABLED", "")),
+			APIKey:    get("AIRO_OPENAI_API_KEY", ""),
+			Model:     get("AIRO_OPENAI_MODEL", ""),
+			BaseURL:   get("AIRO_OPENAI_BASE_URL", ""),
+			// Trinta segundos por tentativa: uma fotografia com um modelo que
+			// raciocina demora mais do que um texto, e a análise corre fora do
+			// pedido — ninguém fica com o ecrã parado à espera deste prazo.
+			Timeout:               time.Duration(inteiro(get("AIRO_OPENAI_TIMEOUT_SECONDS", "30"), 30)) * time.Second,
+			MonthlyBudgetUSD:      decimal(get("AIRO_AI_MONTHLY_BUDGET_USD", "")),
+			DailyUserLimit:        inteiro(get("AIRO_AI_DAILY_USER_LIMIT", "20"), 20),
+			MaxConcurrent:         inteiro(get("AIRO_AI_MAX_CONCURRENT_REQUESTS", "2"), 2),
+			PriceInputPerMTokUSD:  decimal(get("AIRO_OPENAI_PRICE_INPUT_PER_MTOK_USD", "")),
+			PriceOutputPerMTokUSD: decimal(get("AIRO_OPENAI_PRICE_OUTPUT_PER_MTOK_USD", "")),
+		},
 	}
 
 	// Em desenvolvimento, as origens do Expo entram sozinhas: obrigar a
@@ -274,6 +342,23 @@ func splitList(raw string) []string {
 		}
 	}
 	return out
+}
+
+// ligado lê um interruptor. Só "1" e "true" ligam: um valor mal escrito deixa
+// desligado, que é o lado seguro de um engano.
+func ligado(raw string) bool {
+	v := strings.ToLower(strings.TrimSpace(raw))
+	return v == "1" || v == "true"
+}
+
+// decimal lê um número com casas decimais. Ilegível ou negativo é zero — e um
+// zero num preço ou num orçamento deixa a IA desligada, não ilimitada.
+func decimal(raw string) float64 {
+	v, err := strconv.ParseFloat(strings.TrimSpace(strings.ReplaceAll(raw, ",", ".")), 64)
+	if err != nil || v < 0 {
+		return 0
+	}
+	return v
 }
 
 func get(key, fallback string) string {
